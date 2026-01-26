@@ -144,6 +144,13 @@ export default function ChatScreen() {
     []
   );
 
+  const handleSuggestionPress = (suggestion: string) => {
+    setInputText(suggestion);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <EmptyState
@@ -152,13 +159,22 @@ export default function ChatScreen() {
         subtitle="Ask Jarvis anything about your business data"
       >
         <View style={styles.suggestions}>
-          <Pressable style={styles.suggestionChip}>
+          <Pressable 
+            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
+            onPress={() => handleSuggestionPress("Check inventory stock")}
+          >
             <ThemedText style={styles.suggestionText}>Check inventory stock</ThemedText>
           </Pressable>
-          <Pressable style={styles.suggestionChip}>
+          <Pressable 
+            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
+            onPress={() => handleSuggestionPress("Create new invoice")}
+          >
             <ThemedText style={styles.suggestionText}>Create new invoice</ThemedText>
           </Pressable>
-          <Pressable style={styles.suggestionChip}>
+          <Pressable 
+            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
+            onPress={() => handleSuggestionPress("Show sales report")}
+          >
             <ThemedText style={styles.suggestionText}>Show sales report</ThemedText>
           </Pressable>
         </View>
@@ -267,6 +283,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+  },
+  suggestionChipPressed: {
+    backgroundColor: Colors.dark.primary + "20",
+    borderColor: Colors.dark.primary,
   },
   suggestionText: {
     fontSize: 14,

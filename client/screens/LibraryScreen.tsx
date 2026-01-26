@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, FlatList, Pressable } from "react-native";
+import { StyleSheet, View, TextInput, FlatList, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
-import { Card } from "@/components/Card";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
 interface KnowledgeCategory {
@@ -78,8 +78,17 @@ export default function LibraryScreen() {
     }
   };
 
+  const handleCategoryPress = (item: KnowledgeCategory) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const renderCategory = ({ item }: { item: KnowledgeCategory }) => (
-    <Pressable style={styles.categoryCard}>
+    <Pressable 
+      style={({ pressed }) => [styles.categoryCard, pressed && styles.categoryCardPressed]}
+      onPress={() => handleCategoryPress(item)}
+    >
       <View style={styles.categoryIcon}>
         <Feather name={item.icon} size={24} color={Colors.dark.primary} />
       </View>
@@ -186,6 +195,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+  },
+  categoryCardPressed: {
+    backgroundColor: Colors.dark.backgroundSecondary,
   },
   categoryIcon: {
     width: 48,

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, FlatList, Pressable } from "react-native";
+import { StyleSheet, View, FlatList, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
@@ -70,8 +71,17 @@ export default function HistoryScreen() {
     return date.toLocaleDateString();
   };
 
+  const handleItemPress = (item: Conversation) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const renderItem = ({ item }: { item: Conversation }) => (
-    <Pressable style={styles.historyItem}>
+    <Pressable 
+      style={({ pressed }) => [styles.historyItem, pressed && styles.historyItemPressed]}
+      onPress={() => handleItemPress(item)}
+    >
       <View style={styles.itemIcon}>
         <Feather name="message-circle" size={20} color={Colors.dark.primary} />
       </View>
@@ -164,6 +174,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+  },
+  historyItemPressed: {
+    backgroundColor: Colors.dark.backgroundSecondary,
   },
   itemIcon: {
     width: 40,
