@@ -5,8 +5,6 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
-import { GestureDetector, Gesture } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 
 import { AnimatedChatIcon, AnimatedTrashIcon } from "@/components/AnimatedIcons";
 
@@ -35,6 +33,7 @@ export default function HistoryScreen() {
 
   const loadConversations = async () => {
     try {
+      setIsLoading(true);
       const baseUrl = getApiUrl();
       const response = await fetch(`${baseUrl}api/conversations`);
       const data = await response.json();
@@ -49,12 +48,16 @@ export default function HistoryScreen() {
   const deleteConversation = async (id: number) => {
     try {
       const baseUrl = getApiUrl();
-      await fetch(`${baseUrl}api/conversations/${id}`, {
+      const response = await fetch(`${baseUrl}api/conversations/${id}`, {
         method: "DELETE",
       });
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (response.ok || response.status === 204) {
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } else {
+        console.error("Failed to delete conversation:", response.status);
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);
@@ -62,15 +65,26 @@ export default function HistoryScreen() {
   };
 
   const confirmDelete = (item: Conversation) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     if (Platform.OS === "web") {
       if (confirm(t("confirmDelete"))) {
         deleteConversation(item.id);
       }
     } else {
-      Alert.alert(t("confirmDelete"), "", [
-        { text: t("cancel"), style: "cancel" },
-        { text: t("delete"), style: "destructive", onPress: () => deleteConversation(item.id) },
-      ]);
+      Alert.alert(
+        t("delete"),
+        t("confirmDelete"),
+        [
+          { text: t("cancel"), style: "cancel" },
+          { 
+            text: t("delete"), 
+            style: "destructive", 
+            onPress: () => deleteConversation(item.id) 
+          },
+        ]
+      );
     }
   };
 
@@ -94,7 +108,37 @@ export default function HistoryScreen() {
   };
 
   const renderItem = useCallback(({ item }: { item: Conversation }) => (
-    <SwipeableItem item={item} onDelete={confirmDelete} theme={theme} t={t} formatDate={formatDate} onPress={handleItemPress} />
+    <View style={[styles.historyItem, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+      <Pressable 
+        style={styles.itemMain}
+        onPress={() => handleItemPress(item)}
+      >
+        <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
+          <AnimatedChatIcon size={20} color={theme.primary} />
+        </View>
+        <View style={styles.itemContent}>
+          <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
+            {item.title}
+          </ThemedText>
+          <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
+            {formatDate(item.createdAt)}
+          </ThemedText>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
+          <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
+          <ThemedText style={[styles.statusText, { color: theme.success }]}>
+            {t("completed")}
+          </ThemedText>
+        </View>
+      </Pressable>
+      <Pressable 
+        style={[styles.deleteButton, { backgroundColor: theme.error + "15" }]}
+        onPress={() => confirmDelete(item)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <AnimatedTrashIcon size={20} color={theme.error} />
+      </Pressable>
+    </View>
   ), [theme, t]);
 
   const renderEmpty = () => (
@@ -140,82 +184,6 @@ export default function HistoryScreen() {
   );
 }
 
-interface SwipeableItemProps {
-  item: Conversation;
-  onDelete: (item: Conversation) => void;
-  onPress: (item: Conversation) => void;
-  theme: any;
-  t: any;
-  formatDate: (date: string) => string;
-}
-
-function SwipeableItem({ item, onDelete, onPress, theme, t, formatDate }: SwipeableItemProps) {
-  const translateX = useSharedValue(0);
-  const DELETE_THRESHOLD = -80;
-
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
-    .onUpdate((event) => {
-      if (event.translationX < 0) {
-        translateX.value = Math.max(event.translationX, -120);
-      }
-    })
-    .onEnd((event) => {
-      if (event.translationX < DELETE_THRESHOLD) {
-        translateX.value = withSpring(-120);
-      } else {
-        translateX.value = withSpring(0);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  const handleDeletePress = () => {
-    translateX.value = withSpring(0);
-    onDelete(item);
-  };
-
-  return (
-    <View style={styles.swipeContainer}>
-      <Pressable 
-        style={[styles.deleteButton, { backgroundColor: theme.error }]} 
-        onPress={handleDeletePress}
-      >
-        <AnimatedTrashIcon size={24} color="#FFFFFF" />
-        <ThemedText style={styles.deleteButtonText}>{t("delete")}</ThemedText>
-      </Pressable>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={animatedStyle}>
-          <Pressable 
-            style={[styles.historyItem, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
-            onPress={() => onPress(item)}
-          >
-            <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
-              <AnimatedChatIcon size={20} color={theme.primary} />
-            </View>
-            <View style={styles.itemContent}>
-              <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-                {item.title}
-              </ThemedText>
-              <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
-                {formatDate(item.createdAt)}
-              </ThemedText>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
-              <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
-              <ThemedText style={[styles.statusText, { color: theme.success }]}>
-                {t("completed")}
-              </ThemedText>
-            </View>
-          </Pressable>
-        </Animated.View>
-      </GestureDetector>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -237,35 +205,18 @@ const styles = StyleSheet.create({
   emptyListContent: {
     justifyContent: "center",
   },
-  swipeContainer: {
-    position: "relative",
-  },
-  deleteButton: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 120,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.xs,
-    borderRadius: BorderRadius.lg,
-  },
-  deleteButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 14,
-  },
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
     borderWidth: 1,
+    overflow: "hidden",
   },
-  historyItemPressed: {
-    opacity: 0.8,
+  itemMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.lg,
   },
   itemIcon: {
     width: 40,
@@ -302,6 +253,13 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  deleteButton: {
+    width: 48,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.lg,
   },
   separator: {
     height: Spacing.sm,
