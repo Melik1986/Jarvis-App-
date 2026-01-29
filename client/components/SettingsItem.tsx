@@ -5,7 +5,8 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { AnimatedChevronIcon } from "@/components/AnimatedIcons";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 type SettingsIconName =
   | "hardware-chip-outline"
@@ -125,6 +126,8 @@ export function SettingsItem({
   showChevron = true,
   rightElement,
 }: SettingsItemProps) {
+  const { theme } = useTheme();
+
   const handlePress = () => {
     if (onPress) {
       if (Platform.OS !== "web") {
@@ -136,27 +139,31 @@ export function SettingsItem({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.container, pressed && onPress && styles.pressed]}
+      style={({ pressed }) => [
+        styles.container,
+        { backgroundColor: theme.backgroundDefault },
+        pressed && onPress && { backgroundColor: theme.backgroundSecondary },
+      ]}
       onPress={handlePress}
       disabled={!onPress}
     >
-      <View style={styles.iconContainer}>
-        <SettingsIcon name={icon} size={20} color={Colors.dark.primary} />
+      <View style={[styles.iconContainer, { backgroundColor: theme.backgroundSecondary }]}>
+        <SettingsIcon name={icon} size={20} color={theme.primary} />
       </View>
       <View style={styles.content}>
-        <ThemedText style={styles.title}>{title}</ThemedText>
+        <ThemedText style={[styles.title, { color: theme.text }]}>{title}</ThemedText>
         {subtitle ? (
-          <ThemedText style={styles.subtitle} numberOfLines={1}>
+          <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]} numberOfLines={1}>
             {subtitle}
           </ThemedText>
         ) : null}
       </View>
       {value ? (
-        <ThemedText style={styles.value}>{value}</ThemedText>
+        <ThemedText style={[styles.value, { color: theme.textSecondary }]}>{value}</ThemedText>
       ) : null}
       {rightElement}
       {showChevron && onPress ? (
-        <AnimatedChevronIcon size={20} color={Colors.dark.textTertiary} />
+        <AnimatedChevronIcon size={20} color={theme.textTertiary} />
       ) : null}
     </Pressable>
   );
@@ -166,19 +173,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  },
-  pressed: {
-    backgroundColor: Colors.dark.backgroundSecondary,
   },
   iconContainer: {
     width: 36,
     height: 36,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.dark.backgroundSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -192,12 +194,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: Colors.dark.textSecondary,
     marginTop: 2,
   },
   value: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginRight: Spacing.sm,
   },
 });

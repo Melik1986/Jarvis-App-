@@ -8,7 +8,8 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { ThemedText } from "@/components/ThemedText";
-import { Colors, BorderRadius, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { BorderRadius, Spacing } from "@/constants/theme";
 
 interface ButtonProps {
   onPress?: () => void;
@@ -34,6 +35,7 @@ export function Button({
   disabled = false,
   variant = "primary",
 }: ButtonProps) {
+  const { theme } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -53,25 +55,25 @@ export function Button({
   };
 
   const getBackgroundColor = () => {
-    if (disabled) return Colors.dark.textTertiary;
+    if (disabled) return theme.textTertiary;
     switch (variant) {
       case "secondary":
-        return Colors.dark.backgroundSecondary;
+        return theme.backgroundSecondary;
       case "outline":
         return "transparent";
       default:
-        return Colors.dark.primary;
+        return theme.primary;
     }
   };
 
   const getTextColor = () => {
     switch (variant) {
       case "secondary":
-        return Colors.dark.text;
+        return theme.text;
       case "outline":
-        return Colors.dark.primary;
+        return theme.primary;
       default:
-        return Colors.dark.buttonText;
+        return theme.buttonText;
     }
   };
 
@@ -87,7 +89,7 @@ export function Button({
           backgroundColor: getBackgroundColor(),
           opacity: disabled ? 0.5 : 1,
           borderWidth: variant === "outline" ? 1 : 0,
-          borderColor: Colors.dark.primary,
+          borderColor: theme.primary,
         },
         style,
         animatedStyle,

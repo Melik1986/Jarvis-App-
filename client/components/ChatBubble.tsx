@@ -1,7 +1,8 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 interface ChatBubbleProps {
   content: string;
@@ -10,10 +11,19 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ content, isUser, isStreaming }: ChatBubbleProps) {
+  const { theme } = useTheme();
+
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
-      <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        <ThemedText style={[styles.text, isUser && styles.userText]}>
+      <View
+        style={[
+          styles.bubble,
+          isUser
+            ? [styles.userBubble, { backgroundColor: theme.primary }]
+            : [styles.assistantBubble, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }],
+        ]}
+      >
+        <ThemedText style={[styles.text, isUser && { color: theme.buttonText }]}>
           {content}
           {isStreaming ? "▌" : ""}
         </ThemedText>
@@ -40,20 +50,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   userBubble: {
-    backgroundColor: Colors.dark.primary,
     borderBottomRightRadius: Spacing.xs,
   },
   assistantBubble: {
-    backgroundColor: Colors.dark.backgroundSecondary,
     borderBottomLeftRadius: Spacing.xs,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
   },
   text: {
     fontSize: 16,
     lineHeight: 24,
-  },
-  userText: {
-    color: Colors.dark.buttonText,
   },
 });

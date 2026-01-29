@@ -1,7 +1,8 @@
 import React from "react";
 import { StyleSheet, View, Image, ImageSourcePropType } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
-import { Colors, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing } from "@/constants/theme";
 
 interface EmptyStateProps {
   image: ImageSourcePropType;
@@ -11,6 +12,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ image, title, subtitle, children }: EmptyStateProps) {
+  const { theme } = useTheme();
+
   return (
     <View style={styles.container}>
       <Image source={image} style={styles.image} resizeMode="contain" />
@@ -18,7 +21,7 @@ export function EmptyState({ image, title, subtitle, children }: EmptyStateProps
         {title}
       </ThemedText>
       {subtitle ? (
-        <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
+        <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</ThemedText>
       ) : null}
       {children}
     </View>
@@ -44,7 +47,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     textAlign: "center",
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.lg,
   },
 });
