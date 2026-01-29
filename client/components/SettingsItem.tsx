@@ -1,11 +1,11 @@
 import React from "react";
 import { StyleSheet, Pressable, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
 interface SettingsItemProps {
-  icon: keyof typeof Feather.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle?: string;
   value?: string;
@@ -33,7 +33,7 @@ export function SettingsItem({
       disabled={!onPress}
     >
       <View style={styles.iconContainer}>
-        <Feather name={icon} size={20} color={Colors.dark.primary} />
+        <Ionicons name={icon} size={20} color={Colors.dark.primary} />
       </View>
       <View style={styles.content}>
         <ThemedText style={styles.title}>{title}</ThemedText>
@@ -46,7 +46,7 @@ export function SettingsItem({
       ) : null}
       {rightElement}
       {showChevron && onPress ? (
-        <Feather name="chevron-right" size={20} color={Colors.dark.textTertiary} />
+        <Ionicons name="chevron-forward" size={20} color={Colors.dark.textTertiary} />
       ) : null}
     </Pressable>
   );

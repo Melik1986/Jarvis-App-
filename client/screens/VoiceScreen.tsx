@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, Pressable, Platform } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -11,7 +11,9 @@ import { Button } from "@/components/Button";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
-const voices = [
+type VoiceType = "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
+
+const voices: { id: VoiceType; name: string; description: string }[] = [
   { id: "alloy", name: "Alloy", description: "Neutral and balanced" },
   { id: "echo", name: "Echo", description: "Deep and resonant" },
   { id: "fable", name: "Fable", description: "Warm and expressive" },
@@ -26,9 +28,9 @@ export default function VoiceScreen() {
   const navigation = useNavigation();
 
   const { voice, setVoice } = useSettingsStore();
-  const [selectedVoice, setSelectedVoice] = useState(voice);
+  const [selectedVoice, setSelectedVoice] = useState<VoiceType>(voice as VoiceType);
 
-  const handleSelectVoice = (voiceId: string) => {
+  const handleSelectVoice = (voiceId: VoiceType) => {
     setSelectedVoice(voiceId);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,7 +66,7 @@ export default function VoiceScreen() {
               onPress={() => handleSelectVoice(v.id)}
             >
               <View style={styles.voiceIcon}>
-                <Feather name="volume-2" size={20} color={Colors.dark.primary} />
+                <Ionicons name="volume-medium" size={20} color={Colors.dark.primary} />
               </View>
               <View style={styles.voiceContent}>
                 <ThemedText style={styles.voiceName}>{v.name}</ThemedText>
@@ -72,7 +74,7 @@ export default function VoiceScreen() {
               </View>
               {selectedVoice === v.id ? (
                 <View style={styles.checkCircle}>
-                  <Feather name="check" size={16} color={Colors.dark.buttonText} />
+                  <Ionicons name="checkmark" size={16} color={Colors.dark.buttonText} />
                 </View>
               ) : (
                 <View style={styles.emptyCircle} />

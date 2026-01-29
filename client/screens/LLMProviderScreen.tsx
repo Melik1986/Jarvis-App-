@@ -3,7 +3,7 @@ import { StyleSheet, View, TextInput, ScrollView, Pressable } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -12,12 +12,12 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
 
-const providers: { id: LLMProvider; name: string; description: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { id: "replit", name: "Replit AI", description: "Built-in AI (recommended)", icon: "zap" },
-  { id: "openai", name: "OpenAI", description: "GPT-4, GPT-3.5", icon: "cpu" },
+const providers: { id: LLMProvider; name: string; description: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: "replit", name: "Replit AI", description: "Built-in AI (recommended)", icon: "flash" },
+  { id: "openai", name: "OpenAI", description: "GPT-4, GPT-3.5", icon: "hardware-chip" },
   { id: "ollama", name: "Ollama", description: "Local models (free)", icon: "server" },
-  { id: "groq", name: "Groq", description: "Ultra-fast inference", icon: "activity" },
-  { id: "custom", name: "Custom", description: "OpenAI-compatible API", icon: "code" },
+  { id: "groq", name: "Groq", description: "Ultra-fast inference", icon: "speedometer" },
+  { id: "custom", name: "Custom", description: "OpenAI-compatible API", icon: "code-slash" },
 ];
 
 export default function LLMProviderScreen() {
@@ -68,7 +68,7 @@ export default function LLMProviderScreen() {
               onPress={() => setSelectedProvider(provider.id)}
             >
               <View style={styles.providerIcon}>
-                <Feather name={provider.icon} size={20} color={Colors.dark.primary} />
+                <Ionicons name={provider.icon} size={20} color={Colors.dark.primary} />
               </View>
               <View style={styles.providerContent}>
                 <ThemedText style={styles.providerName}>{provider.name}</ThemedText>
@@ -78,7 +78,7 @@ export default function LLMProviderScreen() {
               </View>
               {selectedProvider === provider.id ? (
                 <View style={styles.checkCircle}>
-                  <Feather name="check" size={16} color={Colors.dark.buttonText} />
+                  <Ionicons name="checkmark" size={16} color={Colors.dark.buttonText} />
                 </View>
               ) : (
                 <View style={styles.emptyCircle} />

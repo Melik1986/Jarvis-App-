@@ -14,7 +14,7 @@ interface KnowledgeCategory {
   id: string;
   title: string;
   description: string;
-  icon: keyof typeof Feather.glyphMap;
+  icon: keyof typeof Ionicons.glyphMap;
   articleCount: number;
 }
 
@@ -23,35 +23,35 @@ const categories: KnowledgeCategory[] = [
     id: "1",
     title: "Getting Started",
     description: "Learn the basics of using Jarvis",
-    icon: "book-open",
+    icon: "book-outline",
     articleCount: 5,
   },
   {
     id: "2",
     title: "Voice Commands",
     description: "Master voice interactions",
-    icon: "mic",
+    icon: "mic-outline",
     articleCount: 12,
   },
   {
     id: "3",
     title: "Document Scanning",
     description: "Scan invoices and receipts",
-    icon: "camera",
+    icon: "camera-outline",
     articleCount: 8,
   },
   {
     id: "4",
     title: "ERP Integration",
     description: "Connect to your business systems",
-    icon: "link",
+    icon: "link-outline",
     articleCount: 15,
   },
   {
     id: "5",
     title: "Reports & Analytics",
     description: "Generate business insights",
-    icon: "bar-chart-2",
+    icon: "bar-chart-outline",
     articleCount: 10,
   },
 ];
@@ -90,7 +90,7 @@ export default function LibraryScreen() {
       onPress={() => handleCategoryPress(item)}
     >
       <View style={styles.categoryIcon}>
-        <Feather name={item.icon} size={24} color={Colors.dark.primary} />
+        <Ionicons name={item.icon} size={24} color={Colors.dark.primary} />
       </View>
       <View style={styles.categoryContent}>
         <ThemedText type="h4" style={styles.categoryTitle}>
@@ -99,27 +99,27 @@ export default function LibraryScreen() {
         <ThemedText style={styles.categoryDescription}>
           {item.description}
         </ThemedText>
-        <ThemedText style={styles.articleCount}>
-          {item.articleCount} articles
-        </ThemedText>
+        <View style={styles.articleCount}>
+          <Ionicons name="document-text-outline" size={14} color={Colors.dark.textTertiary} />
+          <ThemedText style={styles.articleCountText}>
+            {item.articleCount} articles
+          </ThemedText>
+        </View>
       </View>
-      <Feather name="chevron-right" size={20} color={Colors.dark.textTertiary} />
+      <Ionicons name="chevron-forward" size={20} color={Colors.dark.textTertiary} />
     </Pressable>
-  );
-
-  const renderEmpty = () => (
-    <EmptyState
-      image={require("../../assets/images/empty-library.png")}
-      title="No results found"
-      subtitle="Try a different search term"
-    />
   );
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}>
-      <View style={[styles.searchContainer, { marginTop: headerHeight + Spacing.lg }]}>
-        <View style={styles.searchInputContainer}>
-          <Feather name="search" size={20} color={Colors.dark.textTertiary} />
+      <View
+        style={[
+          styles.searchContainer,
+          { marginTop: headerHeight + Spacing.lg },
+        ]}
+      >
+        <View style={styles.searchInputWrapper}>
+          <Ionicons name="search" size={20} color={Colors.dark.textTertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search knowledge base..."
@@ -127,27 +127,30 @@ export default function LibraryScreen() {
             value={searchQuery}
             onChangeText={handleSearch}
           />
-          {searchQuery ? (
+          {searchQuery.length > 0 ? (
             <Pressable onPress={() => handleSearch("")}>
-              <Feather name="x" size={20} color={Colors.dark.textTertiary} />
+              <Ionicons name="close-circle" size={20} color={Colors.dark.textTertiary} />
             </Pressable>
           ) : null}
         </View>
       </View>
 
       <FlatList
-        style={styles.list}
+        data={filteredCategories}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCategory}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: tabBarHeight + Spacing.xl },
-          filteredCategories.length === 0 && styles.emptyListContent,
         ]}
-        data={filteredCategories}
-        renderItem={renderCategory}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={renderEmpty}
-        scrollIndicatorInsets={{ bottom: insets.bottom }}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            title="No results found"
+            subtitle="Try a different search term"
+            image={require("../../assets/images/empty-library.png")}
+          />
+        }
       />
     </View>
   );
@@ -161,31 +164,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
   },
-  searchInputContainer: {
+  searchInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: Colors.dark.text,
-  },
-  list: {
-    flex: 1,
+    paddingVertical: Platform.select({ ios: Spacing.sm, android: Spacing.xs }),
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    flexGrow: 1,
-  },
-  emptyListContent: {
-    justifyContent: "center",
   },
   categoryCard: {
     flexDirection: "row",
@@ -193,8 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    marginBottom: Spacing.md,
   },
   categoryCardPressed: {
     backgroundColor: Colors.dark.backgroundSecondary,
@@ -220,10 +214,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   articleCount: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  articleCountText: {
     fontSize: 12,
     color: Colors.dark.textTertiary,
-  },
-  separator: {
-    height: Spacing.sm,
   },
 });

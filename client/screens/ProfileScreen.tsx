@@ -107,19 +107,19 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>AI Settings</ThemedText>
         <SettingsItem
-          icon="cpu"
+          icon="hardware-chip-outline"
           title="LLM Provider"
           value={getLLMProviderLabel()}
           onPress={() => handleNavigate("LLMProvider")}
         />
         <SettingsItem
-          icon="terminal"
+          icon="terminal-outline"
           title="Model"
           value={llm.modelName || "gpt-5.1"}
           onPress={() => handleNavigate("LLMProvider")}
         />
         <SettingsItem
-          icon="volume-2"
+          icon="volume-medium-outline"
           title="Voice"
           value={voice.charAt(0).toUpperCase() + voice.slice(1)}
           onPress={() => handleNavigate("Voice")}
@@ -129,19 +129,19 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>ERP Connection</ThemedText>
         <SettingsItem
-          icon="link"
+          icon="link-outline"
           title="System URL"
           subtitle={erp.url || "Not configured"}
           onPress={() => handleNavigate("ERPSettings")}
         />
         <SettingsItem
-          icon="code"
+          icon="code-slash-outline"
           title="API Type"
           value={erp.apiType.toUpperCase()}
           onPress={() => handleNavigate("ERPSettings")}
         />
         <SettingsItem
-          icon="file-text"
+          icon="document-text-outline"
           title="API Specification"
           subtitle={erp.specUrl || "Not configured"}
           onPress={() => handleNavigate("ERPSettings")}
@@ -151,13 +151,13 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Preferences</ThemedText>
         <SettingsItem
-          icon="globe"
+          icon="globe-outline"
           title="Language"
           value={languageNames[language] || language}
           onPress={() => handleNavigate("Language")}
         />
         <SettingsItem
-          icon="moon"
+          icon="moon-outline"
           title="Theme"
           value="Dark"
           showChevron={false}
@@ -167,18 +167,18 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>About</ThemedText>
         <SettingsItem
-          icon="info"
+          icon="information-circle-outline"
           title="Version"
           value="1.0.0"
           showChevron={false}
         />
         <SettingsItem
-          icon="help-circle"
+          icon="help-circle-outline"
           title="Help & Support"
           onPress={handleOpenHelp}
         />
         <SettingsItem
-          icon="shield"
+          icon="shield-outline"
           title="Privacy Policy"
           onPress={handleOpenPrivacy}
         />
