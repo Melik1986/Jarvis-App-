@@ -9,26 +9,30 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedVolumeIcon, AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 type VoiceType = "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
-
-const voices: { id: VoiceType; name: string; description: string }[] = [
-  { id: "alloy", name: "Alloy", description: "Neutral and balanced" },
-  { id: "echo", name: "Echo", description: "Deep and resonant" },
-  { id: "fable", name: "Fable", description: "Warm and expressive" },
-  { id: "onyx", name: "Onyx", description: "Authoritative and clear" },
-  { id: "nova", name: "Nova", description: "Soft and friendly" },
-  { id: "shimmer", name: "Shimmer", description: "Light and energetic" },
-];
 
 export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const { voice, setVoice } = useSettingsStore();
   const [selectedVoice, setSelectedVoice] = useState<VoiceType>(voice as VoiceType);
+
+  const voices: { id: VoiceType; name: string; descriptionKey: string }[] = [
+    { id: "alloy", name: "Alloy", descriptionKey: "neutralBalanced" },
+    { id: "echo", name: "Echo", descriptionKey: "deepResonant" },
+    { id: "fable", name: "Fable", descriptionKey: "warmExpressive" },
+    { id: "onyx", name: "Onyx", descriptionKey: "authoritativeClear" },
+    { id: "nova", name: "Nova", descriptionKey: "softFriendly" },
+    { id: "shimmer", name: "Shimmer", descriptionKey: "lightEnergetic" },
+  ];
 
   const handleSelectVoice = (voiceId: VoiceType) => {
     setSelectedVoice(voiceId);
@@ -44,15 +48,15 @@ export default function VoiceScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}
+      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
         { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
       ]}
     >
       <View style={styles.section}>
-        <ThemedText style={styles.sectionDescription}>
-          Choose the voice for AI responses.
+        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+          {t("chooseVoice")}
         </ThemedText>
 
         <View style={styles.voiceList}>
@@ -61,23 +65,26 @@ export default function VoiceScreen() {
               key={v.id}
               style={[
                 styles.voiceItem,
-                selectedVoice === v.id && styles.voiceItemSelected,
+                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
+                selectedVoice === v.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
               ]}
               onPress={() => handleSelectVoice(v.id)}
             >
-              <View style={styles.voiceIcon}>
-                <AnimatedVolumeIcon size={20} color={Colors.dark.primary} />
+              <View style={[styles.voiceIcon, { backgroundColor: theme.backgroundSecondary }]}>
+                <AnimatedVolumeIcon size={20} color={theme.primary} />
               </View>
               <View style={styles.voiceContent}>
-                <ThemedText style={styles.voiceName}>{v.name}</ThemedText>
-                <ThemedText style={styles.voiceDescription}>{v.description}</ThemedText>
+                <ThemedText style={[styles.voiceName, { color: theme.text }]}>{v.name}</ThemedText>
+                <ThemedText style={[styles.voiceDescription, { color: theme.textSecondary }]}>
+                  {t(v.descriptionKey as any)}
+                </ThemedText>
               </View>
               {selectedVoice === v.id ? (
-                <View style={styles.checkCircle}>
-                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
+                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                  <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={styles.emptyCircle} />
+                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
               )}
             </Pressable>
           ))}
@@ -85,7 +92,7 @@ export default function VoiceScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave}>Save Voice</Button>
+        <Button onPress={handleSave}>{t("saveVoice")}</Button>
       </View>
     </ScrollView>
   );
@@ -103,7 +110,6 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.lg,
   },
   voiceList: {
@@ -112,21 +118,14 @@ const styles = StyleSheet.create({
   voiceItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  voiceItemSelected: {
-    borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primary + "10",
   },
   voiceIcon: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.dark.backgroundSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -141,13 +140,11 @@ const styles = StyleSheet.create({
   },
   voiceDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
   },
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.dark.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -156,7 +153,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.textTertiary,
   },
   buttonContainer: {
     marginTop: Spacing.lg,

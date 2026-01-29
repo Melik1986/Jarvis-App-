@@ -5,14 +5,16 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 
-import { AnimatedSendIcon } from "@/components/AnimatedIcons";
+import { AnimatedSendIcon, AnimatedMicIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
 import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 
 export default function ChatScreen() {
@@ -20,6 +22,8 @@ export default function ChatScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const flatListRef = useRef<FlatList>(null);
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [inputText, setInputText] = React.useState("");
   const [isRecording, setIsRecording] = React.useState(false);
@@ -154,32 +158,53 @@ export default function ChatScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <EmptyState
-        image={require("../../assets/images/empty-chat.png")}
-        title="Start a conversation"
-        subtitle="Ask Jarvis anything about your business data"
-      >
-        <View style={styles.suggestions}>
-          <Pressable 
-            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
-            onPress={() => handleSuggestionPress("Check inventory stock")}
-          >
-            <ThemedText style={styles.suggestionText}>Check inventory stock</ThemedText>
-          </Pressable>
-          <Pressable 
-            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
-            onPress={() => handleSuggestionPress("Create new invoice")}
-          >
-            <ThemedText style={styles.suggestionText}>Create new invoice</ThemedText>
-          </Pressable>
-          <Pressable 
-            style={({ pressed }) => [styles.suggestionChip, pressed && styles.suggestionChipPressed]}
-            onPress={() => handleSuggestionPress("Show sales report")}
-          >
-            <ThemedText style={styles.suggestionText}>Show sales report</ThemedText>
-          </Pressable>
-        </View>
-      </EmptyState>
+      <View style={styles.micIconContainer}>
+        <AnimatedMicIcon size={48} color={theme.primary} />
+      </View>
+      <ThemedText type="h4" style={[styles.emptyTitle, { color: theme.text }]}>
+        {t("startConversation")}
+      </ThemedText>
+      <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+        {t("askJarvis")}
+      </ThemedText>
+      <View style={styles.suggestions}>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.suggestionChip, 
+            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+          ]}
+          onPress={() => handleSuggestionPress(t("checkInventory"))}
+        >
+          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            {t("checkInventory")}
+          </ThemedText>
+        </Pressable>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.suggestionChip,
+            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+          ]}
+          onPress={() => handleSuggestionPress(t("createInvoice"))}
+        >
+          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            {t("createInvoice")}
+          </ThemedText>
+        </Pressable>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.suggestionChip,
+            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
+            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+          ]}
+          onPress={() => handleSuggestionPress(t("showSalesReport"))}
+        >
+          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            {t("showSalesReport")}
+          </ThemedText>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -188,7 +213,7 @@ export default function ChatScreen() {
     : messages;
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}>
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <FlatList
         ref={flatListRef}
         style={styles.list}
@@ -212,15 +237,15 @@ export default function ChatScreen() {
       <View
         style={[
           styles.inputContainer,
-          { paddingBottom: tabBarHeight + Spacing.lg },
+          { paddingBottom: tabBarHeight + Spacing.lg, backgroundColor: theme.backgroundRoot },
         ]}
       >
         <View style={styles.inputRow}>
-          <View style={styles.textInputContainer}>
+          <View style={[styles.textInputContainer, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
             <TextInput
-              style={styles.textInput}
-              placeholder="Message Jarvis..."
-              placeholderTextColor={Colors.dark.textTertiary}
+              style={[styles.textInput, { color: theme.text }]}
+              placeholder={t("messageJarvis")}
+              placeholderTextColor={theme.textTertiary}
               value={inputText}
               onChangeText={setInputText}
               onSubmitEditing={sendMessage}
@@ -235,7 +260,7 @@ export default function ChatScreen() {
             >
               <AnimatedSendIcon
                 size={20}
-                color={inputText.trim() ? Colors.dark.primary : Colors.dark.textTertiary}
+                color={inputText.trim() ? theme.primary : theme.textTertiary}
               />
             </Pressable>
           </View>
@@ -268,6 +293,19 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: Spacing["3xl"],
+  },
+  micIconContainer: {
+    marginBottom: Spacing["2xl"],
+  },
+  emptyTitle: {
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  emptySubtitle: {
+    textAlign: "center",
+    marginBottom: Spacing.lg,
   },
   suggestions: {
     flexDirection: "row",
@@ -279,18 +317,11 @@ const styles = StyleSheet.create({
   suggestionChip: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.dark.backgroundSecondary,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  suggestionChipPressed: {
-    backgroundColor: Colors.dark.primary + "20",
-    borderColor: Colors.dark.primary,
   },
   suggestionText: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
   },
   inputContainer: {
     position: "absolute",
@@ -299,7 +330,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
-    backgroundColor: Colors.dark.backgroundRoot,
   },
   inputRow: {
     flexDirection: "row",
@@ -310,17 +340,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "flex-end",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: Colors.dark.text,
     maxHeight: 100,
     paddingVertical: Spacing.xs,
   },

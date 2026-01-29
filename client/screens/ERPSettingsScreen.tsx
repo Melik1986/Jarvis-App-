@@ -1,27 +1,26 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, ScrollView, Pressable } from "react-native";
+import { StyleSheet, View, TextInput, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 type APIType = "odata" | "rest" | "graphql";
-
-const apiTypes: { id: APIType; name: string; description: string }[] = [
-  { id: "odata", name: "OData", description: "1C, SAP Business One" },
-  { id: "rest", name: "REST", description: "Most modern APIs" },
-  { id: "graphql", name: "GraphQL", description: "Flexible queries" },
-];
 
 export default function ERPSettingsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const { erp, setERPSettings } = useSettingsStore();
 
@@ -29,6 +28,12 @@ export default function ERPSettingsScreen() {
   const [erpApiKey, setErpApiKey] = useState(erp.apiKey);
   const [specUrl, setSpecUrl] = useState(erp.specUrl);
   const [apiType, setApiType] = useState<APIType>(erp.apiType as APIType);
+
+  const apiTypes: { id: APIType; name: string; descriptionKey: string }[] = [
+    { id: "odata", name: t("odata"), descriptionKey: "odataDesc" },
+    { id: "rest", name: t("rest"), descriptionKey: "restDesc" },
+    { id: "graphql", name: t("graphql"), descriptionKey: "graphqlDesc" },
+  ];
 
   const handleSave = () => {
     setERPSettings({
@@ -41,24 +46,25 @@ export default function ERPSettingsScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
         { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
       ]}
+      bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText style={styles.sectionDescription}>
-          Connect to your business system using OpenAPI specification.
+        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+          {t("connectERP")}
         </ThemedText>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>System URL</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("systemUrl")}</ThemedText>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
             placeholder="https://your-erp.com/api"
-            placeholderTextColor={Colors.dark.textTertiary}
+            placeholderTextColor={theme.textTertiary}
             value={erpUrl}
             onChangeText={setErpUrl}
             autoCapitalize="none"
@@ -67,11 +73,11 @@ export default function ERPSettingsScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>API Key</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("apiKey")}</ThemedText>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
             placeholder="Your ERP API key"
-            placeholderTextColor={Colors.dark.textTertiary}
+            placeholderTextColor={theme.textTertiary}
             value={erpApiKey}
             onChangeText={setErpApiKey}
             secureTextEntry
@@ -81,11 +87,11 @@ export default function ERPSettingsScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>OpenAPI Spec URL</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("openApiSpecUrl")}</ThemedText>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
             placeholder="https://your-erp.com/swagger.json"
-            placeholderTextColor={Colors.dark.textTertiary}
+            placeholderTextColor={theme.textTertiary}
             value={specUrl}
             onChangeText={setSpecUrl}
             autoCapitalize="none"
@@ -95,7 +101,7 @@ export default function ERPSettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>API Type</ThemedText>
+        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("apiType")}</ThemedText>
 
         <View style={styles.typeList}>
           {apiTypes.map((type) => (
@@ -103,20 +109,23 @@ export default function ERPSettingsScreen() {
               key={type.id}
               style={[
                 styles.typeItem,
-                apiType === type.id && styles.typeItemSelected,
+                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
+                apiType === type.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
               ]}
               onPress={() => setApiType(type.id)}
             >
               <View style={styles.typeContent}>
-                <ThemedText style={styles.typeName}>{type.name}</ThemedText>
-                <ThemedText style={styles.typeDescription}>{type.description}</ThemedText>
+                <ThemedText style={[styles.typeName, { color: theme.text }]}>{type.name}</ThemedText>
+                <ThemedText style={[styles.typeDescription, { color: theme.textSecondary }]}>
+                  {t(type.descriptionKey as any)}
+                </ThemedText>
               </View>
               {apiType === type.id ? (
-                <View style={styles.checkCircle}>
-                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
+                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                  <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={styles.emptyCircle} />
+                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
               )}
             </Pressable>
           ))}
@@ -124,9 +133,9 @@ export default function ERPSettingsScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave}>Save Settings</Button>
+        <Button onPress={handleSave}>{t("saveSettings")}</Button>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -143,14 +152,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: Colors.dark.textTertiary,
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: Spacing.lg,
   },
   sectionDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.lg,
   },
   inputGroup: {
@@ -162,14 +169,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   textInput: {
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     fontSize: 16,
-    color: Colors.dark.text,
   },
   typeList: {
     gap: Spacing.sm,
@@ -177,15 +181,9 @@ const styles = StyleSheet.create({
   typeItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  typeItemSelected: {
-    borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primary + "10",
   },
   typeContent: {
     flex: 1,
@@ -197,13 +195,11 @@ const styles = StyleSheet.create({
   },
   typeDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
   },
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.dark.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -212,7 +208,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.textTertiary,
   },
   buttonContainer: {
     marginTop: Spacing.lg,

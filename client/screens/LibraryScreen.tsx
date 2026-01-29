@@ -3,13 +3,15 @@ import { StyleSheet, View, TextInput, FlatList, Pressable, Platform } from "reac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import Svg, { Path, Circle, Rect } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 
 import { AnimatedSearchIcon, AnimatedChevronIcon, AnimatedDocumentIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 type CategoryIconName = "book" | "mic" | "camera" | "link" | "chart";
 
@@ -71,11 +73,11 @@ function CategoryIcon({ name, size = 24, color }: { name: CategoryIconName; size
   }
 }
 
-function CloseIcon({ size = 20, color }: { size?: number; color: string }) {
+function CloseIcon({ size = 20, color, backgroundColor }: { size?: number; color: string; backgroundColor: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="10" fill={color} />
-      <Path d="M15 9l-6 6M9 9l6 6" stroke={Colors.dark.backgroundRoot} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M15 9l-6 6M9 9l6 6" stroke={backgroundColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -122,6 +124,8 @@ export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCategories, setFilteredCategories] = useState(categories);
@@ -148,50 +152,54 @@ export default function LibraryScreen() {
 
   const renderCategory = ({ item }: { item: KnowledgeCategory }) => (
     <Pressable 
-      style={({ pressed }) => [styles.categoryCard, pressed && styles.categoryCardPressed]}
+      style={({ pressed }) => [
+        styles.categoryCard, 
+        { backgroundColor: theme.backgroundDefault },
+        pressed && { backgroundColor: theme.backgroundSecondary }
+      ]}
       onPress={() => handleCategoryPress(item)}
     >
-      <View style={styles.categoryIcon}>
-        <CategoryIcon name={item.icon} size={24} color={Colors.dark.primary} />
+      <View style={[styles.categoryIcon, { backgroundColor: theme.backgroundSecondary }]}>
+        <CategoryIcon name={item.icon} size={24} color={theme.primary} />
       </View>
       <View style={styles.categoryContent}>
-        <ThemedText type="h4" style={styles.categoryTitle}>
+        <ThemedText type="h4" style={[styles.categoryTitle, { color: theme.text }]}>
           {item.title}
         </ThemedText>
-        <ThemedText style={styles.categoryDescription}>
+        <ThemedText style={[styles.categoryDescription, { color: theme.textSecondary }]}>
           {item.description}
         </ThemedText>
         <View style={styles.articleCount}>
-          <AnimatedDocumentIcon size={14} color={Colors.dark.textTertiary} />
-          <ThemedText style={styles.articleCountText}>
-            {item.articleCount} articles
+          <AnimatedDocumentIcon size={14} color={theme.textTertiary} />
+          <ThemedText style={[styles.articleCountText, { color: theme.textTertiary }]}>
+            {item.articleCount} {t("documents").toLowerCase()}
           </ThemedText>
         </View>
       </View>
-      <AnimatedChevronIcon size={20} color={Colors.dark.textTertiary} />
+      <AnimatedChevronIcon size={20} color={theme.textTertiary} />
     </Pressable>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}>
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <View
         style={[
           styles.searchContainer,
           { marginTop: headerHeight + Spacing.lg },
         ]}
       >
-        <View style={styles.searchInputWrapper}>
-          <AnimatedSearchIcon size={20} color={Colors.dark.textTertiary} />
+        <View style={[styles.searchInputWrapper, { backgroundColor: theme.backgroundDefault }]}>
+          <AnimatedSearchIcon size={20} color={theme.textTertiary} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search knowledge base..."
-            placeholderTextColor={Colors.dark.textTertiary}
+            style={[styles.searchInput, { color: theme.text }]}
+            placeholder={`${t("knowledgeBase")}...`}
+            placeholderTextColor={theme.textTertiary}
             value={searchQuery}
             onChangeText={handleSearch}
           />
           {searchQuery.length > 0 ? (
             <Pressable onPress={() => handleSearch("")}>
-              <CloseIcon size={20} color={Colors.dark.textTertiary} />
+              <CloseIcon size={20} color={theme.textTertiary} backgroundColor={theme.backgroundRoot} />
             </Pressable>
           ) : null}
         </View>
@@ -208,8 +216,8 @@ export default function LibraryScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <EmptyState
-            title="No results found"
-            subtitle="Try a different search term"
+            title={t("emptyLibrary")}
+            subtitle={t("uploadDocsHint")}
             image={require("../../assets/images/empty-library.png")}
           />
         }
@@ -229,7 +237,6 @@ const styles = StyleSheet.create({
   searchInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -238,7 +245,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: Colors.dark.text,
     paddingVertical: Platform.select({ ios: Spacing.sm, android: Spacing.xs }),
   },
   listContent: {
@@ -247,19 +253,14 @@ const styles = StyleSheet.create({
   categoryCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-  },
-  categoryCardPressed: {
-    backgroundColor: Colors.dark.backgroundSecondary,
   },
   categoryIcon: {
     width: 48,
     height: 48,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.dark.backgroundSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -272,7 +273,6 @@ const styles = StyleSheet.create({
   },
   categoryDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.xs,
   },
   articleCount: {
@@ -282,6 +282,5 @@ const styles = StyleSheet.create({
   },
   articleCountText: {
     fontSize: 12,
-    color: Colors.dark.textTertiary,
   },
 });

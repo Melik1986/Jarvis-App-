@@ -612,3 +612,34 @@ export function AnimatedCloseIcon({ size = 24, color = "#fff", strokeWidth = 2 }
     </Svg>
   );
 }
+
+export function AnimatedSunIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="4" stroke={color} strokeWidth={strokeWidth} />
+      <Path d="M12 2v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="M12 20v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="m4.93 4.93 1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="m17.66 17.66 1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="M2 12h2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="M20 12h2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="m6.34 17.66-1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="m19.07 4.93-1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function AnimatedMoonIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+

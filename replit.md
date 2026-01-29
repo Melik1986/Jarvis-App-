@@ -84,3 +84,39 @@ Preferred communication style: Simple, everyday language.
 - **Metro**: React Native bundler with custom configuration for Hermes
 - **tsx**: TypeScript execution for development server
 - **Prettier + ESLint**: Code formatting and linting with Expo config
+
+## Recent Changes
+
+### Internationalization (i18n)
+- Full localization system with 6 languages: Russian (ru), English (en), German (de), French (es), Spanish (es), Chinese (zh)
+- Translation system in `client/i18n/translations.ts` with type-safe TranslationKey
+- `useTranslation` hook for accessing translations in components
+- Language selection screen with visual checkmarks
+
+### Theming
+- Light and dark theme support with complete color palette in `client/constants/theme.ts`
+- `useTheme` hook for dynamic theme switching
+- Theme toggle in Profile screen with sun/moon icons
+- Theme state persisted in settingsStore via AsyncStorage
+
+### LLM Provider Settings
+- Model picker with dropdown showing provider-specific models:
+  - Replit AI: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, claude-3-haiku
+  - OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo, o1-preview, o1-mini
+  - Ollama: llama3.2, llama3.1, mistral, codellama, phi3, gemma2
+  - Groq: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768
+  - Custom: OpenAI-compatible endpoint support
+
+### History Screen
+- Swipe-to-delete functionality for chat history using react-native-gesture-handler
+- Delete confirmation with platform-specific alert/confirm
+- Animated swipe gesture with Reanimated
+
+### Custom SVG Icons
+- AnimatedSunIcon, AnimatedMoonIcon for theme toggle
+- AnimatedTrashIcon for delete action
+- All icons in `client/components/AnimatedIcons.tsx`
+
+### Keyboard Handling
+- KeyboardAwareScrollView from react-native-keyboard-controller in settings screens
+- Proper bottomOffset to prevent keyboard from hiding input fields

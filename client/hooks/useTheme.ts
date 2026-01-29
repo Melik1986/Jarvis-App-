@@ -1,13 +1,22 @@
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import { useMemo } from "react";
+import { useSettingsStore } from "@/store/settingsStore";
+import { Colors, ThemeMode } from "@/constants/theme";
 
 export function useTheme() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = Colors[colorScheme ?? "light"];
+  const themeMode = useSettingsStore((state) => state.theme);
+  const setTheme = useSettingsStore((state) => state.setTheme);
+
+  const theme = useMemo(() => Colors[themeMode], [themeMode]);
+
+  const toggleTheme = () => {
+    setTheme(themeMode === "dark" ? "light" : "dark");
+  };
 
   return {
     theme,
-    isDark,
+    themeMode,
+    setTheme,
+    toggleTheme,
+    isDark: themeMode === "dark",
   };
 }
