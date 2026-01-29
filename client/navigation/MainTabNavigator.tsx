@@ -1,6 +1,5 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 
@@ -8,6 +7,16 @@ import ChatStackNavigator from "@/navigation/ChatStackNavigator";
 import LibraryStackNavigator from "@/navigation/LibraryStackNavigator";
 import HistoryStackNavigator from "@/navigation/HistoryStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
+import {
+  AnimatedChatIcon,
+  AnimatedChatFilledIcon,
+  AnimatedLibraryIcon,
+  AnimatedLibraryFilledIcon,
+  AnimatedHistoryIcon,
+  AnimatedHistoryFilledIcon,
+  AnimatedProfileIcon,
+  AnimatedProfileFilledIcon,
+} from "@/components/AnimatedIcons";
 import { Colors } from "@/constants/theme";
 
 export type MainTabParamList = {
@@ -52,9 +61,12 @@ export default function MainTabNavigator() {
         component={ChatStackNavigator}
         options={{
           title: "Chat",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size, focused }) =>
+            focused ? (
+              <AnimatedChatFilledIcon size={size} color={color} />
+            ) : (
+              <AnimatedChatIcon size={size} color={color} />
+            ),
         }}
       />
       <Tab.Screen
@@ -62,9 +74,12 @@ export default function MainTabNavigator() {
         component={LibraryStackNavigator}
         options={{
           title: "Library",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "library" : "library-outline"} size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size, focused }) =>
+            focused ? (
+              <AnimatedLibraryFilledIcon size={size} color={color} />
+            ) : (
+              <AnimatedLibraryIcon size={size} color={color} />
+            ),
         }}
       />
       <Tab.Screen
@@ -72,9 +87,12 @@ export default function MainTabNavigator() {
         component={HistoryStackNavigator}
         options={{
           title: "History",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size, focused }) =>
+            focused ? (
+              <AnimatedHistoryFilledIcon size={size} color={color} />
+            ) : (
+              <AnimatedHistoryIcon size={size} color={color} />
+            ),
         }}
       />
       <Tab.Screen
@@ -82,9 +100,12 @@ export default function MainTabNavigator() {
         component={ProfileStackNavigator}
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size, focused }) =>
+            focused ? (
+              <AnimatedProfileFilledIcon size={size} color={color} />
+            ) : (
+              <AnimatedProfileIcon size={size} color={color} />
+            ),
         }}
       />
     </Tab.Navigator>

@@ -8,11 +8,29 @@ import {
   Text,
   Modal,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Circle } from "react-native-svg";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Fonts } from "@/constants/theme";
+
+function AlertCircleIcon({ size = 24, color = "#fff" }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+      <Path d="M12 8v4M12 16h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function CloseIcon({ size = 24, color = "#fff" }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6 6 18" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m6 6 12 12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -53,7 +71,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             },
           ]}
         >
-          <Ionicons name="alert-circle" size={20} color={theme.text} />
+          <AlertCircleIcon size={20} color={theme.text} />
         </Pressable>
       ) : null}
 
@@ -106,7 +124,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                     { opacity: pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Ionicons name="close" size={24} color={theme.text} />
+                  <CloseIcon size={24} color={theme.text} />
                 </Pressable>
               </View>
 

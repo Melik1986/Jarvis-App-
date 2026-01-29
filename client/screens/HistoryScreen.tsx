@@ -3,9 +3,10 @@ import { StyleSheet, View, FlatList, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
+
+import { AnimatedChatIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
@@ -83,7 +84,7 @@ export default function HistoryScreen() {
       onPress={() => handleItemPress(item)}
     >
       <View style={styles.itemIcon}>
-        <Ionicons name="chatbubble-outline" size={20} color={Colors.dark.primary} />
+        <AnimatedChatIcon size={20} color={Colors.dark.primary} />
       </View>
       <View style={styles.itemContent}>
         <ThemedText style={styles.itemTitle} numberOfLines={1}>

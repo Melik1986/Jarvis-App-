@@ -4,11 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsItem } from "@/components/SettingsItem";
+import { AnimatedPencilIcon, AnimatedLogoutIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
@@ -93,7 +93,7 @@ export default function ProfileScreen() {
             style={styles.avatar}
           />
           <Pressable style={styles.editAvatarButton} onPress={handleHaptic}>
-            <Ionicons name="pencil" size={14} color={Colors.dark.buttonText} />
+            <AnimatedPencilIcon size={14} color={Colors.dark.buttonText} />
           </Pressable>
         </View>
         <ThemedText type="h3" style={styles.userName}>
@@ -185,7 +185,7 @@ export default function ProfileScreen() {
       </View>
 
       <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={20} color={Colors.dark.error} />
+        <AnimatedLogoutIcon size={20} color={Colors.dark.error} />
         <ThemedText style={styles.logoutText}>Sign Out</ThemedText>
       </Pressable>
     </ScrollView>

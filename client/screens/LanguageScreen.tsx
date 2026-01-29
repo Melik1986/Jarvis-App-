@@ -3,10 +3,10 @@ import { StyleSheet, View, ScrollView, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
+import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
@@ -61,7 +61,7 @@ export default function LanguageScreen() {
               </View>
               {selectedLanguage === lang.id ? (
                 <View style={styles.checkCircle}>
-                  <Ionicons name="checkmark" size={16} color={Colors.dark.buttonText} />
+                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
                 </View>
               ) : (
                 <View style={styles.emptyCircle} />

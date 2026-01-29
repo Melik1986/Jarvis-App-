@@ -3,11 +3,11 @@ import { StyleSheet, View, ScrollView, Pressable, Platform } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
+import { AnimatedVolumeIcon, AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
@@ -66,7 +66,7 @@ export default function VoiceScreen() {
               onPress={() => handleSelectVoice(v.id)}
             >
               <View style={styles.voiceIcon}>
-                <Ionicons name="volume-medium" size={20} color={Colors.dark.primary} />
+                <AnimatedVolumeIcon size={20} color={Colors.dark.primary} />
               </View>
               <View style={styles.voiceContent}>
                 <ThemedText style={styles.voiceName}>{v.name}</ThemedText>
@@ -74,7 +74,7 @@ export default function VoiceScreen() {
               </View>
               {selectedVoice === v.id ? (
                 <View style={styles.checkCircle}>
-                  <Ionicons name="checkmark" size={16} color={Colors.dark.buttonText} />
+                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
                 </View>
               ) : (
                 <View style={styles.emptyCircle} />

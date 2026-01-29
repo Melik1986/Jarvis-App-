@@ -3,21 +3,69 @@ import { StyleSheet, View, TextInput, ScrollView, Pressable } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
+import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
+type ProviderIconName = "flash" | "chip" | "server" | "speedometer" | "code";
 
-const providers: { id: LLMProvider; name: string; description: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+function ProviderIcon({ name, size = 20, color }: { name: ProviderIconName; size?: number; color: string }) {
+  const strokeWidth = 1.5;
+  
+  switch (name) {
+    case "flash":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case "chip":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect x="5" y="5" width="14" height="14" rx="2" stroke={color} strokeWidth={strokeWidth} />
+          <Rect x="9" y="9" width="6" height="6" rx="1" stroke={color} strokeWidth={strokeWidth} />
+          <Path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+        </Svg>
+      );
+    case "server":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect x="2" y="2" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
+          <Rect x="2" y="14" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
+          <Circle cx="6" cy="6" r="1" fill={color} />
+          <Circle cx="6" cy="18" r="1" fill={color} />
+        </Svg>
+      );
+    case "speedometer":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
+          <Path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case "code":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="m16 18 6-6-6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="m8 6-6 6 6 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    default:
+      return null;
+  }
+}
+
+const providers: { id: LLMProvider; name: string; description: string; icon: ProviderIconName }[] = [
   { id: "replit", name: "Replit AI", description: "Built-in AI (recommended)", icon: "flash" },
-  { id: "openai", name: "OpenAI", description: "GPT-4, GPT-3.5", icon: "hardware-chip" },
+  { id: "openai", name: "OpenAI", description: "GPT-4, GPT-3.5", icon: "chip" },
   { id: "ollama", name: "Ollama", description: "Local models (free)", icon: "server" },
   { id: "groq", name: "Groq", description: "Ultra-fast inference", icon: "speedometer" },
-  { id: "custom", name: "Custom", description: "OpenAI-compatible API", icon: "code-slash" },
+  { id: "custom", name: "Custom", description: "OpenAI-compatible API", icon: "code" },
 ];
 
 export default function LLMProviderScreen() {
@@ -68,7 +116,7 @@ export default function LLMProviderScreen() {
               onPress={() => setSelectedProvider(provider.id)}
             >
               <View style={styles.providerIcon}>
-                <Ionicons name={provider.icon} size={20} color={Colors.dark.primary} />
+                <ProviderIcon name={provider.icon} size={20} color={Colors.dark.primary} />
               </View>
               <View style={styles.providerContent}>
                 <ThemedText style={styles.providerName}>{provider.name}</ThemedText>
@@ -78,7 +126,7 @@ export default function LLMProviderScreen() {
               </View>
               {selectedProvider === provider.id ? (
                 <View style={styles.checkCircle}>
-                  <Ionicons name="checkmark" size={16} color={Colors.dark.buttonText} />
+                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
                 </View>
               ) : (
                 <View style={styles.emptyCircle} />

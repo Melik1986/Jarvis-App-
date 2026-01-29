@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, Pressable, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,6 +10,7 @@ import Animated, {
   WithSpringConfig,
 } from "react-native-reanimated";
 
+import { AnimatedMicIcon, AnimatedStopIcon } from "@/components/AnimatedIcons";
 import { Colors, Spacing } from "@/constants/theme";
 
 interface VoiceButtonProps {
@@ -77,11 +77,11 @@ export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps
         disabled={disabled}
         style={[styles.button, animatedStyle, disabled && styles.disabled, isRecording && styles.recording]}
       >
-        <Ionicons
-          name={isRecording ? "stop" : "mic"}
-          size={28}
-          color={isRecording ? Colors.dark.error : Colors.dark.primary}
-        />
+        {isRecording ? (
+          <AnimatedStopIcon size={28} color={Colors.dark.error} />
+        ) : (
+          <AnimatedMicIcon size={28} color={Colors.dark.primary} />
+        )}
       </AnimatedPressable>
     </View>
   );
@@ -106,11 +106,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: Colors.dark.primary,
   },
   recording: {
-    borderColor: Colors.dark.error,
     backgroundColor: Colors.dark.error + "15",
   },
   disabled: {

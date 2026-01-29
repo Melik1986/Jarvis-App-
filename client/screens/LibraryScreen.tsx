@@ -3,19 +3,81 @@ import { StyleSheet, View, TextInput, FlatList, Pressable, Platform } from "reac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 
+import { AnimatedSearchIcon, AnimatedChevronIcon, AnimatedDocumentIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+
+type CategoryIconName = "book" | "mic" | "camera" | "link" | "chart";
 
 interface KnowledgeCategory {
   id: string;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: CategoryIconName;
   articleCount: number;
+}
+
+function CategoryIcon({ name, size = 24, color }: { name: CategoryIconName; size?: number; color: string }) {
+  const strokeWidth = 1.5;
+  
+  switch (name) {
+    case "book":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case "mic":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M12 19v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case "camera":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth={strokeWidth} />
+        </Svg>
+      );
+    case "link":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case "chart":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path d="M18 20V10" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M12 20V4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M6 20v-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    default:
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
+        </Svg>
+      );
+  }
+}
+
+function CloseIcon({ size = 20, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" fill={color} />
+      <Path d="M15 9l-6 6M9 9l6 6" stroke={Colors.dark.backgroundRoot} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 const categories: KnowledgeCategory[] = [
@@ -23,35 +85,35 @@ const categories: KnowledgeCategory[] = [
     id: "1",
     title: "Getting Started",
     description: "Learn the basics of using Jarvis",
-    icon: "book-outline",
+    icon: "book",
     articleCount: 5,
   },
   {
     id: "2",
     title: "Voice Commands",
     description: "Master voice interactions",
-    icon: "mic-outline",
+    icon: "mic",
     articleCount: 12,
   },
   {
     id: "3",
     title: "Document Scanning",
     description: "Scan invoices and receipts",
-    icon: "camera-outline",
+    icon: "camera",
     articleCount: 8,
   },
   {
     id: "4",
     title: "ERP Integration",
     description: "Connect to your business systems",
-    icon: "link-outline",
+    icon: "link",
     articleCount: 15,
   },
   {
     id: "5",
     title: "Reports & Analytics",
     description: "Generate business insights",
-    icon: "bar-chart-outline",
+    icon: "chart",
     articleCount: 10,
   },
 ];
@@ -90,7 +152,7 @@ export default function LibraryScreen() {
       onPress={() => handleCategoryPress(item)}
     >
       <View style={styles.categoryIcon}>
-        <Ionicons name={item.icon} size={24} color={Colors.dark.primary} />
+        <CategoryIcon name={item.icon} size={24} color={Colors.dark.primary} />
       </View>
       <View style={styles.categoryContent}>
         <ThemedText type="h4" style={styles.categoryTitle}>
@@ -100,13 +162,13 @@ export default function LibraryScreen() {
           {item.description}
         </ThemedText>
         <View style={styles.articleCount}>
-          <Ionicons name="document-text-outline" size={14} color={Colors.dark.textTertiary} />
+          <AnimatedDocumentIcon size={14} color={Colors.dark.textTertiary} />
           <ThemedText style={styles.articleCountText}>
             {item.articleCount} articles
           </ThemedText>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={Colors.dark.textTertiary} />
+      <AnimatedChevronIcon size={20} color={Colors.dark.textTertiary} />
     </Pressable>
   );
 
@@ -119,7 +181,7 @@ export default function LibraryScreen() {
         ]}
       >
         <View style={styles.searchInputWrapper}>
-          <Ionicons name="search" size={20} color={Colors.dark.textTertiary} />
+          <AnimatedSearchIcon size={20} color={Colors.dark.textTertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search knowledge base..."
@@ -129,7 +191,7 @@ export default function LibraryScreen() {
           />
           {searchQuery.length > 0 ? (
             <Pressable onPress={() => handleSearch("")}>
-              <Ionicons name="close-circle" size={20} color={Colors.dark.textTertiary} />
+              <CloseIcon size={20} color={Colors.dark.textTertiary} />
             </Pressable>
           ) : null}
         </View>

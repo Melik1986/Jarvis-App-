@@ -3,8 +3,9 @@ import { StyleSheet, View, FlatList, TextInput, Pressable, Platform } from "reac
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+
+import { AnimatedSendIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
@@ -232,8 +233,7 @@ export default function ChatScreen() {
               onPress={sendMessage}
               disabled={!inputText.trim() || isStreaming}
             >
-              <Ionicons
-                name="send"
+              <AnimatedSendIcon
                 size={20}
                 color={inputText.trim() ? Colors.dark.primary : Colors.dark.textTertiary}
               />
