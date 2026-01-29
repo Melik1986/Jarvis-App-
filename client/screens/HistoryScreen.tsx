@@ -12,7 +12,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 import { Conversation } from "@/store/chatStore";
 
@@ -56,8 +56,6 @@ export default function HistoryScreen() {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-      } else {
-        console.error("Failed to delete conversation:", response.status);
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);
@@ -78,11 +76,7 @@ export default function HistoryScreen() {
         t("confirmDelete"),
         [
           { text: t("cancel"), style: "cancel" },
-          { 
-            text: t("delete"), 
-            style: "destructive", 
-            onPress: () => deleteConversation(item.id) 
-          },
+          { text: t("delete"), style: "destructive", onPress: () => deleteConversation(item.id) },
         ]
       );
     }
@@ -109,32 +103,26 @@ export default function HistoryScreen() {
 
   const renderItem = useCallback(({ item }: { item: Conversation }) => (
     <View style={[styles.historyItem, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-      <Pressable 
-        style={styles.itemMain}
-        onPress={() => handleItemPress(item)}
-      >
-        <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
-          <AnimatedChatIcon size={20} color={theme.primary} />
-        </View>
-        <View style={styles.itemContent}>
-          <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-            {item.title}
-          </ThemedText>
-          <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
-            {formatDate(item.createdAt)}
-          </ThemedText>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
-          <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
-          <ThemedText style={[styles.statusText, { color: theme.success }]}>
-            {t("completed")}
-          </ThemedText>
-        </View>
+      <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
+        <AnimatedChatIcon size={18} color={theme.primary} />
+      </View>
+      <Pressable style={styles.itemContent} onPress={() => handleItemPress(item)}>
+        <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
+          {item.title}
+        </ThemedText>
+        <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
+          {formatDate(item.createdAt)}
+        </ThemedText>
       </Pressable>
+      <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
+        <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
+        <ThemedText style={[styles.statusText, { color: theme.success }]}>
+          {t("completed")}
+        </ThemedText>
+      </View>
       <Pressable 
-        style={[styles.deleteButton, { backgroundColor: theme.error + "15" }]}
+        style={styles.deleteButton}
         onPress={() => confirmDelete(item)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <AnimatedTrashIcon size={18} color={theme.error} />
       </Pressable>
@@ -189,8 +177,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   segmentContainer: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   segmentedControl: {
     height: 40,
@@ -199,7 +187,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: 16,
     flexGrow: 1,
   },
   emptyListContent: {
@@ -208,58 +196,53 @@ const styles = StyleSheet.create({
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: BorderRadius.lg,
+    borderRadius: 12,
     borderWidth: 1,
-  },
-  itemMain: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   itemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: 10,
   },
   itemContent: {
     flex: 1,
+    marginRight: 8,
   },
   itemTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
-    marginBottom: 2,
   },
   itemTimestamp: {
-    fontSize: 13,
+    fontSize: 12,
+    marginTop: 2,
   },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: Spacing.xs,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginRight: 4,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
   },
   deleteButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    marginRight: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    padding: 8,
   },
   separator: {
-    height: Spacing.sm,
+    height: 8,
   },
 });
