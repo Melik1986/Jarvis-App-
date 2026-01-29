@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ThemeMode } from "@/constants/theme";
 
 interface LLMSettings {
   baseUrl: string;
@@ -22,17 +23,19 @@ interface SettingsState {
   erp: ERPSettings;
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
   language: string;
+  theme: ThemeMode;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setERPSettings: (settings: Partial<ERPSettings>) => void;
   setVoice: (voice: SettingsState["voice"]) => void;
   setLanguage: (language: string) => void;
+  setTheme: (theme: ThemeMode) => void;
   resetToDefaults: () => void;
 }
 
 const defaultLLM: LLMSettings = {
   baseUrl: "",
   apiKey: "",
-  modelName: "gpt-5.1",
+  modelName: "gpt-4o",
   provider: "replit",
 };
 
@@ -51,14 +54,16 @@ export const useSettingsStore = create<SettingsState>()(
       erp: defaultERP,
       voice: "alloy",
       language: "ru",
+      theme: "dark",
       setLLMSettings: (settings) =>
         set((state) => ({ llm: { ...state.llm, ...settings } })),
       setERPSettings: (settings) =>
         set((state) => ({ erp: { ...state.erp, ...settings } })),
       setVoice: (voice) => set({ voice }),
       setLanguage: (language) => set({ language }),
+      setTheme: (theme) => set({ theme }),
       resetToDefaults: () =>
-        set({ llm: defaultLLM, erp: defaultERP, voice: "alloy", language: "ru" }),
+        set({ llm: defaultLLM, erp: defaultERP, voice: "alloy", language: "ru", theme: "dark" }),
     }),
     {
       name: "jsrvis-settings",

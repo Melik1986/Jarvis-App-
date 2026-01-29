@@ -8,7 +8,9 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 const languages = [
   { id: "ru", name: "Русский", nativeName: "Russian" },
@@ -23,6 +25,8 @@ export default function LanguageScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const { language, setLanguage } = useSettingsStore();
   const [selectedLanguage, setSelectedLanguage] = useState(language);
@@ -34,15 +38,15 @@ export default function LanguageScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}
+      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
         { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
       ]}
     >
       <View style={styles.section}>
-        <ThemedText style={styles.sectionDescription}>
-          Select your preferred language for the app interface.
+        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+          {t("selectLanguage")}
         </ThemedText>
 
         <View style={styles.languageList}>
@@ -51,20 +55,21 @@ export default function LanguageScreen() {
               key={lang.id}
               style={[
                 styles.languageItem,
-                selectedLanguage === lang.id && styles.languageItemSelected,
+                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
+                selectedLanguage === lang.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
               ]}
               onPress={() => setSelectedLanguage(lang.id)}
             >
               <View style={styles.languageContent}>
-                <ThemedText style={styles.languageName}>{lang.name}</ThemedText>
-                <ThemedText style={styles.languageNative}>{lang.nativeName}</ThemedText>
+                <ThemedText style={[styles.languageName, { color: theme.text }]}>{lang.name}</ThemedText>
+                <ThemedText style={[styles.languageNative, { color: theme.textSecondary }]}>{lang.nativeName}</ThemedText>
               </View>
               {selectedLanguage === lang.id ? (
-                <View style={styles.checkCircle}>
-                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
+                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                  <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={styles.emptyCircle} />
+                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
               )}
             </Pressable>
           ))}
@@ -72,7 +77,7 @@ export default function LanguageScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave}>Save Language</Button>
+        <Button onPress={handleSave}>{t("saveLanguage")}</Button>
       </View>
     </ScrollView>
   );
@@ -90,7 +95,6 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.lg,
   },
   languageList: {
@@ -99,15 +103,9 @@ const styles = StyleSheet.create({
   languageItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  languageItemSelected: {
-    borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primary + "10",
   },
   languageContent: {
     flex: 1,
@@ -119,13 +117,11 @@ const styles = StyleSheet.create({
   },
   languageNative: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
   },
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.dark.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -134,7 +130,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.textTertiary,
   },
   buttonContainer: {
     marginTop: Spacing.lg,

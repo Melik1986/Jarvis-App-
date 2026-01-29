@@ -11,7 +11,8 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { AnimatedMicIcon, AnimatedStopIcon } from "@/components/AnimatedIcons";
-import { Colors, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing } from "@/constants/theme";
 
 interface VoiceButtonProps {
   isRecording: boolean;
@@ -28,6 +29,7 @@ const springConfig: WithSpringConfig = {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps) {
+  const { theme } = useTheme();
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
@@ -69,18 +71,23 @@ export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.pulse, pulseStyle]} />
+      <Animated.View style={[styles.pulse, { backgroundColor: theme.primary }, pulseStyle]} />
       <AnimatedPressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled}
-        style={[styles.button, animatedStyle, disabled && styles.disabled, isRecording && styles.recording]}
+        style={[
+          styles.button,
+          animatedStyle,
+          disabled && styles.disabled,
+          isRecording && { backgroundColor: theme.error + "15" },
+        ]}
       >
         {isRecording ? (
-          <AnimatedStopIcon size={28} color={Colors.dark.error} />
+          <AnimatedStopIcon size={28} color={theme.error} />
         ) : (
-          <AnimatedMicIcon size={28} color={Colors.dark.primary} />
+          <AnimatedMicIcon size={28} color={theme.primary} />
         )}
       </AnimatedPressable>
     </View>
@@ -97,7 +104,6 @@ const styles = StyleSheet.create({
     width: Spacing.fabSize + 24,
     height: Spacing.fabSize + 24,
     borderRadius: (Spacing.fabSize + 24) / 2,
-    backgroundColor: Colors.dark.primary,
   },
   button: {
     width: Spacing.fabSize,
@@ -106,9 +112,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
-  },
-  recording: {
-    backgroundColor: Colors.dark.error + "15",
   },
   disabled: {
     opacity: 0.5,

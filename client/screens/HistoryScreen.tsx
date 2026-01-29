@@ -1,31 +1,29 @@
-import React, { useState, useEffect } from "react";
-import { StyleSheet, View, FlatList, Pressable, Platform } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { StyleSheet, View, FlatList, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 
-import { AnimatedChatIcon } from "@/components/AnimatedIcons";
+import { AnimatedChatIcon, AnimatedTrashIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 import { Conversation } from "@/store/chatStore";
-
-interface HistoryItem {
-  id: number;
-  title: string;
-  timestamp: string;
-  status: "success" | "pending" | "error";
-  type: "command" | "analytics";
-}
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -48,14 +46,31 @@ export default function HistoryScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return Colors.dark.success;
-      case "error":
-        return Colors.dark.error;
-      default:
-        return Colors.dark.warning;
+  const deleteConversation = async (id: number) => {
+    try {
+      const baseUrl = getApiUrl();
+      await fetch(`${baseUrl}api/conversations/${id}`, {
+        method: "DELETE",
+      });
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const confirmDelete = (item: Conversation) => {
+    if (Platform.OS === "web") {
+      if (confirm(t("confirmDelete"))) {
+        deleteConversation(item.id);
+      }
+    } else {
+      Alert.alert(t("confirmDelete"), "", [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("delete"), style: "destructive", onPress: () => deleteConversation(item.id) },
+      ]);
     }
   };
 
@@ -66,9 +81,9 @@ export default function HistoryScreen() {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffHours < 1) return "Just now";
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffHours < 1) return t("justNow");
+    if (diffHours < 24) return `${diffHours}${t("hoursAgo")}`;
+    if (diffDays < 7) return `${diffDays}${t("daysAgo")}`;
     return date.toLocaleDateString();
   };
 
@@ -78,51 +93,30 @@ export default function HistoryScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: Conversation }) => (
-    <Pressable 
-      style={({ pressed }) => [styles.historyItem, pressed && styles.historyItemPressed]}
-      onPress={() => handleItemPress(item)}
-    >
-      <View style={styles.itemIcon}>
-        <AnimatedChatIcon size={20} color={Colors.dark.primary} />
-      </View>
-      <View style={styles.itemContent}>
-        <ThemedText style={styles.itemTitle} numberOfLines={1}>
-          {item.title}
-        </ThemedText>
-        <ThemedText style={styles.itemTimestamp}>
-          {formatDate(item.createdAt)}
-        </ThemedText>
-      </View>
-      <View style={[styles.statusBadge, { backgroundColor: Colors.dark.success + "20" }]}>
-        <View style={[styles.statusDot, { backgroundColor: Colors.dark.success }]} />
-        <ThemedText style={[styles.statusText, { color: Colors.dark.success }]}>
-          Completed
-        </ThemedText>
-      </View>
-    </Pressable>
-  );
+  const renderItem = useCallback(({ item }: { item: Conversation }) => (
+    <SwipeableItem item={item} onDelete={confirmDelete} theme={theme} t={t} formatDate={formatDate} onPress={handleItemPress} />
+  ), [theme, t]);
 
   const renderEmpty = () => (
     <EmptyState
       image={require("../../assets/images/empty-history.png")}
-      title="No activity yet"
-      subtitle="Your command history will appear here"
+      title={t("noActivityYet")}
+      subtitle={t("historyAppearHere")}
     />
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}>
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <View style={[styles.segmentContainer, { marginTop: headerHeight + Spacing.lg }]}>
         <SegmentedControl
-          values={["Commands", "Analytics"]}
+          values={[t("commands"), t("analytics")]}
           selectedIndex={selectedIndex}
           onChange={(event) => setSelectedIndex(event.nativeEvent.selectedSegmentIndex)}
           style={styles.segmentedControl}
-          backgroundColor={Colors.dark.backgroundDefault}
-          tintColor={Colors.dark.primary}
-          fontStyle={{ color: Colors.dark.textSecondary }}
-          activeFontStyle={{ color: Colors.dark.buttonText }}
+          backgroundColor={theme.backgroundDefault}
+          tintColor={theme.primary}
+          fontStyle={{ color: theme.textSecondary }}
+          activeFontStyle={{ color: theme.buttonText }}
         />
       </View>
 
@@ -142,6 +136,82 @@ export default function HistoryScreen() {
         refreshing={isLoading}
         onRefresh={loadConversations}
       />
+    </View>
+  );
+}
+
+interface SwipeableItemProps {
+  item: Conversation;
+  onDelete: (item: Conversation) => void;
+  onPress: (item: Conversation) => void;
+  theme: any;
+  t: any;
+  formatDate: (date: string) => string;
+}
+
+function SwipeableItem({ item, onDelete, onPress, theme, t, formatDate }: SwipeableItemProps) {
+  const translateX = useSharedValue(0);
+  const DELETE_THRESHOLD = -80;
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((event) => {
+      if (event.translationX < 0) {
+        translateX.value = Math.max(event.translationX, -120);
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationX < DELETE_THRESHOLD) {
+        translateX.value = withSpring(-120);
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const handleDeletePress = () => {
+    translateX.value = withSpring(0);
+    onDelete(item);
+  };
+
+  return (
+    <View style={styles.swipeContainer}>
+      <Pressable 
+        style={[styles.deleteButton, { backgroundColor: theme.error }]} 
+        onPress={handleDeletePress}
+      >
+        <AnimatedTrashIcon size={24} color="#FFFFFF" />
+        <ThemedText style={styles.deleteButtonText}>{t("delete")}</ThemedText>
+      </Pressable>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={animatedStyle}>
+          <Pressable 
+            style={[styles.historyItem, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+            onPress={() => onPress(item)}
+          >
+            <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
+              <AnimatedChatIcon size={20} color={theme.primary} />
+            </View>
+            <View style={styles.itemContent}>
+              <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
+                {item.title}
+              </ThemedText>
+              <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
+                {formatDate(item.createdAt)}
+              </ThemedText>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
+              <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
+              <ThemedText style={[styles.statusText, { color: theme.success }]}>
+                {t("completed")}
+              </ThemedText>
+            </View>
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -167,23 +237,40 @@ const styles = StyleSheet.create({
   emptyListContent: {
     justifyContent: "center",
   },
+  swipeContainer: {
+    position: "relative",
+  },
+  deleteButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 120,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    borderRadius: BorderRadius.lg,
+  },
+  deleteButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
   },
   historyItemPressed: {
-    backgroundColor: Colors.dark.backgroundSecondary,
+    opacity: 0.8,
   },
   itemIcon: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.dark.backgroundSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -198,7 +285,6 @@ const styles = StyleSheet.create({
   },
   itemTimestamp: {
     fontSize: 13,
-    color: Colors.dark.textTertiary,
   },
   statusBadge: {
     flexDirection: "row",

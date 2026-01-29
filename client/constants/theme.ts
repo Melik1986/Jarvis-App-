@@ -2,25 +2,25 @@ import { Platform } from "react-native";
 
 export const Colors = {
   light: {
-    text: "#FFFFFF",
-    textSecondary: "#A0AABF",
-    textTertiary: "#6B7589",
-    buttonText: "#0A0E1A",
-    tabIconDefault: "#6B7589",
-    tabIconSelected: "#00D9FF",
-    link: "#00D9FF",
-    primary: "#00D9FF",
-    primaryDark: "#00A3BF",
+    text: "#1A1A2E",
+    textSecondary: "#4A4A5A",
+    textTertiary: "#7A7A8A",
+    buttonText: "#FFFFFF",
+    tabIconDefault: "#7A7A8A",
+    tabIconSelected: "#0066CC",
+    link: "#0066CC",
+    primary: "#0066CC",
+    primaryDark: "#004499",
     accent: "#7C4DFF",
-    success: "#00E676",
-    error: "#FF5252",
-    warning: "#FFB74D",
-    backgroundRoot: "#0A0E1A",
-    backgroundDefault: "#151B2E",
-    backgroundSecondary: "#1F2637",
-    backgroundTertiary: "#2A3142",
-    glow: "rgba(0, 217, 255, 0.3)",
-    border: "rgba(0, 217, 255, 0.2)",
+    success: "#00A65A",
+    error: "#DC3545",
+    warning: "#F39C12",
+    backgroundRoot: "#F5F7FA",
+    backgroundDefault: "#FFFFFF",
+    backgroundSecondary: "#EBEEF2",
+    backgroundTertiary: "#DDE2E8",
+    glow: "rgba(0, 102, 204, 0.2)",
+    border: "rgba(0, 0, 0, 0.1)",
   },
   dark: {
     text: "#FFFFFF",
@@ -44,6 +44,10 @@ export const Colors = {
     border: "rgba(0, 217, 255, 0.2)",
   },
 };
+
+export type ThemeMode = "light" | "dark";
+
+export const getColors = (mode: ThemeMode) => Colors[mode];
 
 export const Spacing = {
   xs: 4,

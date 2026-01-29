@@ -1,18 +1,29 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, ScrollView, Pressable } from "react-native";
+import { StyleSheet, View, TextInput, ScrollView, Pressable, Modal, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
+import { AnimatedCheckIcon, AnimatedChevronIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
 type ProviderIconName = "flash" | "chip" | "server" | "speedometer" | "code";
+
+const modelsByProvider: Record<LLMProvider, string[]> = {
+  replit: ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "claude-3-haiku"],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "o1-preview", "o1-mini"],
+  ollama: ["llama3.2", "llama3.1", "mistral", "codellama", "phi3", "gemma2"],
+  groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+  custom: ["gpt-4o", "claude-3.5-sonnet", "llama3.1-70b"],
+};
 
 function ProviderIcon({ name, size = 20, color }: { name: ProviderIconName; size?: number; color: string }) {
   const strokeWidth = 1.5;
@@ -60,18 +71,12 @@ function ProviderIcon({ name, size = 20, color }: { name: ProviderIconName; size
   }
 }
 
-const providers: { id: LLMProvider; name: string; description: string; icon: ProviderIconName }[] = [
-  { id: "replit", name: "Replit AI", description: "Built-in AI (recommended)", icon: "flash" },
-  { id: "openai", name: "OpenAI", description: "GPT-4, GPT-3.5", icon: "chip" },
-  { id: "ollama", name: "Ollama", description: "Local models (free)", icon: "server" },
-  { id: "groq", name: "Groq", description: "Ultra-fast inference", icon: "speedometer" },
-  { id: "custom", name: "Custom", description: "OpenAI-compatible API", icon: "code" },
-];
-
 export default function LLMProviderScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const { llm, setLLMSettings } = useSettingsStore();
 
@@ -79,6 +84,15 @@ export default function LLMProviderScreen() {
   const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
   const [apiKey, setApiKey] = useState(llm.apiKey);
   const [modelName, setModelName] = useState(llm.modelName);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+
+  const providers: { id: LLMProvider; name: string; description: string; icon: ProviderIconName }[] = [
+    { id: "replit", name: t("replitAI"), description: t("builtInAI"), icon: "flash" },
+    { id: "openai", name: "OpenAI", description: t("gptModels"), icon: "chip" },
+    { id: "ollama", name: "Ollama", description: t("localModels"), icon: "server" },
+    { id: "groq", name: "Groq", description: t("ultraFast"), icon: "speedometer" },
+    { id: "custom", name: t("custom"), description: t("openAICompatible"), icon: "code" },
+  ];
 
   const handleSave = () => {
     setLLMSettings({
@@ -90,19 +104,27 @@ export default function LLMProviderScreen() {
     navigation.goBack();
   };
 
+  const handleProviderSelect = (providerId: LLMProvider) => {
+    setSelectedProvider(providerId);
+    const defaultModel = modelsByProvider[providerId][0];
+    setModelName(defaultModel);
+  };
+
   const showCustomFields = selectedProvider !== "replit";
+  const availableModels = modelsByProvider[selectedProvider];
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: Colors.dark.backgroundRoot }]}
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
         { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
       ]}
+      bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText style={styles.sectionDescription}>
-          Choose your AI model provider. Replit AI is included free with your account.
+        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+          {t("chooseProvider")}
         </ThemedText>
 
         <View style={styles.providerList}>
@@ -111,45 +133,59 @@ export default function LLMProviderScreen() {
               key={provider.id}
               style={[
                 styles.providerItem,
-                selectedProvider === provider.id && styles.providerItemSelected,
+                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
+                selectedProvider === provider.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
               ]}
-              onPress={() => setSelectedProvider(provider.id)}
+              onPress={() => handleProviderSelect(provider.id)}
             >
-              <View style={styles.providerIcon}>
-                <ProviderIcon name={provider.icon} size={20} color={Colors.dark.primary} />
+              <View style={[styles.providerIcon, { backgroundColor: theme.backgroundSecondary }]}>
+                <ProviderIcon name={provider.icon} size={20} color={theme.primary} />
               </View>
               <View style={styles.providerContent}>
-                <ThemedText style={styles.providerName}>{provider.name}</ThemedText>
-                <ThemedText style={styles.providerDescription}>
+                <ThemedText style={[styles.providerName, { color: theme.text }]}>{provider.name}</ThemedText>
+                <ThemedText style={[styles.providerDescription, { color: theme.textSecondary }]}>
                   {provider.description}
                 </ThemedText>
               </View>
               {selectedProvider === provider.id ? (
-                <View style={styles.checkCircle}>
-                  <AnimatedCheckIcon size={16} color={Colors.dark.buttonText} />
+                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                  <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={styles.emptyCircle} />
+                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
               )}
             </Pressable>
           ))}
         </View>
       </View>
 
+      <View style={styles.section}>
+        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("model")}</ThemedText>
+        <Pressable
+          style={[styles.modelPicker, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+          onPress={() => setShowModelPicker(true)}
+        >
+          <ThemedText style={[styles.modelPickerText, { color: theme.text }]}>
+            {modelName || availableModels[0]}
+          </ThemedText>
+          <AnimatedChevronIcon size={20} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+
       {showCustomFields ? (
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Provider Settings</ThemedText>
+          <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("providerSettings")}</ThemedText>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Base URL</ThemedText>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("baseUrl")}</ThemedText>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
               placeholder={
                 selectedProvider === "ollama"
                   ? "http://localhost:11434/v1"
                   : "https://api.openai.com/v1"
               }
-              placeholderTextColor={Colors.dark.textTertiary}
+              placeholderTextColor={theme.textTertiary}
               value={baseUrl}
               onChangeText={setBaseUrl}
               autoCapitalize="none"
@@ -158,27 +194,14 @@ export default function LLMProviderScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>API Key</ThemedText>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("apiKey")}</ThemedText>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
               placeholder="sk-..."
-              placeholderTextColor={Colors.dark.textTertiary}
+              placeholderTextColor={theme.textTertiary}
               value={apiKey}
               onChangeText={setApiKey}
               secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Model Name</ThemedText>
-            <TextInput
-              style={styles.textInput}
-              placeholder="gpt-4o, llama3-70b, etc."
-              placeholderTextColor={Colors.dark.textTertiary}
-              value={modelName}
-              onChangeText={setModelName}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -187,9 +210,49 @@ export default function LLMProviderScreen() {
       ) : null}
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave}>Save Settings</Button>
+        <Button onPress={handleSave}>{t("saveSettings")}</Button>
       </View>
-    </ScrollView>
+
+      <Modal
+        visible={showModelPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowModelPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="h4" style={{ color: theme.text }}>{t("model")}</ThemedText>
+              <Pressable onPress={() => setShowModelPicker(false)}>
+                <ThemedText style={{ color: theme.primary }}>{t("save")}</ThemedText>
+              </Pressable>
+            </View>
+            <FlatList
+              data={availableModels}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.modelOption,
+                    { borderBottomColor: theme.border },
+                    modelName === item && { backgroundColor: theme.primary + "15" },
+                  ]}
+                  onPress={() => {
+                    setModelName(item);
+                    setShowModelPicker(false);
+                  }}
+                >
+                  <ThemedText style={{ color: theme.text }}>{item}</ThemedText>
+                  {modelName === item ? (
+                    <AnimatedCheckIcon size={20} color={theme.primary} />
+                  ) : null}
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -206,14 +269,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: Colors.dark.textTertiary,
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: Spacing.lg,
   },
   sectionDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
     marginBottom: Spacing.lg,
   },
   providerList: {
@@ -222,21 +283,14 @@ const styles = StyleSheet.create({
   providerItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  providerItemSelected: {
-    borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primary + "10",
   },
   providerIcon: {
     width: 40,
     height: 40,
     borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.dark.backgroundSecondary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
@@ -251,13 +305,11 @@ const styles = StyleSheet.create({
   },
   providerDescription: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
   },
   checkCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.dark.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -266,7 +318,18 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.dark.textTertiary,
+  },
+  modelPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+  },
+  modelPickerText: {
+    fontSize: 16,
   },
   inputGroup: {
     marginBottom: Spacing.lg,
@@ -277,16 +340,38 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   textInput: {
-    backgroundColor: Colors.dark.backgroundDefault,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     fontSize: 16,
-    color: Colors.dark.text,
   },
   buttonContainer: {
     marginTop: Spacing.lg,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    maxHeight: "60%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(128,128,128,0.2)",
+  },
+  modelOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
   },
 });
