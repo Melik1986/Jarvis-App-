@@ -136,7 +136,7 @@ export default function HistoryScreen() {
         onPress={() => confirmDelete(item)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <AnimatedTrashIcon size={20} color={theme.error} />
+        <AnimatedTrashIcon size={18} color={theme.error} />
       </Pressable>
     </View>
   ), [theme, t]);
@@ -210,13 +210,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    overflow: "hidden",
   },
   itemMain: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
   itemIcon: {
     width: 40,
@@ -232,7 +231,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 16,
     fontWeight: "500",
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
   itemTimestamp: {
     fontSize: 13,
@@ -255,11 +254,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   deleteButton: {
-    width: 48,
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    marginRight: Spacing.xs,
+    borderRadius: BorderRadius.sm,
   },
   separator: {
     height: Spacing.sm,
