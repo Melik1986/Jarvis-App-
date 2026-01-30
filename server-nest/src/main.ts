@@ -1,14 +1,52 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import * as express from "express";
+import * as fs from "fs";
+import * as path from "path";
 import { AppModule } from "./app.module";
 
+function getAppName(): string {
+  try {
+    const appJsonPath = path.resolve(process.cwd(), "app.json");
+    const appJsonContent = fs.readFileSync(appJsonPath, "utf-8");
+    const appJson = JSON.parse(appJsonContent);
+    return appJson.expo?.name || "App Landing Page";
+  } catch {
+    return "App Landing Page";
+  }
+}
+
+function serveExpoManifest(platform: string, res: express.Response) {
+  const manifestPath = path.resolve(
+    process.cwd(),
+    "static-build",
+    platform,
+    "manifest.json",
+  );
+
+  if (!fs.existsSync(manifestPath)) {
+    return res
+      .status(404)
+      .json({ error: `Manifest not found for platform: ${platform}` });
+  }
+
+  res.setHeader("expo-protocol-version", "1");
+  res.setHeader("expo-sfv-version", "0");
+  res.setHeader("content-type", "application/json");
+
+  const manifest = fs.readFileSync(manifestPath, "utf-8");
+  res.send(manifest);
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const expressApp = app.getHttpAdapter().getInstance();
 
   // Enable CORS with dynamic origins
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       const origins = new Set<string>();
 
       if (process.env.REPLIT_DEV_DOMAIN) {
@@ -16,12 +54,11 @@ async function bootstrap() {
       }
 
       if (process.env.REPLIT_DOMAINS) {
-        process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
+        process.env.REPLIT_DOMAINS.split(",").forEach((d: string) => {
           origins.add(`https://${d.trim()}`);
         });
       }
 
-      // Allow localhost for Expo development
       const isLocalhost =
         origin?.startsWith("http://localhost:") ||
         origin?.startsWith("http://127.0.0.1:");
@@ -46,8 +83,50 @@ async function bootstrap() {
     }),
   );
 
-  // Set global prefix
+  // Set global prefix for API routes
   app.setGlobalPrefix("api");
+
+  // Serve static Expo files
+  const staticBuildPath = path.resolve(process.cwd(), "static-build");
+  if (fs.existsSync(staticBuildPath)) {
+    expressApp.use("/static-build", express.static(staticBuildPath));
+  }
+
+  // Landing page and Expo manifest routing
+  const templatePath = path.resolve(process.cwd(), "server", "templates", "landing-page.html");
+  const appName = getAppName();
+  
+  console.log("Serving static Expo files with dynamic manifest routing");
+  console.log("Expo routing: Checking expo-platform header on / and /manifest");
+
+  // Handle Expo manifest requests
+  expressApp.get(["/", "/manifest"], (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const platform = req.headers["expo-platform"] as string;
+    if (platform) {
+      return serveExpoManifest(platform, res);
+    }
+
+    // Serve landing page for browser requests
+    if (fs.existsSync(templatePath)) {
+      const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+      const forwardedProto = req.header("x-forwarded-proto");
+      const protocol = forwardedProto || req.protocol || "https";
+      const forwardedHost = req.header("x-forwarded-host");
+      const host = forwardedHost || req.get("host");
+      const baseUrl = `${protocol}://${host}`;
+      const expsUrl = `${host}`;
+
+      const html = landingPageTemplate
+        .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
+        .replace(/EXPS_URL_PLACEHOLDER/g, expsUrl)
+        .replace(/APP_NAME_PLACEHOLDER/g, appName);
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(html);
+    }
+
+    next();
+  });
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
