@@ -90,6 +90,15 @@ export const translations = {
     welcomeMessage:
       "Hello! I'm Jarvis, your AI assistant for 1C. Ask me about inventory, products, or creating documents.",
     send: "Send",
+    ragProvider: "Provider",
+    disabled: "Disabled",
+    qdrantUrl: "Qdrant URL",
+    collectionName: "Collection",
+    ragSettings: "Knowledge Base Settings",
+    ragDescription: "Connect to Qdrant for semantic search over your documents.",
+    testConnection: "Test Connection",
+    connectionSuccess: "Connection successful",
+    connectionFailed: "Connection failed",
   },
   ru: {
     appName: "JSRVIS",
@@ -179,6 +188,15 @@ export const translations = {
     welcomeMessage:
       "Привет! Я Jarvis, ваш AI-ассистент для 1С. Спросите меня об остатках, товарах или создании документов.",
     send: "Отправить",
+    ragProvider: "Провайдер",
+    disabled: "Отключено",
+    qdrantUrl: "URL Qdrant",
+    collectionName: "Коллекция",
+    ragSettings: "Настройки базы знаний",
+    ragDescription: "Подключитесь к Qdrant для семантического поиска по документам.",
+    testConnection: "Проверить подключение",
+    connectionSuccess: "Подключение успешно",
+    connectionFailed: "Ошибка подключения",
   },
   de: {
     appName: "JSRVIS",
@@ -268,6 +286,15 @@ export const translations = {
     welcomeMessage:
       "Hallo! Ich bin Jarvis, Ihr KI-Assistent für 1C. Fragen Sie mich zu Bestand, Produkten oder Dokumentenerstellung.",
     send: "Senden",
+    ragProvider: "Anbieter",
+    disabled: "Deaktiviert",
+    qdrantUrl: "Qdrant URL",
+    collectionName: "Sammlung",
+    ragSettings: "Wissensdatenbank-Einstellungen",
+    ragDescription: "Mit Qdrant für semantische Suche verbinden.",
+    testConnection: "Verbindung testen",
+    connectionSuccess: "Verbindung erfolgreich",
+    connectionFailed: "Verbindung fehlgeschlagen",
   },
   fr: {
     appName: "JSRVIS",
@@ -357,6 +384,15 @@ export const translations = {
     welcomeMessage:
       "Bonjour! Je suis Jarvis, votre assistant IA pour 1C. Demandez-moi des stocks, produits ou création de documents.",
     send: "Envoyer",
+    ragProvider: "Fournisseur",
+    disabled: "Désactivé",
+    qdrantUrl: "URL Qdrant",
+    collectionName: "Collection",
+    ragSettings: "Paramètres de la base de connaissances",
+    ragDescription: "Connectez-vous à Qdrant pour la recherche sémantique.",
+    testConnection: "Tester la connexion",
+    connectionSuccess: "Connexion réussie",
+    connectionFailed: "Échec de la connexion",
   },
   es: {
     appName: "JSRVIS",
@@ -446,6 +482,15 @@ export const translations = {
     welcomeMessage:
       "¡Hola! Soy Jarvis, tu asistente de IA para 1C. Pregúntame sobre inventario, productos o creación de documentos.",
     send: "Enviar",
+    ragProvider: "Proveedor",
+    disabled: "Desactivado",
+    qdrantUrl: "URL de Qdrant",
+    collectionName: "Colección",
+    ragSettings: "Configuración de base de conocimiento",
+    ragDescription: "Conéctate a Qdrant para búsqueda semántica.",
+    testConnection: "Probar conexión",
+    connectionSuccess: "Conexión exitosa",
+    connectionFailed: "Error de conexión",
   },
   zh: {
     appName: "JSRVIS",
@@ -535,6 +580,15 @@ export const translations = {
     welcomeMessage:
       "您好！我是Jarvis，您的1C AI助手。询问我关于库存、产品或创建文档。",
     send: "发送",
+    ragProvider: "提供者",
+    disabled: "已禁用",
+    qdrantUrl: "Qdrant网址",
+    collectionName: "集合",
+    ragSettings: "知识库设置",
+    ragDescription: "连接到Qdrant进行语义搜索。",
+    testConnection: "测试连接",
+    connectionSuccess: "连接成功",
+    connectionFailed: "连接失败",
   },
 };
 

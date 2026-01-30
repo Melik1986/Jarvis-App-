@@ -19,7 +19,10 @@ type SettingsIconName =
   | "moon-outline"
   | "information-circle-outline"
   | "help-circle-outline"
-  | "shield-outline";
+  | "shield-outline"
+  | "library-outline"
+  | "server-outline"
+  | "folder-outline";
 
 interface SettingsItemProps {
   icon: SettingsIconName;
@@ -222,6 +225,38 @@ function SettingsIcon({
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path
             d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      );
+    case "library-outline":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      );
+    case "server-outline":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect x="2" y="2" width="20" height="8" rx="2" ry="2" stroke={color} strokeWidth={strokeWidth} />
+          <Rect x="2" y="14" width="20" height="8" rx="2" ry="2" stroke={color} strokeWidth={strokeWidth} />
+          <Path d="M6 6h.01M6 18h.01" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+        </Svg>
+      );
+    case "folder-outline":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
