@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -6,15 +6,16 @@ import {
   FlatList,
   Pressable,
   Platform,
+  Alert,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import Svg, { Path, Circle } from "react-native-svg";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
+import * as DocumentPicker from "expo-document-picker";
 
 import {
   AnimatedSearchIcon,
-  AnimatedChevronIcon,
   AnimatedDocumentIcon,
 } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
@@ -23,150 +24,131 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
-type CategoryIconName = "book" | "mic" | "camera" | "link" | "chart";
-
-interface KnowledgeCategory {
+interface Document {
   id: string;
-  title: string;
-  description: string;
-  icon: CategoryIconName;
-  articleCount: number;
+  name: string;
+  type: "pdf" | "txt" | "docx" | "xlsx" | "other";
+  size: string;
+  uploadedAt: Date;
+  status: "indexed" | "processing" | "error";
 }
 
-function CategoryIcon({
-  name,
+function DocumentTypeIcon({
+  type,
   size = 24,
   color,
 }: {
-  name: CategoryIconName;
+  type: Document["type"];
   size?: number;
   color: string;
 }) {
   const strokeWidth = 1.5;
 
-  switch (name) {
-    case "book":
+  switch (type) {
+    case "pdf":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path
-            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
-            d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+            d="M14 2v6h6"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
+          />
+          <Path
+            d="M9 15h6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+          <Path
+            d="M9 18h6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
           />
         </Svg>
       );
-    case "mic":
+    case "txt":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path
-            d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
-            d="M19 10v2a7 7 0 0 1-14 0v-2"
+            d="M14 2v6h6"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <Path
-            d="M12 19v3"
+            d="M8 13h8M8 17h5"
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      );
-    case "camera":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Circle
-            cx="12"
-            cy="13"
-            r="4"
-            stroke={color}
-            strokeWidth={strokeWidth}
-          />
-        </Svg>
-      );
-    case "link":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      );
-    case "chart":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M18 20V10"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M12 20V4"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M6 20v-6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
           />
         </Svg>
       );
     default:
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Circle
-            cx="12"
-            cy="12"
-            r="10"
+          <Path
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
             stroke={color}
             strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M14 2v6h6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </Svg>
       );
   }
+}
+
+function PlusIcon({ size = 24, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 5v14M5 12h14"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function TrashIcon({ size = 20, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
 function CloseIcon({
@@ -192,43 +174,7 @@ function CloseIcon({
   );
 }
 
-const getCategoriesData = (t: (key: any) => string): KnowledgeCategory[] => [
-  {
-    id: "1",
-    title: t("gettingStarted"),
-    description: t("gettingStartedDesc"),
-    icon: "book",
-    articleCount: 5,
-  },
-  {
-    id: "2",
-    title: t("voiceCommands"),
-    description: t("voiceCommandsDesc"),
-    icon: "mic",
-    articleCount: 12,
-  },
-  {
-    id: "3",
-    title: t("documentScanning"),
-    description: t("documentScanningDesc"),
-    icon: "camera",
-    articleCount: 8,
-  },
-  {
-    id: "4",
-    title: t("erpIntegration"),
-    description: t("erpIntegrationDesc"),
-    icon: "link",
-    articleCount: 15,
-  },
-  {
-    id: "5",
-    title: t("reportsAnalytics"),
-    description: t("reportsAnalyticsDesc"),
-    icon: "chart",
-    articleCount: 10,
-  },
-];
+const mockDocuments: Document[] = [];
 
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
@@ -236,84 +182,213 @@ export default function LibraryScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
 
-  const categories = getCategoriesData(t);
+  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredCategories, setFilteredCategories] = useState<KnowledgeCategory[]>([]);
-
-  useEffect(() => {
-    setFilteredCategories(categories);
-  }, [t]);
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>(documents);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.trim()) {
-      const filtered = categories.filter(
-        (cat) =>
-          cat.title.toLowerCase().includes(query.toLowerCase()) ||
-          cat.description.toLowerCase().includes(query.toLowerCase()),
+      const filtered = documents.filter((doc) =>
+        doc.name.toLowerCase().includes(query.toLowerCase())
       );
-      setFilteredCategories(filtered);
+      setFilteredDocuments(filtered);
     } else {
-      setFilteredCategories(categories);
+      setFilteredDocuments(documents);
     }
   };
 
-  const handleCategoryPress = (item: KnowledgeCategory) => {
+  const handleUploadDocument = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          "application/pdf",
+          "text/plain",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        const fileExtension = file.name.split(".").pop()?.toLowerCase() || "other";
+        const fileType: Document["type"] =
+          fileExtension === "pdf"
+            ? "pdf"
+            : fileExtension === "txt"
+              ? "txt"
+              : fileExtension === "docx"
+                ? "docx"
+                : fileExtension === "xlsx"
+                  ? "xlsx"
+                  : "other";
+
+        const newDoc: Document = {
+          id: Date.now().toString(),
+          name: file.name,
+          type: fileType,
+          size: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Unknown",
+          uploadedAt: new Date(),
+          status: "processing",
+        };
+
+        setDocuments((prev) => [newDoc, ...prev]);
+        setFilteredDocuments((prev) => [newDoc, ...prev]);
+
+        setTimeout(() => {
+          setDocuments((prev) =>
+            prev.map((d) => (d.id === newDoc.id ? { ...d, status: "indexed" as const } : d))
+          );
+          setFilteredDocuments((prev) =>
+            prev.map((d) => (d.id === newDoc.id ? { ...d, status: "indexed" as const } : d))
+          );
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Document picker error:", error);
+    }
+  };
+
+  const handleDeleteDocument = (docId: string) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+
+    Alert.alert(t("confirmDelete"), t("deleteDocumentConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: () => {
+          setDocuments((prev) => prev.filter((d) => d.id !== docId));
+          setFilteredDocuments((prev) => prev.filter((d) => d.id !== docId));
+        },
+      },
+    ]);
   };
 
-  const renderCategory = ({ item }: { item: KnowledgeCategory }) => (
-    <Pressable
-      style={({ pressed }) => [
-        styles.categoryCard,
-        { backgroundColor: theme.backgroundDefault },
-        pressed && { backgroundColor: theme.backgroundSecondary },
-      ]}
-      onPress={() => handleCategoryPress(item)}
+  const getStatusColor = (status: Document["status"]) => {
+    switch (status) {
+      case "indexed":
+        return theme.success;
+      case "processing":
+        return theme.warning;
+      case "error":
+        return theme.error;
+      default:
+        return theme.textTertiary;
+    }
+  };
+
+  const getStatusText = (status: Document["status"]) => {
+    switch (status) {
+      case "indexed":
+        return t("indexed");
+      case "processing":
+        return t("processing");
+      case "error":
+        return t("error");
+      default:
+        return "";
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return t("justNow");
+    if (hours < 1) return `${minutes}m`;
+    if (days < 1) return `${hours}${t("hoursAgo")}`;
+    return `${days}${t("daysAgo")}`;
+  };
+
+  const renderDocument = ({ item }: { item: Document }) => (
+    <View
+      style={[styles.documentCard, { backgroundColor: theme.backgroundDefault }]}
     >
       <View
         style={[
-          styles.categoryIcon,
+          styles.documentIcon,
           { backgroundColor: theme.backgroundSecondary },
         ]}
       >
-        <CategoryIcon name={item.icon} size={24} color={theme.primary} />
+        <DocumentTypeIcon type={item.type} size={28} color={theme.primary} />
       </View>
-      <View style={styles.categoryContent}>
+      <View style={styles.documentContent}>
         <ThemedText
-          type="h4"
-          style={[styles.categoryTitle, { color: theme.text }]}
+          type="body"
+          style={[styles.documentName, { color: theme.text }]}
+          numberOfLines={1}
         >
-          {item.title}
+          {item.name}
         </ThemedText>
-        <ThemedText
-          style={[styles.categoryDescription, { color: theme.textSecondary }]}
-        >
-          {item.description}
-        </ThemedText>
-        <View style={styles.articleCount}>
-          <AnimatedDocumentIcon size={14} color={theme.textTertiary} />
+        <View style={styles.documentMeta}>
+          <ThemedText style={[styles.documentSize, { color: theme.textSecondary }]}>
+            {item.size}
+          </ThemedText>
+          <ThemedText style={[styles.documentDate, { color: theme.textTertiary }]}>
+            {formatDate(item.uploadedAt)}
+          </ThemedText>
+        </View>
+        <View style={styles.statusRow}>
+          <View
+            style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]}
+          />
           <ThemedText
-            style={[styles.articleCountText, { color: theme.textTertiary }]}
+            style={[styles.statusText, { color: getStatusColor(item.status) }]}
           >
-            {item.articleCount} {t("documents").toLowerCase()}
+            {getStatusText(item.status)}
           </ThemedText>
         </View>
       </View>
-      <AnimatedChevronIcon size={20} color={theme.textTertiary} />
-    </Pressable>
+      <Pressable
+        style={styles.deleteButton}
+        onPress={() => handleDeleteDocument(item.id)}
+        hitSlop={8}
+      >
+        <TrashIcon size={20} color={theme.textTertiary} />
+      </Pressable>
+    </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <View
         style={[
-          styles.searchContainer,
+          styles.headerSection,
           { marginTop: headerHeight + Spacing.lg },
         ]}
       >
+        <View style={styles.titleRow}>
+          <ThemedText type="h2" style={{ color: theme.text }}>
+            {t("knowledgeBase")}
+          </ThemedText>
+          <Pressable
+            style={[styles.uploadButton, { backgroundColor: theme.primary }]}
+            onPress={handleUploadDocument}
+          >
+            <PlusIcon size={20} color="#FFFFFF" />
+            <ThemedText style={styles.uploadButtonText}>
+              {t("uploadDocument")}
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <ThemedText
+          style={[styles.subtitle, { color: theme.textSecondary }]}
+        >
+          {t("ragLibraryDesc")}
+        </ThemedText>
+
         <View
           style={[
             styles.searchInputWrapper,
@@ -323,7 +398,7 @@ export default function LibraryScreen() {
           <AnimatedSearchIcon size={20} color={theme.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder={`${t("knowledgeBase")}...`}
+            placeholder={t("searchDocuments")}
             placeholderTextColor={theme.textTertiary}
             value={searchQuery}
             onChangeText={handleSearch}
@@ -341,9 +416,9 @@ export default function LibraryScreen() {
       </View>
 
       <FlatList
-        data={filteredCategories}
+        data={filteredDocuments}
         keyExtractor={(item) => item.id}
-        renderItem={renderCategory}
+        renderItem={renderDocument}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: tabBarHeight + Spacing.xl },
@@ -365,9 +440,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  searchContainer: {
+  headerSection: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginBottom: Spacing.lg,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.xs,
+  },
+  uploadButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
   },
   searchInputWrapper: {
     flexDirection: "row",
@@ -385,14 +483,14 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Spacing.lg,
   },
-  categoryCard: {
+  documentCard: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
   },
-  categoryIcon: {
+  documentIcon: {
     width: 48,
     height: 48,
     borderRadius: BorderRadius.md,
@@ -400,22 +498,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: Spacing.md,
   },
-  categoryContent: {
+  documentContent: {
     flex: 1,
   },
-  categoryTitle: {
+  documentName: {
+    fontWeight: "500",
     marginBottom: Spacing.xs,
   },
-  categoryDescription: {
-    fontSize: 14,
+  documentMeta: {
+    flexDirection: "row",
+    gap: Spacing.sm,
     marginBottom: Spacing.xs,
   },
-  articleCount: {
+  documentSize: {
+    fontSize: 12,
+  },
+  documentDate: {
+    fontSize: 12,
+  },
+  statusRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
   },
-  articleCountText: {
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
     fontSize: 12,
+    fontWeight: "500",
+  },
+  deleteButton: {
+    padding: Spacing.sm,
   },
 });
