@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import { NavigationContainer, DarkTheme } from "@react-navigation/native";
+import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import { TamaguiProvider } from "tamagui";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
@@ -14,7 +13,7 @@ import { queryClient } from "@/lib/query-client";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Colors } from "@/constants/theme";
-import { tamaguiConfig } from "../tamagui.config";
+import { useSettingsStore } from "@/store/settingsStore";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -30,6 +29,35 @@ const customDarkTheme = {
     notification: Colors.dark.primary,
   },
 };
+
+const customLightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors.light.primary,
+    background: Colors.light.backgroundRoot,
+    card: Colors.light.backgroundRoot,
+    text: Colors.light.text,
+    border: Colors.light.border,
+    notification: Colors.light.primary,
+  },
+};
+
+function AppContent() {
+  const themeMode = useSettingsStore((state) => state.themeMode);
+  const isDark = themeMode === "dark";
+
+  return (
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: isDark ? Colors.dark.backgroundRoot : Colors.light.backgroundRoot }]}>
+      <KeyboardProvider>
+        <NavigationContainer theme={isDark ? customDarkTheme : customLightTheme}>
+          <RootStackNavigator />
+        </NavigationContainer>
+        <StatusBar style={isDark ? "light" : "dark"} />
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -52,20 +80,11 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
-        <QueryClientProvider client={queryClient}>
-          <SafeAreaProvider>
-            <GestureHandlerRootView style={styles.root}>
-              <KeyboardProvider>
-                <NavigationContainer theme={customDarkTheme}>
-                  <RootStackNavigator />
-                </NavigationContainer>
-                <StatusBar style="light" />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </SafeAreaProvider>
-        </QueryClientProvider>
-      </TamaguiProvider>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <AppContent />
+        </SafeAreaProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
@@ -73,6 +92,5 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.dark.backgroundRoot,
   },
 });
