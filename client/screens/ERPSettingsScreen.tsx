@@ -99,7 +99,7 @@ export default function ERPSettingsScreen() {
                 color: theme.text,
               },
             ]}
-            placeholder="Your ERP API key"
+            placeholder={t("erpApiKeyPlaceholder")}
             placeholderTextColor={theme.textTertiary}
             value={erpApiKey}
             onChangeText={setErpApiKey}

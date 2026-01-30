@@ -62,7 +62,7 @@ export default function ChatScreen() {
       const response = await fetch(`${baseUrl}api/conversations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "New Chat" }),
+        body: JSON.stringify({ title: t("newChat") }),
       });
       const conversation = await response.json();
       setCurrentConversation(conversation.id);
