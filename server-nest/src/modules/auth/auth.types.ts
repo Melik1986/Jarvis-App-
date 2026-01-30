@@ -1,24 +1,38 @@
 export interface AuthUser {
   id: string;
-  phone?: string;
-  email?: string;
+  email: string;
+  name?: string | null;
+  picture?: string | null;
+  googleId?: string | null;
 }
 
 export interface AuthSession {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
 }
 
-export interface OtpSendRequest {
-  phone: string;
+export interface GoogleTokenPayload {
+  sub: string;
+  email: string;
+  email_verified: boolean;
+  name: string;
+  picture: string;
+  given_name?: string;
+  family_name?: string;
 }
 
-export interface OtpVerifyRequest {
-  phone: string;
-  token: string;
+export interface GoogleAuthRequest {
+  idToken: string;
 }
 
 export interface RefreshRequest {
-  refresh_token: string;
+  refreshToken: string;
+}
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  iat?: number;
+  exp?: number;
 }

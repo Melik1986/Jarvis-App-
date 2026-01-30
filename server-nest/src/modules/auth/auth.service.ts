@@ -1,99 +1,76 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { AuthUser, AuthSession } from "./auth.types";
+import * as jwt from "jsonwebtoken";
+import { eq } from "drizzle-orm";
+import { DATABASE_CONNECTION, Database } from "../../db/db.module";
+import { AuthUser, AuthSession, GoogleTokenPayload, JwtPayload } from "./auth.types";
+
+const schema = require("../../../../shared/schema");
 
 @Injectable()
 export class AuthService {
-  private supabase: SupabaseClient | null = null;
+  private readonly jwtSecret: string;
+  private readonly accessTokenExpiry = "15m";
+  private readonly refreshTokenExpiry = "7d";
 
-  constructor(private configService: ConfigService) {
-    const url = this.configService.get("SUPABASE_URL");
-    const key = this.configService.get("SUPABASE_KEY");
-
-    if (url && key) {
-      this.supabase = createClient(url, key);
-    }
+  constructor(
+    private configService: ConfigService,
+    @Inject(DATABASE_CONNECTION) private db: Database,
+  ) {
+    this.jwtSecret = this.configService.get("SESSION_SECRET") || "axon-secret-key-change-in-production";
   }
 
-  isConfigured(): boolean {
-    return this.supabase !== null;
-  }
-
-  async sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
-    if (!this.supabase) {
-      // Mock mode
-      return { success: true };
-    }
-
-    try {
-      const { error } = await this.supabase.auth.signInWithOtp({ phone });
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to send OTP",
-      };
-    }
-  }
-
-  async verifyOtp(
-    phone: string,
-    token: string,
-  ): Promise<{
+  async authenticateWithGoogle(idToken: string): Promise<{
     success: boolean;
     user?: AuthUser;
     session?: AuthSession;
     error?: string;
   }> {
-    if (!this.supabase) {
-      // Mock mode
-      return {
-        success: true,
-        user: { id: "mock-user-id", phone },
-        session: {
-          access_token: "mock-access-token",
-          refresh_token: "mock-refresh-token",
-          expires_in: 3600,
-        },
-      };
-    }
-
     try {
-      const { data, error } = await this.supabase.auth.verifyOtp({
-        phone,
-        token,
-        type: "sms",
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
+      const googlePayload = await this.verifyGoogleToken(idToken);
+      if (!googlePayload) {
+        return { success: false, error: "Invalid Google token" };
       }
 
+      let user = await this.findUserByGoogleId(googlePayload.sub);
+      
+      if (!user) {
+        user = await this.findUserByEmail(googlePayload.email);
+        if (user) {
+          user = await this.updateUserGoogleId(user.id, googlePayload.sub, googlePayload.picture);
+        } else {
+          user = await this.createUser({
+            email: googlePayload.email,
+            name: googlePayload.name,
+            picture: googlePayload.picture,
+            googleId: googlePayload.sub,
+          });
+        }
+      } else {
+        user = await this.updateUserProfile(user.id, {
+          name: googlePayload.name,
+          picture: googlePayload.picture,
+        });
+      }
+
+      const session = await this.createSession({ id: user.id, email: user.email });
+
       return {
         success: true,
-        user: data.user
-          ? {
-              id: data.user.id,
-              phone: data.user.phone,
-              email: data.user.email,
-            }
-          : undefined,
-        session: data.session
-          ? {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              expires_in: data.session.expires_in || 3600,
-            }
-          : undefined,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          googleId: user.googleId,
+        },
+        session,
       };
     } catch (error) {
+      console.error("Google auth error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to verify OTP",
+        error: error instanceof Error ? error.message : "Authentication failed",
       };
     }
   }
@@ -104,74 +81,234 @@ export class AuthService {
     session?: AuthSession;
     error?: string;
   }> {
-    if (!this.supabase) {
-      return {
-        success: true,
-        session: {
-          access_token: "mock-access-token-refreshed",
-          refresh_token: "mock-refresh-token-refreshed",
-          expires_in: 3600,
-        },
-      };
-    }
-
     try {
-      const { data, error } = await this.supabase.auth.refreshSession({
-        refresh_token: refreshToken,
-      });
+      const sessionData = await this.db
+        .select()
+        .from(schema.sessions)
+        .where(eq(schema.sessions.refreshToken, refreshToken))
+        .limit(1);
 
-      if (error) {
-        return { success: false, error: error.message };
+      if (!sessionData.length) {
+        return { success: false, error: "Invalid refresh token" };
       }
 
+      const existingSession = sessionData[0];
+      
+      if (new Date(existingSession.expiresAt) < new Date()) {
+        await this.db.delete(schema.sessions).where(eq(schema.sessions.id, existingSession.id));
+        return { success: false, error: "Refresh token expired" };
+      }
+
+      const userData = await this.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, existingSession.userId))
+        .limit(1);
+
+      if (!userData.length) {
+        return { success: false, error: "User not found" };
+      }
+
+      const user = userData[0];
+      
+      await this.db.delete(schema.sessions).where(eq(schema.sessions.id, existingSession.id));
+      
+      const newSession = await this.createSession({ id: user.id, email: user.email });
+
       return {
         success: true,
-        user: data.user
-          ? {
-              id: data.user.id,
-              phone: data.user.phone,
-              email: data.user.email,
-            }
-          : undefined,
-        session: data.session
-          ? {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              expires_in: data.session.expires_in || 3600,
-            }
-          : undefined,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          googleId: user.googleId,
+        },
+        session: newSession,
       };
     } catch (error) {
+      console.error("Refresh session error:", error);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to refresh session",
+        error: error instanceof Error ? error.message : "Failed to refresh session",
       };
     }
   }
 
-  async validateToken(
-    token: string,
-  ): Promise<{ valid: boolean; user?: AuthUser }> {
-    if (!this.supabase) {
-      return { valid: true, user: { id: "mock-user-id" } };
-    }
-
+  async validateToken(token: string): Promise<{ valid: boolean; user?: AuthUser }> {
     try {
-      const { data, error } = await this.supabase.auth.getUser(token);
-      if (error || !data.user) {
+      const payload = jwt.verify(token, this.jwtSecret) as JwtPayload;
+      
+      const userData = await this.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, payload.sub))
+        .limit(1);
+
+      if (!userData.length) {
         return { valid: false };
       }
+
+      const user = userData[0];
       return {
         valid: true,
         user: {
-          id: data.user.id,
-          phone: data.user.phone,
-          email: data.user.email,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          googleId: user.googleId,
         },
       };
     } catch {
       return { valid: false };
     }
+  }
+
+  async logout(refreshToken: string): Promise<{ success: boolean }> {
+    try {
+      await this.db
+        .delete(schema.sessions)
+        .where(eq(schema.sessions.refreshToken, refreshToken));
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  }
+
+  async getMe(userId: string): Promise<AuthUser | null> {
+    const userData = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
+
+    if (!userData.length) {
+      return null;
+    }
+
+    const user = userData[0];
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      googleId: user.googleId,
+    };
+  }
+
+  private async verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload | null> {
+    try {
+      const response = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+      );
+      
+      if (!response.ok) {
+        console.error("Google token verification failed:", response.status);
+        return null;
+      }
+      
+      const payload = await response.json() as GoogleTokenPayload;
+      
+      if (!payload.email_verified) {
+        console.error("Google email not verified");
+        return null;
+      }
+      
+      return payload;
+    } catch (error) {
+      console.error("Error verifying Google token:", error);
+      return null;
+    }
+  }
+
+  private async findUserByGoogleId(googleId: string) {
+    const users = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.googleId, googleId))
+      .limit(1);
+    return users[0] || null;
+  }
+
+  private async findUserByEmail(email: string) {
+    const users = await this.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
+    return users[0] || null;
+  }
+
+  private async createUser(data: {
+    email: string;
+    name: string;
+    picture?: string;
+    googleId?: string;
+  }) {
+    const result = await this.db
+      .insert(schema.users)
+      .values({
+        email: data.email,
+        name: data.name,
+        picture: data.picture || null,
+        googleId: data.googleId || null,
+      })
+      .returning();
+    return (result as any[])[0];
+  }
+
+  private async updateUserGoogleId(userId: string, googleId: string, picture?: string) {
+    const result = await this.db
+      .update(schema.users)
+      .set({ 
+        googleId,
+        picture: picture || undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  private async updateUserProfile(userId: string, data: { name?: string; picture?: string }) {
+    const result = await this.db
+      .update(schema.users)
+      .set({ 
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.users.id, userId))
+      .returning();
+    return result[0];
+  }
+
+  private async createSession(user: { id: string; email: string }): Promise<AuthSession> {
+    const accessToken = jwt.sign(
+      { sub: user.id, email: user.email },
+      this.jwtSecret,
+      { expiresIn: this.accessTokenExpiry }
+    );
+
+    const refreshToken = jwt.sign(
+      { sub: user.id, type: "refresh" },
+      this.jwtSecret,
+      { expiresIn: this.refreshTokenExpiry }
+    );
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.db.insert(schema.sessions).values({
+      userId: user.id,
+      refreshToken,
+      expiresAt,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60,
+    };
   }
 }

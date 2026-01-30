@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { DbModule } from "./db/db.module";
 import { ChatModule } from "./modules/chat/chat.module";
 import { LlmModule } from "./modules/llm/llm.module";
 import { ErpModule } from "./modules/erp/erp.module";
@@ -12,6 +13,7 @@ import { AuthModule } from "./modules/auth/auth.module";
       isGlobal: true,
       envFilePath: "../.env",
     }),
+    DbModule,
     ChatModule,
     LlmModule,
     ErpModule,
