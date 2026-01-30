@@ -3,7 +3,7 @@
 **Replit Mobile Buildathon Edition**
 
 > **One Codebase, Infinite Possibilities.**
-> Built on the **Replit Native Stack**: React Native (Expo) + Express + PostgreSQL + OpenAI.
+> Built on the **Replit Native Stack**: React Native (Expo) + Nest.js + PostgreSQL + OpenAI.
 
 ---
 
@@ -35,14 +35,20 @@ Our architecture is designed for speed, scalability, and "Write Once, Run Everyw
 *   **Local-First**: `AsyncStorage` for offline capability.
 
 ### ⚡ Backend (Server)
-*   **Runtime**: Node.js + Express 5.0 (TypeScript)
+*   **Framework**: Nest.js (TypeScript) with modular architecture
+*   **Runtime**: Node.js with ts-node + SWC for fast compilation
 *   **Database**: PostgreSQL (via Supabase)
 *   **ORM**: Drizzle ORM (Type-safe SQL)
+*   **Modules**:
+    *   `ChatModule`: Conversation management and AI chat
+    *   `LlmModule`: Multi-provider LLM support (OpenAI, Anthropic, Groq, Ollama)
+    *   `RagModule`: RAG knowledge base with Qdrant vector store
+    *   `ErpModule`: ERP integration via OpenAPI adapter
+    *   `AuthModule`: OTP authentication
 *   **AI Engine**:
     *   **OpenAI SDK**: GPT-4o for reasoning.
     *   **Whisper**: For lightning-fast voice transcription.
     *   **DALL-E 3**: For visual generation.
-*   **Real-time**: Server-Sent Events (SSE) for streaming AI responses.
 
 ### 🔗 Shared Layer (The Monorepo Magic)
 *   Located in `/shared`.
