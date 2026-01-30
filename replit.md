@@ -1,4 +1,4 @@
-# 🧞‍♂️ Jarvis-App: Universal AI ERP OS
+# 🧠 AXON: Universal AI ERP OS
 
 **Replit Mobile Buildathon Edition**
 
@@ -9,7 +9,7 @@
 
 ## 📖 Overview
 
-**Jarvis-App** is a game-changing AI agent that bridges the gap between complex ERP systems (like 1C, SAP, Odoo) and the people who use them.
+**AXON** is a game-changing AI agent that bridges the gap between complex ERP systems (like 1C, SAP, Odoo) and the people who use them.
 
 Instead of navigating through endless menus, users can simply:
 *   🗣️ **Speak**: "Order 50 more units of Coffee Beans."
@@ -93,5 +93,5 @@ This project demonstrates the power of the **Replit Ecosystem**:
 2.  **Deployed on Replit**: Backend hosted with instant deployment.
 3.  **Built for Mobile**: Native iOS and Android apps from a single Replit project.
 
-**Team**: Jarvis-App Core
+**Team**: AXON Core
 **Status**: 🚀 Production Ready
