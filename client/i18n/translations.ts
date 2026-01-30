@@ -53,7 +53,8 @@ export const translations = {
     saveVoice: "Save Voice",
     selectLanguage: "Select your preferred language for the app interface.",
     chooseVoice: "Choose the voice for AI responses.",
-    chooseProvider: "Choose your AI model provider. Replit AI is included free with your account.",
+    chooseProvider:
+      "Choose your AI model provider. Replit AI is included free with your account.",
     providerSettings: "Provider Settings",
     baseUrl: "Base URL",
     apiKey: "API Key",

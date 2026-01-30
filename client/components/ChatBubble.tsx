@@ -14,16 +14,29 @@ export function ChatBubble({ content, isUser, isStreaming }: ChatBubbleProps) {
   const { theme } = useTheme();
 
   return (
-    <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
+    <View
+      style={[
+        styles.container,
+        isUser ? styles.userContainer : styles.assistantContainer,
+      ]}
+    >
       <View
         style={[
           styles.bubble,
           isUser
             ? [styles.userBubble, { backgroundColor: theme.primary }]
-            : [styles.assistantBubble, { backgroundColor: theme.backgroundSecondary, borderColor: theme.border }],
+            : [
+                styles.assistantBubble,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+              ],
         ]}
       >
-        <ThemedText style={[styles.text, isUser && { color: theme.buttonText }]}>
+        <ThemedText
+          style={[styles.text, isUser && { color: theme.buttonText }]}
+        >
           {content}
           {isStreaming ? "▌" : ""}
         </ThemedText>

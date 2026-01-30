@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSettingsStore } from "@/store/settingsStore";
-import { Colors, ThemeMode } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 
 export function useTheme() {
   const themeMode = useSettingsStore((state) => state.theme);

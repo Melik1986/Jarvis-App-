@@ -11,7 +11,12 @@ interface EmptyStateProps {
   children?: React.ReactNode;
 }
 
-export function EmptyState({ image, title, subtitle, children }: EmptyStateProps) {
+export function EmptyState({
+  image,
+  title,
+  subtitle,
+  children,
+}: EmptyStateProps) {
   const { theme } = useTheme();
 
   return (
@@ -21,7 +26,9 @@ export function EmptyState({ image, title, subtitle, children }: EmptyStateProps
         {title}
       </ThemedText>
       {subtitle ? (
-        <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</ThemedText>
+        <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
+          {subtitle}
+        </ThemedText>
       ) : null}
       {children}
     </View>

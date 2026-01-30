@@ -6,6 +6,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import { TamaguiProvider } from "tamagui";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
@@ -13,6 +14,7 @@ import { queryClient } from "@/lib/query-client";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Colors } from "@/constants/theme";
+import { tamaguiConfig } from "../tamagui.config";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -35,7 +37,7 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       } finally {
         setAppIsReady(true);
         await SplashScreen.hideAsync().catch(() => {});
@@ -50,18 +52,20 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <GestureHandlerRootView style={styles.root}>
-            <KeyboardProvider>
-              <NavigationContainer theme={customDarkTheme}>
-                <RootStackNavigator />
-              </NavigationContainer>
-              <StatusBar style="light" />
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <GestureHandlerRootView style={styles.root}>
+              <KeyboardProvider>
+                <NavigationContainer theme={customDarkTheme}>
+                  <RootStackNavigator />
+                </NavigationContainer>
+                <StatusBar style="light" />
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </TamaguiProvider>
     </ErrorBoundary>
   );
 }

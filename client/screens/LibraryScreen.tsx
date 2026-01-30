@@ -1,12 +1,22 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, FlatList, Pressable, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  FlatList,
+  Pressable,
+  Platform,
+} from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 
-import { AnimatedSearchIcon, AnimatedChevronIcon, AnimatedDocumentIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedSearchIcon,
+  AnimatedChevronIcon,
+  AnimatedDocumentIcon,
+} from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
@@ -23,61 +33,161 @@ interface KnowledgeCategory {
   articleCount: number;
 }
 
-function CategoryIcon({ name, size = 24, color }: { name: CategoryIconName; size?: number; color: string }) {
+function CategoryIcon({
+  name,
+  size = 24,
+  color,
+}: {
+  name: CategoryIconName;
+  size?: number;
+  color: string;
+}) {
   const strokeWidth = 1.5;
-  
+
   switch (name) {
     case "book":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "mic":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M12 19v3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M19 10v2a7 7 0 0 1-14 0v-2"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M12 19v3"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "camera":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth={strokeWidth} />
+          <Path
+            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Circle
+            cx="12"
+            cy="13"
+            r="4"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
         </Svg>
       );
     case "link":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "chart":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M18 20V10" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M12 20V4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M6 20v-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M18 20V10"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M12 20V4"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M6 20v-6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     default:
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
+          <Circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
         </Svg>
       );
   }
 }
 
-function CloseIcon({ size = 20, color, backgroundColor }: { size?: number; color: string; backgroundColor: string }) {
+function CloseIcon({
+  size = 20,
+  color,
+  backgroundColor,
+}: {
+  size?: number;
+  color: string;
+  backgroundColor: string;
+}) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="10" fill={color} />
-      <Path d="M15 9l-6 6M9 9l6 6" stroke={backgroundColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M15 9l-6 6M9 9l6 6"
+        stroke={backgroundColor}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
@@ -121,7 +231,6 @@ const categories: KnowledgeCategory[] = [
 ];
 
 export default function LibraryScreen() {
-  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
@@ -136,7 +245,7 @@ export default function LibraryScreen() {
       const filtered = categories.filter(
         (cat) =>
           cat.title.toLowerCase().includes(query.toLowerCase()) ||
-          cat.description.toLowerCase().includes(query.toLowerCase())
+          cat.description.toLowerCase().includes(query.toLowerCase()),
       );
       setFilteredCategories(filtered);
     } else {
@@ -151,27 +260,39 @@ export default function LibraryScreen() {
   };
 
   const renderCategory = ({ item }: { item: KnowledgeCategory }) => (
-    <Pressable 
+    <Pressable
       style={({ pressed }) => [
-        styles.categoryCard, 
+        styles.categoryCard,
         { backgroundColor: theme.backgroundDefault },
-        pressed && { backgroundColor: theme.backgroundSecondary }
+        pressed && { backgroundColor: theme.backgroundSecondary },
       ]}
       onPress={() => handleCategoryPress(item)}
     >
-      <View style={[styles.categoryIcon, { backgroundColor: theme.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.categoryIcon,
+          { backgroundColor: theme.backgroundSecondary },
+        ]}
+      >
         <CategoryIcon name={item.icon} size={24} color={theme.primary} />
       </View>
       <View style={styles.categoryContent}>
-        <ThemedText type="h4" style={[styles.categoryTitle, { color: theme.text }]}>
+        <ThemedText
+          type="h4"
+          style={[styles.categoryTitle, { color: theme.text }]}
+        >
           {item.title}
         </ThemedText>
-        <ThemedText style={[styles.categoryDescription, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.categoryDescription, { color: theme.textSecondary }]}
+        >
           {item.description}
         </ThemedText>
         <View style={styles.articleCount}>
           <AnimatedDocumentIcon size={14} color={theme.textTertiary} />
-          <ThemedText style={[styles.articleCountText, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.articleCountText, { color: theme.textTertiary }]}
+          >
             {item.articleCount} {t("documents").toLowerCase()}
           </ThemedText>
         </View>
@@ -188,7 +309,12 @@ export default function LibraryScreen() {
           { marginTop: headerHeight + Spacing.lg },
         ]}
       >
-        <View style={[styles.searchInputWrapper, { backgroundColor: theme.backgroundDefault }]}>
+        <View
+          style={[
+            styles.searchInputWrapper,
+            { backgroundColor: theme.backgroundDefault },
+          ]}
+        >
           <AnimatedSearchIcon size={20} color={theme.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
@@ -199,7 +325,11 @@ export default function LibraryScreen() {
           />
           {searchQuery.length > 0 ? (
             <Pressable onPress={() => handleSearch("")}>
-              <CloseIcon size={20} color={theme.textTertiary} backgroundColor={theme.backgroundRoot} />
+              <CloseIcon
+                size={20}
+                color={theme.textTertiary}
+                backgroundColor={theme.backgroundRoot}
+              />
             </Pressable>
           ) : null}
         </View>

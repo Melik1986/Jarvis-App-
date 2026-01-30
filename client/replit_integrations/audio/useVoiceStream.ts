@@ -84,7 +84,7 @@ export function useVoiceStream(callbacks: StreamCallbacks = {}) {
         }
       }
     },
-    [playback, callbacks]
+    [playback, callbacks],
   );
 
   return { streamVoiceResponse, playbackState: playback.state };

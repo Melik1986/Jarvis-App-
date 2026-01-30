@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, ScrollView, Pressable, Modal, FlatList } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Pressable,
+  Modal,
+  FlatList,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -8,7 +15,10 @@ import Svg, { Path, Circle, Rect } from "react-native-svg";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { AnimatedCheckIcon, AnimatedChevronIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedCheckIcon,
+  AnimatedChevronIcon,
+} from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -19,35 +29,98 @@ type ProviderIconName = "flash" | "chip" | "server" | "speedometer" | "code";
 
 const modelsByProvider: Record<LLMProvider, string[]> = {
   replit: ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "claude-3-haiku"],
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "o1-preview", "o1-mini"],
+  openai: [
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo",
+    "o1-preview",
+    "o1-mini",
+  ],
   ollama: ["llama3.2", "llama3.1", "mistral", "codellama", "phi3", "gemma2"],
-  groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+  groq: [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it",
+  ],
   custom: ["gpt-4o", "claude-3.5-sonnet", "llama3.1-70b"],
 };
 
-function ProviderIcon({ name, size = 20, color }: { name: ProviderIconName; size?: number; color: string }) {
+function ProviderIcon({
+  name,
+  size = 20,
+  color,
+}: {
+  name: ProviderIconName;
+  size?: number;
+  color: string;
+}) {
   const strokeWidth = 1.5;
-  
+
   switch (name) {
     case "flash":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "chip":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Rect x="5" y="5" width="14" height="14" rx="2" stroke={color} strokeWidth={strokeWidth} />
-          <Rect x="9" y="9" width="6" height="6" rx="1" stroke={color} strokeWidth={strokeWidth} />
-          <Path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+          <Rect
+            x="5"
+            y="5"
+            width="14"
+            height="14"
+            rx="2"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
+          <Rect
+            x="9"
+            y="9"
+            width="6"
+            height="6"
+            rx="1"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
+          <Path
+            d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
         </Svg>
       );
     case "server":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Rect x="2" y="2" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
-          <Rect x="2" y="14" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
+          <Rect
+            x="2"
+            y="2"
+            width="20"
+            height="8"
+            rx="2"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
+          <Rect
+            x="2"
+            y="14"
+            width="20"
+            height="8"
+            rx="2"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
           <Circle cx="6" cy="6" r="1" fill={color} />
           <Circle cx="6" cy="18" r="1" fill={color} />
         </Svg>
@@ -55,15 +128,39 @@ function ProviderIcon({ name, size = 20, color }: { name: ProviderIconName; size
     case "speedometer":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
-          <Path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke={color}
+            strokeWidth={strokeWidth}
+          />
+          <Path
+            d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     case "code":
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path d="m16 18 6-6-6-6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="m8 6-6 6 6 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="m16 18 6-6-6-6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="m8 6-6 6 6 6"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       );
     default:
@@ -80,18 +177,45 @@ export default function LLMProviderScreen() {
 
   const { llm, setLLMSettings } = useSettingsStore();
 
-  const [selectedProvider, setSelectedProvider] = useState<LLMProvider>(llm.provider);
+  const [selectedProvider, setSelectedProvider] = useState<LLMProvider>(
+    llm.provider,
+  );
   const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
   const [apiKey, setApiKey] = useState(llm.apiKey);
   const [modelName, setModelName] = useState(llm.modelName);
   const [showModelPicker, setShowModelPicker] = useState(false);
 
-  const providers: { id: LLMProvider; name: string; description: string; icon: ProviderIconName }[] = [
-    { id: "replit", name: t("replitAI"), description: t("builtInAI"), icon: "flash" },
+  const providers: {
+    id: LLMProvider;
+    name: string;
+    description: string;
+    icon: ProviderIconName;
+  }[] = [
+    {
+      id: "replit",
+      name: t("replitAI"),
+      description: t("builtInAI"),
+      icon: "flash",
+    },
     { id: "openai", name: "OpenAI", description: t("gptModels"), icon: "chip" },
-    { id: "ollama", name: "Ollama", description: t("localModels"), icon: "server" },
-    { id: "groq", name: "Groq", description: t("ultraFast"), icon: "speedometer" },
-    { id: "custom", name: t("custom"), description: t("openAICompatible"), icon: "code" },
+    {
+      id: "ollama",
+      name: "Ollama",
+      description: t("localModels"),
+      icon: "server",
+    },
+    {
+      id: "groq",
+      name: "Groq",
+      description: t("ultraFast"),
+      icon: "speedometer",
+    },
+    {
+      id: "custom",
+      name: t("custom"),
+      description: t("openAICompatible"),
+      icon: "code",
+    },
   ];
 
   const handleSave = () => {
@@ -118,12 +242,17 @@ export default function LLMProviderScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
+        {
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
       ]}
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
           {t("chooseProvider")}
         </ThemedText>
 
@@ -133,26 +262,60 @@ export default function LLMProviderScreen() {
               key={provider.id}
               style={[
                 styles.providerItem,
-                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
-                selectedProvider === provider.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+                selectedProvider === provider.id && {
+                  borderColor: theme.primary,
+                  backgroundColor: theme.primary + "10",
+                },
               ]}
               onPress={() => handleProviderSelect(provider.id)}
             >
-              <View style={[styles.providerIcon, { backgroundColor: theme.backgroundSecondary }]}>
-                <ProviderIcon name={provider.icon} size={20} color={theme.primary} />
+              <View
+                style={[
+                  styles.providerIcon,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+              >
+                <ProviderIcon
+                  name={provider.icon}
+                  size={20}
+                  color={theme.primary}
+                />
               </View>
               <View style={styles.providerContent}>
-                <ThemedText style={[styles.providerName, { color: theme.text }]}>{provider.name}</ThemedText>
-                <ThemedText style={[styles.providerDescription, { color: theme.textSecondary }]}>
+                <ThemedText
+                  style={[styles.providerName, { color: theme.text }]}
+                >
+                  {provider.name}
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.providerDescription,
+                    { color: theme.textSecondary },
+                  ]}
+                >
                   {provider.description}
                 </ThemedText>
               </View>
               {selectedProvider === provider.id ? (
-                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                <View
+                  style={[
+                    styles.checkCircle,
+                    { backgroundColor: theme.primary },
+                  ]}
+                >
                   <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
+                <View
+                  style={[
+                    styles.emptyCircle,
+                    { borderColor: theme.textTertiary },
+                  ]}
+                />
               )}
             </Pressable>
           ))}
@@ -160,9 +323,19 @@ export default function LLMProviderScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("model")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("model")}
+        </ThemedText>
         <Pressable
-          style={[styles.modelPicker, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+          style={[
+            styles.modelPicker,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
           onPress={() => setShowModelPicker(true)}
         >
           <ThemedText style={[styles.modelPickerText, { color: theme.text }]}>
@@ -174,12 +347,25 @@ export default function LLMProviderScreen() {
 
       {showCustomFields ? (
         <View style={styles.section}>
-          <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("providerSettings")}</ThemedText>
+          <ThemedText
+            style={[styles.sectionTitle, { color: theme.textTertiary }]}
+          >
+            {t("providerSettings")}
+          </ThemedText>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("baseUrl")}</ThemedText>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              {t("baseUrl")}
+            </ThemedText>
             <TextInput
-              style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
               placeholder={
                 selectedProvider === "ollama"
                   ? "http://localhost:11434/v1"
@@ -194,9 +380,18 @@ export default function LLMProviderScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("apiKey")}</ThemedText>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              {t("apiKey")}
+            </ThemedText>
             <TextInput
-              style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
               placeholder="sk-..."
               placeholderTextColor={theme.textTertiary}
               value={apiKey}
@@ -220,11 +415,20 @@ export default function LLMProviderScreen() {
         onRequestClose={() => setShowModelPicker(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <ThemedText type="h4" style={{ color: theme.text }}>{t("model")}</ThemedText>
+              <ThemedText type="h4" style={{ color: theme.text }}>
+                {t("model")}
+              </ThemedText>
               <Pressable onPress={() => setShowModelPicker(false)}>
-                <ThemedText style={{ color: theme.primary }}>{t("save")}</ThemedText>
+                <ThemedText style={{ color: theme.primary }}>
+                  {t("save")}
+                </ThemedText>
               </Pressable>
             </View>
             <FlatList
@@ -235,7 +439,9 @@ export default function LLMProviderScreen() {
                   style={[
                     styles.modelOption,
                     { borderBottomColor: theme.border },
-                    modelName === item && { backgroundColor: theme.primary + "15" },
+                    modelName === item && {
+                      backgroundColor: theme.primary + "15",
+                    },
                   ]}
                   onPress={() => {
                     setModelName(item);

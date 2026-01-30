@@ -41,11 +41,16 @@ export default function LanguageScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
+        {
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
       ]}
     >
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
           {t("selectLanguage")}
         </ThemedText>
 
@@ -55,21 +60,48 @@ export default function LanguageScreen() {
               key={lang.id}
               style={[
                 styles.languageItem,
-                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
-                selectedLanguage === lang.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+                selectedLanguage === lang.id && {
+                  borderColor: theme.primary,
+                  backgroundColor: theme.primary + "10",
+                },
               ]}
               onPress={() => setSelectedLanguage(lang.id)}
             >
               <View style={styles.languageContent}>
-                <ThemedText style={[styles.languageName, { color: theme.text }]}>{lang.name}</ThemedText>
-                <ThemedText style={[styles.languageNative, { color: theme.textSecondary }]}>{lang.nativeName}</ThemedText>
+                <ThemedText
+                  style={[styles.languageName, { color: theme.text }]}
+                >
+                  {lang.name}
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.languageNative,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {lang.nativeName}
+                </ThemedText>
               </View>
               {selectedLanguage === lang.id ? (
-                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                <View
+                  style={[
+                    styles.checkCircle,
+                    { backgroundColor: theme.primary },
+                  ]}
+                >
                   <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
+                <View
+                  style={[
+                    styles.emptyCircle,
+                    { borderColor: theme.textTertiary },
+                  ]}
+                />
               )}
             </Pressable>
           ))}

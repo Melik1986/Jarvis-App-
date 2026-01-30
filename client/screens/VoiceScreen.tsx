@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, View, ScrollView, Pressable, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -7,7 +13,10 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { AnimatedVolumeIcon, AnimatedCheckIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedVolumeIcon,
+  AnimatedCheckIcon,
+} from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -23,7 +32,9 @@ export default function VoiceScreen() {
   const { t } = useTranslation();
 
   const { voice, setVoice } = useSettingsStore();
-  const [selectedVoice, setSelectedVoice] = useState<VoiceType>(voice as VoiceType);
+  const [selectedVoice, setSelectedVoice] = useState<VoiceType>(
+    voice as VoiceType,
+  );
 
   const voices: { id: VoiceType; name: string; descriptionKey: string }[] = [
     { id: "alloy", name: "Alloy", descriptionKey: "neutralBalanced" },
@@ -51,11 +62,16 @@ export default function VoiceScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
+        {
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
       ]}
     >
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
           {t("chooseVoice")}
         </ThemedText>
 
@@ -65,26 +81,54 @@ export default function VoiceScreen() {
               key={v.id}
               style={[
                 styles.voiceItem,
-                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
-                selectedVoice === v.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+                selectedVoice === v.id && {
+                  borderColor: theme.primary,
+                  backgroundColor: theme.primary + "10",
+                },
               ]}
               onPress={() => handleSelectVoice(v.id)}
             >
-              <View style={[styles.voiceIcon, { backgroundColor: theme.backgroundSecondary }]}>
+              <View
+                style={[
+                  styles.voiceIcon,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+              >
                 <AnimatedVolumeIcon size={20} color={theme.primary} />
               </View>
               <View style={styles.voiceContent}>
-                <ThemedText style={[styles.voiceName, { color: theme.text }]}>{v.name}</ThemedText>
-                <ThemedText style={[styles.voiceDescription, { color: theme.textSecondary }]}>
+                <ThemedText style={[styles.voiceName, { color: theme.text }]}>
+                  {v.name}
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.voiceDescription,
+                    { color: theme.textSecondary },
+                  ]}
+                >
                   {t(v.descriptionKey as any)}
                 </ThemedText>
               </View>
               {selectedVoice === v.id ? (
-                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                <View
+                  style={[
+                    styles.checkCircle,
+                    { backgroundColor: theme.primary },
+                  ]}
+                >
                   <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
+                <View
+                  style={[
+                    styles.emptyCircle,
+                    { borderColor: theme.textTertiary },
+                  ]}
+                />
               )}
             </Pressable>
           ))}

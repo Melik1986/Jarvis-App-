@@ -203,7 +203,7 @@ function configureExpoAndLanding(app: express.Application) {
     createProxyMiddleware({
       target: "http://localhost:8081",
       changeOrigin: true,
-    })
+    }),
   );
 
   app.use((req: Request, res: Response, next: NextFunction) => {

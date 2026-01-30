@@ -28,7 +28,11 @@ const springConfig: WithSpringConfig = {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps) {
+export function VoiceButton({
+  isRecording,
+  onPress,
+  disabled,
+}: VoiceButtonProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
@@ -38,10 +42,10 @@ export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps
       pulseScale.value = withRepeat(
         withSequence(
           withTiming(1.3, { duration: 600 }),
-          withTiming(1, { duration: 600 })
+          withTiming(1, { duration: 600 }),
         ),
         -1,
-        true
+        true,
       );
     } else {
       pulseScale.value = withTiming(1, { duration: 200 });
@@ -71,7 +75,9 @@ export function VoiceButton({ isRecording, onPress, disabled }: VoiceButtonProps
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.pulse, { backgroundColor: theme.primary }, pulseStyle]} />
+      <Animated.View
+        style={[styles.pulse, { backgroundColor: theme.primary }, pulseStyle]}
+      />
       <AnimatedPressable
         onPress={onPress}
         onPressIn={handlePressIn}

@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet, View, FlatList, Pressable, Platform, Alert } from "react-native";
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  Pressable,
+  Platform,
+  Alert,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
 
-import { AnimatedChatIcon, AnimatedTrashIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedChatIcon,
+  AnimatedTrashIcon,
+} from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
@@ -71,14 +81,14 @@ export default function HistoryScreen() {
         deleteConversation(item.id);
       }
     } else {
-      Alert.alert(
-        t("delete"),
-        t("confirmDelete"),
-        [
-          { text: t("cancel"), style: "cancel" },
-          { text: t("delete"), style: "destructive", onPress: () => deleteConversation(item.id) },
-        ]
-      );
+      Alert.alert(t("delete"), t("confirmDelete"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete"),
+          style: "destructive",
+          onPress: () => deleteConversation(item.id),
+        },
+      ]);
     }
   };
 
@@ -101,33 +111,65 @@ export default function HistoryScreen() {
     }
   };
 
-  const renderItem = useCallback(({ item }: { item: Conversation }) => (
-    <View style={[styles.historyItem, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-      <View style={[styles.itemIcon, { backgroundColor: theme.backgroundSecondary }]}>
-        <AnimatedChatIcon size={18} color={theme.primary} />
-      </View>
-      <Pressable style={styles.itemContent} onPress={() => handleItemPress(item)}>
-        <ThemedText style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-          {item.title}
-        </ThemedText>
-        <ThemedText style={[styles.itemTimestamp, { color: theme.textTertiary }]}>
-          {formatDate(item.createdAt)}
-        </ThemedText>
-      </Pressable>
-      <View style={[styles.statusBadge, { backgroundColor: theme.success + "20" }]}>
-        <View style={[styles.statusDot, { backgroundColor: theme.success }]} />
-        <ThemedText style={[styles.statusText, { color: theme.success }]}>
-          {t("completed")}
-        </ThemedText>
-      </View>
-      <Pressable 
-        style={styles.deleteButton}
-        onPress={() => confirmDelete(item)}
+  const renderItem = useCallback(
+    ({ item }: { item: Conversation }) => (
+      <View
+        style={[
+          styles.historyItem,
+          {
+            backgroundColor: theme.backgroundDefault,
+            borderColor: theme.border,
+          },
+        ]}
       >
-        <AnimatedTrashIcon size={18} color={theme.error} />
-      </Pressable>
-    </View>
-  ), [theme, t]);
+        <View
+          style={[
+            styles.itemIcon,
+            { backgroundColor: theme.backgroundSecondary },
+          ]}
+        >
+          <AnimatedChatIcon size={18} color={theme.primary} />
+        </View>
+        <Pressable
+          style={styles.itemContent}
+          onPress={() => handleItemPress(item)}
+        >
+          <ThemedText
+            style={[styles.itemTitle, { color: theme.text }]}
+            numberOfLines={1}
+          >
+            {item.title}
+          </ThemedText>
+          <ThemedText
+            style={[styles.itemTimestamp, { color: theme.textTertiary }]}
+          >
+            {formatDate(item.createdAt)}
+          </ThemedText>
+        </Pressable>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: theme.success + "20" },
+          ]}
+        >
+          <View
+            style={[styles.statusDot, { backgroundColor: theme.success }]}
+          />
+          <ThemedText style={[styles.statusText, { color: theme.success }]}>
+            {t("completed")}
+          </ThemedText>
+        </View>
+        <Pressable
+          style={styles.deleteButton}
+          onPress={() => confirmDelete(item)}
+        >
+          <AnimatedTrashIcon size={18} color={theme.error} />
+        </Pressable>
+      </View>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [theme, t],
+  );
 
   const renderEmpty = () => (
     <EmptyState
@@ -139,11 +181,18 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <View style={[styles.segmentContainer, { marginTop: headerHeight + Spacing.lg }]}>
+      <View
+        style={[
+          styles.segmentContainer,
+          { marginTop: headerHeight + Spacing.lg },
+        ]}
+      >
         <SegmentedControl
           values={[t("commands"), t("analytics")]}
           selectedIndex={selectedIndex}
-          onChange={(event) => setSelectedIndex(event.nativeEvent.selectedSegmentIndex)}
+          onChange={(event) =>
+            setSelectedIndex(event.nativeEvent.selectedSegmentIndex)
+          }
           style={styles.segmentedControl}
           backgroundColor={theme.backgroundDefault}
           tintColor={theme.primary}

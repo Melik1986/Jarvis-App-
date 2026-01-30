@@ -50,19 +50,33 @@ export default function ERPSettingsScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl },
+        {
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
       ]}
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionDescription, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
           {t("connectERP")}
         </ThemedText>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("systemUrl")}</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("systemUrl")}
+          </ThemedText>
           <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
             placeholder="https://your-erp.com/api"
             placeholderTextColor={theme.textTertiary}
             value={erpUrl}
@@ -73,9 +87,18 @@ export default function ERPSettingsScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("apiKey")}</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("apiKey")}
+          </ThemedText>
           <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
             placeholder="Your ERP API key"
             placeholderTextColor={theme.textTertiary}
             value={erpApiKey}
@@ -87,9 +110,18 @@ export default function ERPSettingsScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>{t("openApiSpecUrl")}</ThemedText>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("openApiSpecUrl")}
+          </ThemedText>
           <TextInput
-            style={[styles.textInput, { backgroundColor: theme.backgroundDefault, borderColor: theme.border, color: theme.text }]}
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
             placeholder="https://your-erp.com/swagger.json"
             placeholderTextColor={theme.textTertiary}
             value={specUrl}
@@ -101,7 +133,11 @@ export default function ERPSettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("apiType")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("apiType")}
+        </ThemedText>
 
         <View style={styles.typeList}>
           {apiTypes.map((type) => (
@@ -109,23 +145,46 @@ export default function ERPSettingsScreen() {
               key={type.id}
               style={[
                 styles.typeItem,
-                { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
-                apiType === type.id && { borderColor: theme.primary, backgroundColor: theme.primary + "10" },
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+                apiType === type.id && {
+                  borderColor: theme.primary,
+                  backgroundColor: theme.primary + "10",
+                },
               ]}
               onPress={() => setApiType(type.id)}
             >
               <View style={styles.typeContent}>
-                <ThemedText style={[styles.typeName, { color: theme.text }]}>{type.name}</ThemedText>
-                <ThemedText style={[styles.typeDescription, { color: theme.textSecondary }]}>
+                <ThemedText style={[styles.typeName, { color: theme.text }]}>
+                  {type.name}
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    styles.typeDescription,
+                    { color: theme.textSecondary },
+                  ]}
+                >
                   {t(type.descriptionKey as any)}
                 </ThemedText>
               </View>
               {apiType === type.id ? (
-                <View style={[styles.checkCircle, { backgroundColor: theme.primary }]}>
+                <View
+                  style={[
+                    styles.checkCircle,
+                    { backgroundColor: theme.primary },
+                  ]}
+                >
                   <AnimatedCheckIcon size={16} color={theme.buttonText} />
                 </View>
               ) : (
-                <View style={[styles.emptyCircle, { borderColor: theme.textTertiary }]} />
+                <View
+                  style={[
+                    styles.emptyCircle,
+                    { borderColor: theme.textTertiary },
+                  ]}
+                />
               )}
             </Pressable>
           ))}

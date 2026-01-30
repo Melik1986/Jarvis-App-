@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet } from "react-native";
-import Svg, { Path, Circle, Rect, Line } from "react-native-svg";
+import Svg, { Path, Circle, Rect } from "react-native-svg";
 import Animated, {
   useSharedValue,
   useAnimatedProps,
@@ -12,8 +11,6 @@ import Animated, {
 } from "react-native-reanimated";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedLine = Animated.createAnimatedComponent(Line);
 
 interface IconProps {
   size?: number;
@@ -21,19 +18,23 @@ interface IconProps {
   strokeWidth?: number;
 }
 
-export function AnimatedMicIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedMicIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
-      false
+      false,
     );
-  }, []);
+  }, [progress]);
 
   const animatedProps = useAnimatedProps(() => ({
     opacity: interpolate(progress.value, [0, 0.5, 1], [1, 0.6, 1]),
@@ -67,7 +68,11 @@ export function AnimatedMicIcon({ size = 24, color = "#fff", strokeWidth = 2 }: 
   );
 }
 
-export function AnimatedChatIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedChatIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -81,7 +86,10 @@ export function AnimatedChatIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
   );
 }
 
-export function AnimatedChatFilledIcon({ size = 24, color = "#fff" }: IconProps) {
+export function AnimatedChatFilledIcon({
+  size = 24,
+  color = "#fff",
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -96,7 +104,11 @@ export function AnimatedChatFilledIcon({ size = 24, color = "#fff" }: IconProps)
   );
 }
 
-export function AnimatedLibraryIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedLibraryIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -117,7 +129,10 @@ export function AnimatedLibraryIcon({ size = 24, color = "#fff", strokeWidth = 2
   );
 }
 
-export function AnimatedLibraryFilledIcon({ size = 24, color = "#fff" }: IconProps) {
+export function AnimatedLibraryFilledIcon({
+  size = 24,
+  color = "#fff",
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -139,16 +154,20 @@ export function AnimatedLibraryFilledIcon({ size = 24, color = "#fff" }: IconPro
   );
 }
 
-export function AnimatedHistoryIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedHistoryIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
     rotation.value = withRepeat(
       withTiming(360, { duration: 8000, easing: Easing.linear }),
       -1,
-      false
+      false,
     );
-  }, []);
+  }, [rotation]);
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -172,7 +191,10 @@ export function AnimatedHistoryIcon({ size = 24, color = "#fff", strokeWidth = 2
   );
 }
 
-export function AnimatedHistoryFilledIcon({ size = 24, color = "#fff" }: IconProps) {
+export function AnimatedHistoryFilledIcon({
+  size = 24,
+  color = "#fff",
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle
@@ -194,7 +216,11 @@ export function AnimatedHistoryFilledIcon({ size = 24, color = "#fff" }: IconPro
   );
 }
 
-export function AnimatedProfileIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedProfileIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle
@@ -217,7 +243,10 @@ export function AnimatedProfileIcon({ size = 24, color = "#fff", strokeWidth = 2
   );
 }
 
-export function AnimatedProfileFilledIcon({ size = 24, color = "#fff" }: IconProps) {
+export function AnimatedProfileFilledIcon({
+  size = 24,
+  color = "#fff",
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle
@@ -240,7 +269,11 @@ export function AnimatedProfileFilledIcon({ size = 24, color = "#fff" }: IconPro
   );
 }
 
-export function AnimatedSendIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedSendIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -261,16 +294,14 @@ export function AnimatedSendIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
   );
 }
 
-export function AnimatedSettingsIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedSettingsIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle
-        cx="12"
-        cy="12"
-        r="3"
-        stroke={color}
-        strokeWidth={strokeWidth}
-      />
+      <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={strokeWidth} />
       <Path
         d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
         stroke={color}
@@ -282,7 +313,11 @@ export function AnimatedSettingsIcon({ size = 24, color = "#fff", strokeWidth = 
   );
 }
 
-export function AnimatedChevronIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedChevronIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -296,7 +331,11 @@ export function AnimatedChevronIcon({ size = 24, color = "#fff", strokeWidth = 2
   );
 }
 
-export function AnimatedStopIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedStopIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect
@@ -315,7 +354,11 @@ export function AnimatedStopIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
   );
 }
 
-export function AnimatedCameraIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedCameraIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -325,18 +368,16 @@ export function AnimatedCameraIcon({ size = 24, color = "#fff", strokeWidth = 2 
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle
-        cx="12"
-        cy="13"
-        r="4"
-        stroke={color}
-        strokeWidth={strokeWidth}
-      />
+      <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth={strokeWidth} />
     </Svg>
   );
 }
 
-export function AnimatedPlusIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedPlusIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -357,16 +398,14 @@ export function AnimatedPlusIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
   );
 }
 
-export function AnimatedSearchIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedSearchIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle
-        cx="11"
-        cy="11"
-        r="8"
-        stroke={color}
-        strokeWidth={strokeWidth}
-      />
+      <Circle cx="11" cy="11" r="8" stroke={color} strokeWidth={strokeWidth} />
       <Path
         d="m21 21-4.35-4.35"
         stroke={color}
@@ -378,7 +417,11 @@ export function AnimatedSearchIcon({ size = 24, color = "#fff", strokeWidth = 2 
   );
 }
 
-export function AnimatedDocumentIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedDocumentIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -413,7 +456,11 @@ export function AnimatedDocumentIcon({ size = 24, color = "#fff", strokeWidth = 
   );
 }
 
-export function AnimatedTrashIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedTrashIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -434,7 +481,11 @@ export function AnimatedTrashIcon({ size = 24, color = "#fff", strokeWidth = 2 }
   );
 }
 
-export function AnimatedPencilIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedPencilIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -448,7 +499,11 @@ export function AnimatedPencilIcon({ size = 24, color = "#fff", strokeWidth = 2 
   );
 }
 
-export function AnimatedLogoutIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedLogoutIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -476,7 +531,11 @@ export function AnimatedLogoutIcon({ size = 24, color = "#fff", strokeWidth = 2 
   );
 }
 
-export function AnimatedCheckIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedCheckIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -490,7 +549,11 @@ export function AnimatedCheckIcon({ size = 24, color = "#fff", strokeWidth = 2 }
   );
 }
 
-export function AnimatedVolumeIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedVolumeIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -518,7 +581,11 @@ export function AnimatedVolumeIcon({ size = 24, color = "#fff", strokeWidth = 2 
   );
 }
 
-export function AnimatedFlashIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedFlashIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -532,37 +599,96 @@ export function AnimatedFlashIcon({ size = 24, color = "#fff", strokeWidth = 2 }
   );
 }
 
-export function AnimatedChipIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedChipIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="5" y="5" width="14" height="14" rx="2" stroke={color} strokeWidth={strokeWidth} />
-      <Rect x="9" y="9" width="6" height="6" rx="1" stroke={color} strokeWidth={strokeWidth} />
-      <Path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Rect
+        x="5"
+        y="5"
+        width="14"
+        height="14"
+        rx="2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+      />
+      <Rect
+        x="9"
+        y="9"
+        width="6"
+        height="6"
+        rx="1"
+        stroke={color}
+        strokeWidth={strokeWidth}
+      />
+      <Path
+        d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }
 
-export function AnimatedServerIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedServerIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="2" y="2" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
-      <Rect x="2" y="14" width="20" height="8" rx="2" stroke={color} strokeWidth={strokeWidth} />
+      <Rect
+        x="2"
+        y="2"
+        width="20"
+        height="8"
+        rx="2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+      />
+      <Rect
+        x="2"
+        y="14"
+        width="20"
+        height="8"
+        rx="2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+      />
       <Circle cx="6" cy="6" r="1" fill={color} />
       <Circle cx="6" cy="18" r="1" fill={color} />
     </Svg>
   );
 }
 
-export function AnimatedSpeedometerIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedSpeedometerIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
-      <Path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
 
-export function AnimatedCodeIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedCodeIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -583,16 +709,30 @@ export function AnimatedCodeIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
   );
 }
 
-export function AnimatedAlertIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedAlertIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={strokeWidth} />
-      <Path d="M12 8v4M12 16h.01" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M12 8v4M12 16h.01"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
 
-export function AnimatedCloseIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedCloseIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -613,23 +753,71 @@ export function AnimatedCloseIcon({ size = 24, color = "#fff", strokeWidth = 2 }
   );
 }
 
-export function AnimatedSunIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedSunIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="12" r="4" stroke={color} strokeWidth={strokeWidth} />
-      <Path d="M12 2v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="M12 20v2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="m4.93 4.93 1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="m17.66 17.66 1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="M2 12h2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="M20 12h2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="m6.34 17.66-1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d="m19.07 4.93-1.41 1.41" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path
+        d="M12 2v2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M12 20v2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="m4.93 4.93 1.41 1.41"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="m17.66 17.66 1.41 1.41"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M2 12h2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M20 12h2"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="m6.34 17.66-1.41 1.41"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="m19.07 4.93-1.41 1.41"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }
 
-export function AnimatedMoonIcon({ size = 24, color = "#fff", strokeWidth = 2 }: IconProps) {
+export function AnimatedMoonIcon({
+  size = 24,
+  color = "#fff",
+  strokeWidth = 2,
+}: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -642,4 +830,3 @@ export function AnimatedMoonIcon({ size = 24, color = "#fff", strokeWidth = 2 }:
     </Svg>
   );
 }
-

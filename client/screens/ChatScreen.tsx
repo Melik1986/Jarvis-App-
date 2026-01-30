@@ -1,50 +1,88 @@
-import React, { useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View, FlatList, TextInput, Pressable, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useEffect, useCallback, useState } from "react";
+import { StyleSheet, View, Platform } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
-
-import { AnimatedSendIcon, AnimatedMicIcon } from "@/components/AnimatedIcons";
+import {
+  GiftedChat,
+  IMessage,
+  Bubble,
+  InputToolbar,
+  Composer,
+  Send,
+  BubbleProps,
+  InputToolbarProps,
+  ComposerProps,
+  SendProps,
+} from "react-native-gifted-chat";
 
 import { ThemedText } from "@/components/ThemedText";
-import { ChatBubble } from "@/components/ChatBubble";
-import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
-import { useChatStore, ChatMessage } from "@/store/chatStore";
+import { AnimatedMicIcon } from "@/components/AnimatedIcons";
+import { useChatStore } from "@/store/chatStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 
+// Bot user for Jarvis
+const JARVIS_USER = {
+  _id: 2,
+  name: "Jarvis",
+  avatar: require("../../assets/images/icon.png"),
+};
+
+// Current user
+const CURRENT_USER = {
+  _id: 1,
+  name: "User",
+};
+
 export default function ChatScreen() {
-  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const flatListRef = useRef<FlatList>(null);
   const { theme } = useTheme();
   const { t } = useTranslation();
 
-  const [inputText, setInputText] = React.useState("");
-  const [isRecording, setIsRecording] = React.useState(false);
+  const [messages, setMessages] = useState<IMessage[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const {
-    messages,
     currentConversationId,
     isStreaming,
     streamingContent,
-    setMessages,
-    addMessage,
     setCurrentConversation,
     setStreaming,
     setStreamingContent,
-    appendStreamingContent,
     clearStreamingContent,
   } = useChatStore();
 
+  // Create or load conversation on mount
   useEffect(() => {
     createOrLoadConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update messages when streaming content changes
+  useEffect(() => {
+    if (isStreaming && streamingContent) {
+      // Update the last message (streaming message) with new content
+      setMessages((prevMessages) => {
+        const newMessages = [...prevMessages];
+        const streamingMsgIndex = newMessages.findIndex(
+          (m) => m._id === "streaming",
+        );
+        if (streamingMsgIndex >= 0) {
+          newMessages[streamingMsgIndex] = {
+            ...newMessages[streamingMsgIndex],
+            text: streamingContent,
+          };
+        }
+        return newMessages;
+      });
+    }
+  }, [streamingContent, isStreaming]);
 
   const createOrLoadConversation = async () => {
     try {
@@ -56,84 +94,142 @@ export default function ChatScreen() {
       });
       const conversation = await response.json();
       setCurrentConversation(conversation.id);
+
+      // Show welcome message
+      const welcomeMessage: IMessage = {
+        _id: "welcome",
+        text:
+          t("welcomeMessage") ||
+          "Привет! Я Jarvis, ваш AI-ассистент для 1С. Спросите меня об остатках, товарах или создании документов.",
+        createdAt: new Date(),
+        user: JARVIS_USER,
+      };
+      setMessages([welcomeMessage]);
     } catch (error) {
       console.error("Failed to create conversation:", error);
     }
   };
 
-  const sendMessage = useCallback(async () => {
-    if (!inputText.trim() || !currentConversationId || isStreaming) return;
+  const onSend = useCallback(
+    async (newMessages: IMessage[] = []) => {
+      if (!currentConversationId || isStreaming) return;
 
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: "user",
-      content: inputText.trim(),
-      createdAt: new Date().toISOString(),
-    };
+      const userMessage = newMessages[0];
 
-    addMessage(userMessage);
-    setInputText("");
-    setStreaming(true);
-    clearStreamingContent();
-
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    try {
-      const baseUrl = getApiUrl();
-      const response = await fetch(
-        `${baseUrl}api/conversations/${currentConversationId}/messages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: userMessage.content }),
-        }
+      // Add user message to state
+      setMessages((prevMessages) =>
+        GiftedChat.append(prevMessages, newMessages),
       );
 
-      const reader = response.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.content) {
-              fullContent += data.content;
-              setStreamingContent(fullContent);
-            }
-            if (data.done) {
-              const assistantMessage: ChatMessage = {
-                id: Date.now() + 1,
-                role: "assistant",
-                content: fullContent,
-                createdAt: new Date().toISOString(),
-              };
-              addMessage(assistantMessage);
-              clearStreamingContent();
-              if (Platform.OS !== "web") {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              }
-            }
-          } catch {}
-        }
+      // Haptic feedback
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-    } catch (error) {
-      console.error("Failed to send message:", error);
-    } finally {
-      setStreaming(false);
-    }
-  }, [inputText, currentConversationId, isStreaming]);
+
+      // Start streaming
+      setStreaming(true);
+      setIsTyping(true);
+      clearStreamingContent();
+
+      // Add placeholder for streaming message
+      const streamingPlaceholder: IMessage = {
+        _id: "streaming",
+        text: "",
+        createdAt: new Date(),
+        user: JARVIS_USER,
+      };
+      setMessages((prevMessages) =>
+        GiftedChat.append(prevMessages, [streamingPlaceholder]),
+      );
+
+      try {
+        const baseUrl = getApiUrl();
+        const response = await fetch(
+          `${baseUrl}api/conversations/${currentConversationId}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: userMessage.text }),
+          },
+        );
+
+        const reader = response.body?.getReader();
+        if (!reader) return;
+
+        const decoder = new TextDecoder();
+        let fullContent = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              // Handle tool calls
+              if (data.tool_call) {
+                // Could show tool execution UI here
+                console.log(`Tool called: ${data.tool_call}`);
+              }
+
+              // Handle content
+              if (data.content) {
+                fullContent += data.content;
+                setStreamingContent(fullContent);
+              }
+
+              // Handle completion
+              if (data.done) {
+                // Replace streaming placeholder with final message
+                setMessages((prevMessages) => {
+                  const newMessages = prevMessages.filter(
+                    (m) => m._id !== "streaming",
+                  );
+                  const finalMessage: IMessage = {
+                    _id: Date.now(),
+                    text: fullContent,
+                    createdAt: new Date(),
+                    user: JARVIS_USER,
+                  };
+                  return GiftedChat.append(newMessages, [finalMessage]);
+                });
+
+                if (Platform.OS !== "web") {
+                  Haptics.notificationAsync(
+                    Haptics.NotificationFeedbackType.Success,
+                  );
+                }
+              }
+            } catch {
+              // Ignore parse errors for incomplete chunks
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to send message:", error);
+        // Remove streaming placeholder on error
+        setMessages((prevMessages) =>
+          prevMessages.filter((m) => m._id !== "streaming"),
+        );
+      } finally {
+        setStreaming(false);
+        setIsTyping(false);
+        clearStreamingContent();
+      }
+    },
+    [
+      currentConversationId,
+      isStreaming,
+      clearStreamingContent,
+      setStreaming,
+      setStreamingContent,
+    ],
+  );
 
   const handleVoicePress = () => {
     setIsRecording(!isRecording);
@@ -142,21 +238,88 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => (
-      <ChatBubble content={item.content} isUser={item.role === "user"} />
-    ),
-    []
+  // Custom bubble renderer
+  const renderBubble = (props: BubbleProps<IMessage>) => (
+    <Bubble
+      {...props}
+      wrapperStyle={{
+        left: {
+          backgroundColor: theme.backgroundSecondary,
+          borderRadius: BorderRadius.lg,
+          marginLeft: 0,
+        },
+        right: {
+          backgroundColor: theme.primary,
+          borderRadius: BorderRadius.lg,
+        },
+      }}
+      textStyle={{
+        left: { color: theme.text },
+        right: { color: "#FFFFFF" },
+      }}
+    />
   );
 
-  const handleSuggestionPress = (suggestion: string) => {
-    setInputText(suggestion);
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
+  // Custom input toolbar
+  const renderInputToolbar = (props: InputToolbarProps<IMessage>) => (
+    <InputToolbar
+      {...props}
+      containerStyle={{
+        backgroundColor: theme.backgroundRoot,
+        borderTopColor: theme.border,
+        borderTopWidth: 1,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+      }}
+    />
+  );
 
-  const renderEmptyState = () => (
+  // Custom composer
+  const renderComposer = (props: ComposerProps) => (
+    <Composer
+      {...props}
+      textInputStyle={{
+        color: theme.text,
+        backgroundColor: theme.backgroundDefault,
+        borderRadius: BorderRadius.lg,
+        paddingHorizontal: Spacing.md,
+        paddingTop: Spacing.sm,
+        paddingBottom: Spacing.sm,
+        marginRight: Spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.border,
+      }}
+      placeholderTextColor={theme.textTertiary}
+      placeholder={t("messageJarvis") || "Сообщение Jarvis..."}
+    />
+  );
+
+  // Custom send button
+  const renderSend = (props: SendProps<IMessage>) => (
+    <Send
+      {...props}
+      containerStyle={{
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: Spacing.sm,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: theme.primary,
+          borderRadius: BorderRadius.full,
+          padding: Spacing.sm,
+        }}
+      >
+        <ThemedText style={{ color: "#FFFFFF", fontWeight: "600" }}>
+          {t("send") || "→"}
+        </ThemedText>
+      </View>
+    </Send>
+  );
+
+  // Empty chat view
+  const renderChatEmpty = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.micIconContainer}>
         <AnimatedMicIcon size={48} color={theme.primary} />
@@ -164,115 +327,51 @@ export default function ChatScreen() {
       <ThemedText type="h4" style={[styles.emptyTitle, { color: theme.text }]}>
         {t("startConversation")}
       </ThemedText>
-      <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+      <ThemedText
+        style={[styles.emptySubtitle, { color: theme.textSecondary }]}
+      >
         {t("askJarvis")}
       </ThemedText>
-      <View style={styles.suggestions}>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.suggestionChip, 
-            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
-          ]}
-          onPress={() => handleSuggestionPress(t("checkInventory"))}
-        >
-          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
-            {t("checkInventory")}
-          </ThemedText>
-        </Pressable>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.suggestionChip,
-            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
-          ]}
-          onPress={() => handleSuggestionPress(t("createInvoice"))}
-        >
-          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
-            {t("createInvoice")}
-          </ThemedText>
-        </Pressable>
-        <Pressable 
-          style={({ pressed }) => [
-            styles.suggestionChip,
-            { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-            pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
-          ]}
-          onPress={() => handleSuggestionPress(t("showSalesReport"))}
-        >
-          <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
-            {t("showSalesReport")}
-          </ThemedText>
-        </Pressable>
-      </View>
     </View>
   );
 
-  const allMessages = isStreaming && streamingContent
-    ? [...messages, { id: -1, role: "assistant" as const, content: streamingContent, createdAt: "" }]
-    : messages;
+  // Footer with voice button
+  const renderChatFooter = () => (
+    <View
+      style={[styles.voiceButtonContainer, { paddingBottom: tabBarHeight }]}
+    >
+      <VoiceButton
+        isRecording={isRecording}
+        onPress={handleVoicePress}
+        disabled={isStreaming}
+      />
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      <FlatList
-        ref={flatListRef}
-        style={styles.list}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingTop: headerHeight + Spacing.lg, paddingBottom: tabBarHeight + 100 },
-          messages.length === 0 && styles.emptyListContent,
-        ]}
-        data={allMessages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id.toString()}
-        ListEmptyComponent={renderEmptyState}
-        onContentSizeChange={() => {
-          if (messages.length > 0) {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }
+      <GiftedChat
+        messages={messages}
+        onSend={onSend}
+        user={CURRENT_USER}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderComposer={renderComposer}
+        renderSend={renderSend}
+        renderChatEmpty={renderChatEmpty}
+        renderChatFooter={renderChatFooter}
+        isTyping={isTyping}
+        alwaysShowSend
+        scrollToBottom
+        infiniteScroll
+        inverted={true}
+        listViewProps={{
+          contentContainerStyle: {
+            paddingTop: headerHeight,
+            flexGrow: 1,
+          },
         }}
-        scrollIndicatorInsets={{ bottom: insets.bottom }}
       />
-
-      <View
-        style={[
-          styles.inputContainer,
-          { paddingBottom: tabBarHeight + Spacing.lg, backgroundColor: theme.backgroundRoot },
-        ]}
-      >
-        <View style={styles.inputRow}>
-          <View style={[styles.textInputContainer, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
-            <TextInput
-              style={[styles.textInput, { color: theme.text }]}
-              placeholder={t("messageJarvis")}
-              placeholderTextColor={theme.textTertiary}
-              value={inputText}
-              onChangeText={setInputText}
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-              multiline
-              maxLength={2000}
-            />
-            <Pressable
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-              onPress={sendMessage}
-              disabled={!inputText.trim() || isStreaming}
-            >
-              <AnimatedSendIcon
-                size={20}
-                color={inputText.trim() ? theme.primary : theme.textTertiary}
-              />
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.voiceButtonContainer}>
-          <VoiceButton
-            isRecording={isRecording}
-            onPress={handleVoicePress}
-            disabled={isStreaming}
-          />
-        </View>
-      </View>
     </View>
   );
 }
@@ -281,20 +380,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  emptyListContent: {
-    justifyContent: "center",
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: Spacing["3xl"],
+    transform: [{ scaleY: -1 }], // GiftedChat inverts the list
   },
   micIconContainer: {
     marginBottom: Spacing["2xl"],
@@ -305,60 +396,9 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     textAlign: "center",
-    marginBottom: Spacing.lg,
-  },
-  suggestions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  suggestionChip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  suggestionText: {
-    fontSize: 14,
-  },
-  inputContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: Spacing.sm,
-  },
-  textInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    maxHeight: 100,
-    paddingVertical: Spacing.xs,
-  },
-  sendButton: {
-    padding: Spacing.sm,
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
   },
   voiceButtonContainer: {
     alignItems: "center",
-    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
   },
 });

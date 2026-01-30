@@ -1,5 +1,13 @@
 import React from "react";
-import { StyleSheet, View, Image, ScrollView, Pressable, Platform, Linking } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Image,
+  ScrollView,
+  Pressable,
+  Platform,
+  Linking,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -8,7 +16,12 @@ import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsItem } from "@/components/SettingsItem";
-import { AnimatedPencilIcon, AnimatedLogoutIcon, AnimatedSunIcon, AnimatedMoonIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedPencilIcon,
+  AnimatedLogoutIcon,
+  AnimatedSunIcon,
+  AnimatedMoonIcon,
+} from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -28,7 +41,7 @@ export default function ProfileScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<any>();
-  const { theme, themeMode, toggleTheme, isDark } = useTheme();
+  const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
   const { llm, erp, voice, language } = useSettingsStore();
@@ -68,7 +81,7 @@ export default function ProfileScreen() {
     handleHaptic();
     try {
       await Linking.openURL("https://jsrvis.com/help");
-    } catch (e) {
+    } catch {
       console.log("Could not open help URL");
     }
   };
@@ -77,7 +90,7 @@ export default function ProfileScreen() {
     handleHaptic();
     try {
       await Linking.openURL("https://jsrvis.com/privacy");
-    } catch (e) {
+    } catch {
       console.log("Could not open privacy URL");
     }
   };
@@ -91,7 +104,10 @@ export default function ProfileScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: headerHeight + Spacing.xl, paddingBottom: tabBarHeight + Spacing.xl },
+        {
+          paddingTop: headerHeight + Spacing.xl,
+          paddingBottom: tabBarHeight + Spacing.xl,
+        },
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
@@ -101,20 +117,35 @@ export default function ProfileScreen() {
             source={require("../../assets/images/avatar-default.png")}
             style={[styles.avatar, { borderColor: theme.primary }]}
           />
-          <Pressable style={[styles.editAvatarButton, { backgroundColor: theme.primary, borderColor: theme.backgroundRoot }]} onPress={handleHaptic}>
+          <Pressable
+            style={[
+              styles.editAvatarButton,
+              {
+                backgroundColor: theme.primary,
+                borderColor: theme.backgroundRoot,
+              },
+            ]}
+            onPress={handleHaptic}
+          >
             <AnimatedPencilIcon size={14} color={theme.buttonText} />
           </Pressable>
         </View>
         <ThemedText type="h3" style={[styles.userName, { color: theme.text }]}>
           {t("user")}
         </ThemedText>
-        <ThemedText style={[styles.userSubtitle, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.userSubtitle, { color: theme.textSecondary }]}
+        >
           {t("enterprise")}
         </ThemedText>
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("aiSettings")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("aiSettings")}
+        </ThemedText>
         <SettingsItem
           icon="hardware-chip-outline"
           title={t("llmProvider")}
@@ -136,7 +167,11 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("erpConnection")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("erpConnection")}
+        </ThemedText>
         <SettingsItem
           icon="link-outline"
           title={t("systemUrl")}
@@ -158,7 +193,11 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("preferences")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("preferences")}
+        </ThemedText>
         <SettingsItem
           icon="globe-outline"
           title={t("language")}
@@ -166,7 +205,13 @@ export default function ProfileScreen() {
           onPress={() => handleNavigate("Language")}
         />
         <Pressable
-          style={[styles.themeRow, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}
+          style={[
+            styles.themeRow,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
           onPress={handleToggleTheme}
         >
           <View style={styles.themeRowLeft}>
@@ -175,9 +220,16 @@ export default function ProfileScreen() {
             ) : (
               <AnimatedSunIcon size={22} color={theme.primary} />
             )}
-            <ThemedText style={[styles.themeRowTitle, { color: theme.text }]}>{t("theme")}</ThemedText>
+            <ThemedText style={[styles.themeRowTitle, { color: theme.text }]}>
+              {t("theme")}
+            </ThemedText>
           </View>
-          <View style={[styles.themeToggle, { backgroundColor: theme.backgroundSecondary }]}>
+          <View
+            style={[
+              styles.themeToggle,
+              { backgroundColor: theme.backgroundSecondary },
+            ]}
+          >
             <Pressable
               style={[
                 styles.themeOption,
@@ -185,7 +237,10 @@ export default function ProfileScreen() {
               ]}
               onPress={() => !isDark || handleToggleTheme()}
             >
-              <AnimatedSunIcon size={16} color={!isDark ? theme.buttonText : theme.textTertiary} />
+              <AnimatedSunIcon
+                size={16}
+                color={!isDark ? theme.buttonText : theme.textTertiary}
+              />
             </Pressable>
             <Pressable
               style={[
@@ -194,14 +249,21 @@ export default function ProfileScreen() {
               ]}
               onPress={() => isDark || handleToggleTheme()}
             >
-              <AnimatedMoonIcon size={16} color={isDark ? theme.buttonText : theme.textTertiary} />
+              <AnimatedMoonIcon
+                size={16}
+                color={isDark ? theme.buttonText : theme.textTertiary}
+              />
             </Pressable>
           </View>
         </Pressable>
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>{t("about")}</ThemedText>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("about")}
+        </ThemedText>
         <SettingsItem
           icon="information-circle-outline"
           title={t("version")}
@@ -220,9 +282,14 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <Pressable style={[styles.logoutButton, { backgroundColor: theme.error + "15" }]} onPress={handleLogout}>
+      <Pressable
+        style={[styles.logoutButton, { backgroundColor: theme.error + "15" }]}
+        onPress={handleLogout}
+      >
         <AnimatedLogoutIcon size={20} color={theme.error} />
-        <ThemedText style={[styles.logoutText, { color: theme.error }]}>{t("signOut")}</ThemedText>
+        <ThemedText style={[styles.logoutText, { color: theme.error }]}>
+          {t("signOut")}
+        </ThemedText>
       </Pressable>
     </ScrollView>
   );

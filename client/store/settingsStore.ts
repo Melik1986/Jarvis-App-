@@ -63,11 +63,17 @@ export const useSettingsStore = create<SettingsState>()(
       setLanguage: (language) => set({ language }),
       setTheme: (theme) => set({ theme }),
       resetToDefaults: () =>
-        set({ llm: defaultLLM, erp: defaultERP, voice: "alloy", language: "ru", theme: "dark" }),
+        set({
+          llm: defaultLLM,
+          erp: defaultERP,
+          voice: "alloy",
+          language: "ru",
+          theme: "dark",
+        }),
     }),
     {
       name: "jsrvis-settings",
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    },
+  ),
 );
