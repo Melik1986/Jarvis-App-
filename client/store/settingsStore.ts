@@ -22,14 +22,27 @@ interface ERPSettings {
   specUrl: string;
 }
 
+export type RagProvider = "qdrant" | "none";
+
+export interface RagSettings {
+  provider: RagProvider;
+  qdrant: {
+    url: string;
+    apiKey: string;
+    collectionName: string;
+  };
+}
+
 interface SettingsState {
   llm: LLMSettings;
   erp: ERPSettings;
+  rag: RagSettings;
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
   language: string;
   theme: ThemeMode;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setERPSettings: (settings: Partial<ERPSettings>) => void;
+  setRagSettings: (settings: Partial<RagSettings>) => void;
   setVoice: (voice: SettingsState["voice"]) => void;
   setLanguage: (language: string) => void;
   setTheme: (theme: ThemeMode) => void;
@@ -53,11 +66,21 @@ const defaultERP: ERPSettings = {
   specUrl: "",
 };
 
+const defaultRag: RagSettings = {
+  provider: "none",
+  qdrant: {
+    url: "",
+    apiKey: "",
+    collectionName: "kb_jarvis",
+  },
+};
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       llm: defaultLLM,
       erp: defaultERP,
+      rag: defaultRag,
       voice: "alloy",
       language: "ru",
       theme: "dark",
@@ -65,6 +88,14 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({ llm: { ...state.llm, ...settings } })),
       setERPSettings: (settings) =>
         set((state) => ({ erp: { ...state.erp, ...settings } })),
+      setRagSettings: (settings) =>
+        set((state) => ({
+          rag: {
+            ...state.rag,
+            ...settings,
+            qdrant: { ...state.rag.qdrant, ...settings.qdrant },
+          },
+        })),
       setVoice: (voice) => set({ voice }),
       setLanguage: (language) => set({ language }),
       setTheme: (theme) => set({ theme }),
@@ -72,6 +103,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({
           llm: defaultLLM,
           erp: defaultERP,
+          rag: defaultRag,
           voice: "alloy",
           language: "ru",
           theme: "dark",

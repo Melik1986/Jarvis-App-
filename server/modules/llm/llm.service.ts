@@ -19,7 +19,9 @@ interface ProviderConfig {
 
 const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig | null> = {
   replit: {
-    baseUrl: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || "https://api.openai.com/v1",
+    baseUrl:
+      process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ||
+      "https://api.openai.com/v1",
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || "",
     defaultModel: "gpt-4o",
     available: true,
@@ -38,10 +40,9 @@ const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig | null> = {
   },
   ollama: {
     baseUrl: "http://localhost:11434/v1",
-    apiKey: "ollama",
+    apiKey: "ollama", // Placeholder - Ollama typically doesn't require auth
     defaultModel: "llama3",
-    available: false,
-    unavailableReason: "Ollama requires local GPU and is not available in Replit environment",
+    available: true,
   },
   custom: {
     baseUrl: "",
@@ -54,13 +55,16 @@ const PROVIDER_CONFIGS: Record<LLMProvider, ProviderConfig | null> = {
 export class LLMService {
   private getProviderConfig(settings: LLMSettings): ProviderConfig {
     const baseConfig = PROVIDER_CONFIGS[settings.provider];
-    
+
     if (!baseConfig) {
       throw new Error(`Unknown LLM provider: ${settings.provider}`);
     }
 
     if (!baseConfig.available) {
-      throw new Error(baseConfig.unavailableReason || `Provider ${settings.provider} is not available`);
+      throw new Error(
+        baseConfig.unavailableReason ||
+          `Provider ${settings.provider} is not available`,
+      );
     }
 
     return {
@@ -74,7 +78,12 @@ export class LLMService {
   createClient(settings: LLMSettings): OpenAI {
     const config = this.getProviderConfig(settings);
 
-    if (!config.apiKey && settings.provider !== "replit") {
+    // Replit and Ollama don't require API key (Ollama uses placeholder or no auth)
+    if (
+      !config.apiKey &&
+      settings.provider !== "replit" &&
+      settings.provider !== "ollama"
+    ) {
       throw new Error(`API key is required for provider: ${settings.provider}`);
     }
 
@@ -94,7 +103,10 @@ export class LLMService {
     return config?.available ?? false;
   }
 
-  getProviderInfo(provider: LLMProvider): { available: boolean; reason?: string } {
+  getProviderInfo(provider: LLMProvider): {
+    available: boolean;
+    reason?: string;
+  } {
     const config = PROVIDER_CONFIGS[provider];
     if (!config) {
       return { available: false, reason: "Unknown provider" };
@@ -111,7 +123,12 @@ export class LLMService {
       case "openai":
         return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"];
       case "groq":
-        return ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"];
+        return [
+          "llama-3.3-70b-versatile",
+          "llama-3.1-8b-instant",
+          "mixtral-8x7b-32768",
+          "gemma2-9b-it",
+        ];
       case "ollama":
         return ["llama3", "mistral", "codellama", "phi3"];
       case "custom":

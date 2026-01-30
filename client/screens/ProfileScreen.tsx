@@ -44,7 +44,7 @@ export default function ProfileScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
-  const { llm, erp, voice, language } = useSettingsStore();
+  const { llm, erp, rag, voice, language } = useSettingsStore();
 
   const getLLMProviderLabel = () => {
     switch (llm.provider) {
@@ -189,6 +189,34 @@ export default function ProfileScreen() {
           title={t("apiSpecification")}
           subtitle={erp.specUrl || t("notConfigured")}
           onPress={() => handleNavigate("ERPSettings")}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("knowledgeBase")}
+        </ThemedText>
+        <SettingsItem
+          icon="library-outline"
+          title={t("ragProvider") || "Provider"}
+          value={
+            rag.provider === "qdrant" ? "Qdrant" : t("disabled") || "Disabled"
+          }
+          onPress={() => handleNavigate("RAGSettings")}
+        />
+        <SettingsItem
+          icon="server-outline"
+          title={t("qdrantUrl") || "Qdrant URL"}
+          subtitle={rag.qdrant.url || t("notConfigured")}
+          onPress={() => handleNavigate("RAGSettings")}
+        />
+        <SettingsItem
+          icon="folder-outline"
+          title={t("collectionName") || "Collection"}
+          value={rag.qdrant.collectionName || "kb_jarvis"}
+          onPress={() => handleNavigate("RAGSettings")}
         />
       </View>
 

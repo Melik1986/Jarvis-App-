@@ -1,45 +1,45 @@
-import type {
-  SearchResult,
-  RagConfig,
-  QdrantSearchResult,
-  DocumentPayload,
-} from "./rag.types";
-import { embeddingsService } from "../ai";
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import OpenAI from "openai";
+import { RagConfig, SearchResult, QdrantSearchResult } from "./rag.types";
 
-/**
- * RAG (Retrieval-Augmented Generation) service using Qdrant.
- * Provides semantic search over knowledge base documents.
- */
+@Injectable()
 export class RagService {
   private config: RagConfig;
   private isConfigured: boolean;
+  private openai: OpenAI;
 
-  constructor() {
+  constructor(private configService: ConfigService) {
     this.config = {
-      url: process.env.QDRANT_URL || "",
-      apiKey: process.env.QDRANT_API_KEY,
+      url: this.configService.get("QDRANT_URL") || "",
+      apiKey: this.configService.get("QDRANT_API_KEY"),
       collectionName: "kb_jarvis",
     };
     this.isConfigured = Boolean(this.config.url);
+
+    this.openai = new OpenAI({
+      apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
+      baseURL: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+    });
   }
 
-  /**
-   * Check if Qdrant is configured
-   */
   isAvailable(): boolean {
     return this.isConfigured;
   }
 
-  /**
-   * Search for relevant documents by query text.
-   * Optionally accepts a custom config to override the default (env-based) settings.
-   */
+  async embed(text: string): Promise<number[]> {
+    const response = await this.openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+    });
+    return response.data[0].embedding;
+  }
+
   async search(
     query: string,
     limit = 3,
     customConfig?: RagConfig,
   ): Promise<SearchResult[]> {
-    // Use custom config if provided, otherwise fallback to instance config
     const config = customConfig || this.config;
     const isConfigured = Boolean(config.url);
 
@@ -48,10 +48,8 @@ export class RagService {
     }
 
     try {
-      // Generate embedding for query
-      const embedding = await embeddingsService.embed(query);
+      const embedding = await this.embed(query);
 
-      // Search in Qdrant
       const response = await fetch(
         `${config.url}/collections/${config.collectionName}/points/search`,
         {
@@ -91,91 +89,6 @@ export class RagService {
     }
   }
 
-  /**
-   * Add document to knowledge base
-   */
-  async addDocument(
-    content: string,
-    metadata?: Partial<DocumentPayload>,
-  ): Promise<string> {
-    if (!this.isConfigured) {
-      console.log("Qdrant not configured, skipping document add");
-      return `mock-${Date.now()}`;
-    }
-
-    try {
-      const embedding = await embeddingsService.embed(content);
-      const id = `doc-${Date.now()}`;
-
-      await fetch(
-        `${this.config.url}/collections/${this.config.collectionName}/points`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(this.config.apiKey && { "api-key": this.config.apiKey }),
-          },
-          body: JSON.stringify({
-            points: [
-              {
-                id,
-                vector: embedding,
-                payload: { content, ...metadata },
-              },
-            ],
-          }),
-        },
-      );
-
-      return id;
-    } catch (error) {
-      console.error("Error adding document to Qdrant:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create collection if not exists
-   */
-  async ensureCollection(): Promise<void> {
-    if (!this.isConfigured) return;
-
-    try {
-      const checkResponse = await fetch(
-        `${this.config.url}/collections/${this.config.collectionName}`,
-        {
-          headers: this.config.apiKey ? { "api-key": this.config.apiKey } : {},
-        },
-      );
-
-      if (checkResponse.status === 404) {
-        // Collection doesn't exist, create it
-        await fetch(
-          `${this.config.url}/collections/${this.config.collectionName}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(this.config.apiKey && { "api-key": this.config.apiKey }),
-            },
-            body: JSON.stringify({
-              vectors: {
-                size: embeddingsService.getDimensions(),
-                distance: "Cosine",
-              },
-            }),
-          },
-        );
-        console.log(`Created Qdrant collection: ${this.config.collectionName}`);
-      }
-    } catch (error) {
-      console.error("Error ensuring Qdrant collection:", error);
-    }
-  }
-
-  /**
-   * Build context string from search results for LLM prompt injection
-   */
   buildContext(results: SearchResult[]): string {
     if (results.length === 0) return "";
 
@@ -188,10 +101,6 @@ export class RagService {
 
     return `Релевантная информация из базы знаний:\n\n${contextParts.join("\n\n---\n\n")}`;
   }
-
-  // =====================
-  // Mock data for demo/testing
-  // =====================
 
   private getMockResults(query: string, limit: number): SearchResult[] {
     const mockDocs: SearchResult[] = [
@@ -225,16 +134,8 @@ export class RagService {
           category: "inventory",
         },
       },
-      {
-        id: "doc-4",
-        score: 0.78,
-        content:
-          "Скидки для клиентов: оптовым покупателям от 10%, постоянным клиентам от 5%. Скидки не суммируются. Максимальная скидка без согласования руководства - 15%.",
-        metadata: { title: "Политика скидок", category: "sales" },
-      },
     ];
 
-    // Simple keyword matching for demo
     const lowerQuery = query.toLowerCase();
     const filtered = mockDocs
       .filter(
@@ -244,10 +145,6 @@ export class RagService {
       )
       .slice(0, limit);
 
-    // Return all if no matches (for demo purposes)
     return filtered.length > 0 ? filtered : mockDocs.slice(0, limit);
   }
 }
-
-// Singleton instance
-export const ragService = new RagService();

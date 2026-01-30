@@ -24,7 +24,9 @@ export class OnesService {
       username: process.env.ONE_C_USER || "",
       password: process.env.ONE_C_PASSWORD || "",
     };
-    this.isDefaultConfigured = Boolean(this.defaultConfig.baseUrl && this.defaultConfig.username);
+    this.isDefaultConfigured = Boolean(
+      this.defaultConfig.baseUrl && this.defaultConfig.username,
+    );
   }
 
   private getConfig(erpConfig?: ERPConfig): OnesConfig & { useMock: boolean } {
@@ -58,9 +60,12 @@ export class OnesService {
   /**
    * Get current stock for a product by name
    */
-  async getStock(productName: string, erpConfig?: ERPConfig): Promise<StockItem[]> {
+  async getStock(
+    productName: string,
+    erpConfig?: ERPConfig,
+  ): Promise<StockItem[]> {
     const config = this.getConfig(erpConfig);
-    
+
     if (config.useMock) {
       return this.getMockStock(productName);
     }
@@ -104,9 +109,12 @@ export class OnesService {
   /**
    * Get products list with optional filter
    */
-  async getProducts(filter?: string, erpConfig?: ERPConfig): Promise<Product[]> {
+  async getProducts(
+    filter?: string,
+    erpConfig?: ERPConfig,
+  ): Promise<Product[]> {
     const config = this.getConfig(erpConfig);
-    
+
     if (config.useMock) {
       return this.getMockProducts(filter);
     }
@@ -136,9 +144,12 @@ export class OnesService {
   /**
    * Create a sales invoice in 1C
    */
-  async createInvoice(data: InvoiceDto, erpConfig?: ERPConfig): Promise<Invoice> {
+  async createInvoice(
+    data: InvoiceDto,
+    erpConfig?: ERPConfig,
+  ): Promise<Invoice> {
     const config = this.getConfig(erpConfig);
-    
+
     if (config.useMock) {
       return this.getMockInvoice(data);
     }
@@ -155,11 +166,14 @@ export class OnesService {
   /**
    * Fetch data from 1C OData endpoint
    */
-  private async fetchOData<T>(endpoint: string, config: OnesConfig): Promise<T[]> {
+  private async fetchOData<T>(
+    endpoint: string,
+    config: OnesConfig,
+  ): Promise<T[]> {
     const url = `${config.baseUrl}/${endpoint}`;
-    const auth = Buffer.from(
-      `${config.username}:${config.password}`,
-    ).toString("base64");
+    const auth = Buffer.from(`${config.username}:${config.password}`).toString(
+      "base64",
+    );
 
     const response = await fetch(url, {
       headers: {
@@ -181,11 +195,15 @@ export class OnesService {
   /**
    * POST data to 1C OData endpoint
    */
-  private async postOData<T>(endpoint: string, body: unknown, config: OnesConfig): Promise<T> {
+  private async postOData<T>(
+    endpoint: string,
+    body: unknown,
+    config: OnesConfig,
+  ): Promise<T> {
     const url = `${config.baseUrl}/${endpoint}`;
-    const auth = Buffer.from(
-      `${config.username}:${config.password}`,
-    ).toString("base64");
+    const auth = Buffer.from(`${config.username}:${config.password}`).toString(
+      "base64",
+    );
 
     const response = await fetch(url, {
       method: "POST",

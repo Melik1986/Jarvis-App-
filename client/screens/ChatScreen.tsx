@@ -1,5 +1,12 @@
 import React, { useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View, FlatList, TextInput, Pressable, Platform } from "react-native";
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  TextInput,
+  Pressable,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -26,6 +33,7 @@ export default function ChatScreen() {
   const { t } = useTranslation();
   const llmSettings = useSettingsStore((state) => state.llm);
   const erpSettings = useSettingsStore((state) => state.erp);
+  const ragSettings = useSettingsStore((state) => state.rag);
 
   const [inputText, setInputText] = React.useState("");
   const [isRecording, setIsRecording] = React.useState(false);
@@ -105,8 +113,12 @@ export default function ChatScreen() {
               apiKey: erpSettings.apiKey,
               apiType: erpSettings.apiType,
             },
+            ragSettings: {
+              provider: ragSettings.provider,
+              qdrant: ragSettings.qdrant,
+            },
           }),
-        }
+        },
       );
 
       const reader = response.body?.getReader();
@@ -140,7 +152,9 @@ export default function ChatScreen() {
               addMessage(assistantMessage);
               clearStreamingContent();
               if (Platform.OS !== "web") {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Success,
+                );
               }
             }
           } catch {}
@@ -151,6 +165,7 @@ export default function ChatScreen() {
     } finally {
       setStreaming(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputText, currentConversationId, isStreaming]);
 
   const handleVoicePress = () => {
@@ -164,7 +179,7 @@ export default function ChatScreen() {
     ({ item }: { item: ChatMessage }) => (
       <ChatBubble content={item.content} isUser={item.role === "user"} />
     ),
-    []
+    [],
   );
 
   const handleSuggestionPress = (suggestion: string) => {
@@ -182,39 +197,63 @@ export default function ChatScreen() {
         subtitle={t("askJarvis")}
       >
         <View style={styles.suggestions}>
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
-              styles.suggestionChip, 
-              { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+              styles.suggestionChip,
+              {
+                backgroundColor: theme.backgroundSecondary,
+                borderColor: theme.border,
+              },
+              pressed && {
+                backgroundColor: theme.primary + "20",
+                borderColor: theme.primary,
+              },
             ]}
             onPress={() => handleSuggestionPress(t("checkInventory"))}
           >
-            <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.suggestionText, { color: theme.textSecondary }]}
+            >
               {t("checkInventory")}
             </ThemedText>
           </Pressable>
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
               styles.suggestionChip,
-              { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+              {
+                backgroundColor: theme.backgroundSecondary,
+                borderColor: theme.border,
+              },
+              pressed && {
+                backgroundColor: theme.primary + "20",
+                borderColor: theme.primary,
+              },
             ]}
             onPress={() => handleSuggestionPress(t("createInvoice"))}
           >
-            <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.suggestionText, { color: theme.textSecondary }]}
+            >
               {t("createInvoice")}
             </ThemedText>
           </Pressable>
-          <Pressable 
+          <Pressable
             style={({ pressed }) => [
               styles.suggestionChip,
-              { backgroundColor: theme.backgroundSecondary, borderColor: theme.border },
-              pressed && { backgroundColor: theme.primary + "20", borderColor: theme.primary }
+              {
+                backgroundColor: theme.backgroundSecondary,
+                borderColor: theme.border,
+              },
+              pressed && {
+                backgroundColor: theme.primary + "20",
+                borderColor: theme.primary,
+              },
             ]}
             onPress={() => handleSuggestionPress(t("showSalesReport"))}
           >
-            <ThemedText style={[styles.suggestionText, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.suggestionText, { color: theme.textSecondary }]}
+            >
               {t("showSalesReport")}
             </ThemedText>
           </Pressable>
@@ -223,9 +262,18 @@ export default function ChatScreen() {
     </View>
   );
 
-  const allMessages = isStreaming && streamingContent
-    ? [...messages, { id: -1, role: "assistant" as const, content: streamingContent, createdAt: "" }]
-    : messages;
+  const allMessages =
+    isStreaming && streamingContent
+      ? [
+          ...messages,
+          {
+            id: -1,
+            role: "assistant" as const,
+            content: streamingContent,
+            createdAt: "",
+          },
+        ]
+      : messages;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
@@ -234,7 +282,10 @@ export default function ChatScreen() {
         style={styles.list}
         contentContainerStyle={[
           styles.listContent,
-          { paddingTop: headerHeight + Spacing.lg, paddingBottom: tabBarHeight + 100 },
+          {
+            paddingTop: headerHeight + Spacing.lg,
+            paddingBottom: tabBarHeight + 100,
+          },
           messages.length === 0 && styles.emptyListContent,
         ]}
         data={allMessages}
@@ -252,11 +303,22 @@ export default function ChatScreen() {
       <View
         style={[
           styles.inputContainer,
-          { paddingBottom: tabBarHeight + Spacing.lg, backgroundColor: theme.backgroundRoot },
+          {
+            paddingBottom: tabBarHeight + Spacing.lg,
+            backgroundColor: theme.backgroundRoot,
+          },
         ]}
       >
         <View style={styles.inputRow}>
-          <View style={[styles.textInputContainer, { backgroundColor: theme.backgroundDefault, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.textInputContainer,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+              },
+            ]}
+          >
             <TextInput
               style={[styles.textInput, { color: theme.text }]}
               placeholder={t("messageJarvis")}
@@ -269,7 +331,10 @@ export default function ChatScreen() {
               maxLength={2000}
             />
             <Pressable
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton,
+                !inputText.trim() && styles.sendButtonDisabled,
+              ]}
               onPress={sendMessage}
               disabled={!inputText.trim() || isStreaming}
             >

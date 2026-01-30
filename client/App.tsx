@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DarkTheme,
+  DefaultTheme,
+} from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -48,9 +52,20 @@ function AppContent() {
   const isDark = themeMode === "dark";
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: isDark ? Colors.dark.backgroundRoot : Colors.light.backgroundRoot }]}>
+    <GestureHandlerRootView
+      style={[
+        styles.root,
+        {
+          backgroundColor: isDark
+            ? Colors.dark.backgroundRoot
+            : Colors.light.backgroundRoot,
+        },
+      ]}
+    >
       <KeyboardProvider>
-        <NavigationContainer theme={isDark ? customDarkTheme : customLightTheme}>
+        <NavigationContainer
+          theme={isDark ? customDarkTheme : customLightTheme}
+        >
           <RootStackNavigator />
         </NavigationContainer>
         <StatusBar style={isDark ? "light" : "dark"} />

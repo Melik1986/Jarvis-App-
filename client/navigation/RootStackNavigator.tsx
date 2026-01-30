@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import LLMProviderScreen from "@/screens/LLMProviderScreen";
 import ERPSettingsScreen from "@/screens/ERPSettingsScreen";
+import RAGSettingsScreen from "@/screens/RAGSettingsScreen";
 import LanguageScreen from "@/screens/LanguageScreen";
 import VoiceScreen from "@/screens/VoiceScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
@@ -11,6 +12,7 @@ export type RootStackParamList = {
   Main: undefined;
   LLMProvider: undefined;
   ERPSettings: undefined;
+  RAGSettings: undefined;
   Language: undefined;
   Voice: undefined;
 };
@@ -41,6 +43,14 @@ export default function RootStackNavigator() {
         options={{
           presentation: "modal",
           headerTitle: "ERP Connection",
+        }}
+      />
+      <Stack.Screen
+        name="RAGSettings"
+        component={RAGSettingsScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Knowledge Base",
         }}
       />
       <Stack.Screen

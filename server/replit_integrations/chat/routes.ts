@@ -5,10 +5,20 @@ import { onesService, type ERPConfig } from "../../modules/ones";
 import { ragService } from "../../modules/rag";
 import { llmService, type LLMSettings } from "../../modules/llm";
 
+interface RagSettingsRequest {
+  provider: "qdrant" | "none";
+  qdrant?: {
+    url: string;
+    apiKey?: string;
+    collectionName: string;
+  };
+}
+
 interface ChatRequestBody {
   content: string;
   llmSettings?: LLMSettings;
   erpSettings?: ERPConfig;
+  ragSettings?: RagSettingsRequest;
 }
 
 function getOpenAIClient(llmSettings?: LLMSettings): OpenAI {
@@ -175,11 +185,14 @@ async function executeToolCall(
           amount: item.quantity * item.price,
         }));
 
-        const invoice = await onesService.createInvoice({
-          customerName: args.customer_name as string,
-          items,
-          comment: args.comment as string,
-        }, erpConfig);
+        const invoice = await onesService.createInvoice(
+          {
+            customerName: args.customer_name as string,
+            items,
+            comment: args.comment as string,
+          },
+          erpConfig,
+        );
 
         return `Документ создан:\n• Номер: ${invoice.number}\n• Дата: ${new Date(invoice.date).toLocaleDateString("ru-RU")}\n• Покупатель: ${invoice.customerName}\n• Сумма: ${invoice.total} ₽\n• Статус: ${invoice.status === "draft" ? "Черновик" : "Проведён"}`;
       }
@@ -253,7 +266,8 @@ export function registerChatRoutes(app: Express): void {
     async (req: Request, res: Response) => {
       try {
         const conversationId = parseInt(req.params.id as string);
-        const { content, llmSettings, erpSettings } = req.body as ChatRequestBody;
+        const { content, llmSettings, erpSettings, ragSettings } =
+          req.body as ChatRequestBody;
 
         const openai = getOpenAIClient(llmSettings);
         const modelName = getModelName(llmSettings);
@@ -268,7 +282,17 @@ export function registerChatRoutes(app: Express): void {
         // Search RAG for relevant context
         let ragContext = "";
         try {
-          const ragResults = await ragService.search(content, 2);
+          // Build RAG config from request settings or fallback to env
+          const ragConfig =
+            ragSettings?.provider === "qdrant" && ragSettings.qdrant?.url
+              ? {
+                  url: ragSettings.qdrant.url,
+                  apiKey: ragSettings.qdrant.apiKey,
+                  collectionName:
+                    ragSettings.qdrant.collectionName || "kb_jarvis",
+                }
+              : undefined;
+          const ragResults = await ragService.search(content, 2, ragConfig);
           ragContext = ragService.buildContext(ragResults);
         } catch (ragError) {
           console.warn(
@@ -372,7 +396,11 @@ export function registerChatRoutes(app: Express): void {
 
           for (const toolCall of toolCallsToProcess) {
             const args = JSON.parse(toolCall.function.arguments || "{}");
-            const result = await executeToolCall(toolCall.function.name, args, erpSettings);
+            const result = await executeToolCall(
+              toolCall.function.name,
+              args,
+              erpSettings,
+            );
 
             // Send tool execution notification to client
             res.write(
