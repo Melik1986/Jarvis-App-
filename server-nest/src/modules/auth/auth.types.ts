@@ -3,7 +3,7 @@ export interface AuthUser {
   email: string;
   name?: string | null;
   picture?: string | null;
-  googleId?: string | null;
+  replitId?: string | null;
 }
 
 export interface AuthSession {

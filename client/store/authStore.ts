@@ -8,7 +8,7 @@ export interface User {
   email: string;
   name?: string | null;
   picture?: string | null;
-  googleId?: string | null;
+  replitId?: string | null;
 }
 
 export interface Session {
@@ -24,9 +24,6 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
 
-  signInWithGoogle: (
-    idToken: string,
-  ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   setSession: (session: Session | null) => void;
@@ -42,42 +39,6 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isAuthenticated: false,
 
-      signInWithGoogle: async (idToken: string) => {
-        set({ isLoading: true });
-        try {
-          const baseUrl = getApiUrl();
-          const response = await fetch(`${baseUrl}api/auth/google`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          });
-
-          const data = await response.json();
-
-          if (data.success && data.session) {
-            const session: Session = {
-              accessToken: data.session.accessToken,
-              refreshToken: data.session.refreshToken,
-              expiresIn: data.session.expiresIn,
-              expiresAt: Date.now() + data.session.expiresIn * 1000,
-            };
-            set({
-              user: data.user,
-              session,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-            return { success: true };
-          }
-
-          set({ isLoading: false });
-          return { success: false, error: data.message || data.error || "Authentication failed" };
-        } catch (error) {
-          set({ isLoading: false });
-          return { success: false, error: "Network error" };
-        }
-      },
-
       signOut: async () => {
         const { session } = get();
         if (session?.refreshToken) {
@@ -89,7 +50,6 @@ export const useAuthStore = create<AuthState>()(
               body: JSON.stringify({ refreshToken: session.refreshToken }),
             });
           } catch {
-            // Ignore logout errors
           }
         }
         set({

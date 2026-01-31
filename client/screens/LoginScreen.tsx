@@ -10,103 +10,103 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
+import * as Linking from "expo-linking";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuthStore } from "@/store/authStore";
+import { getApiUrl } from "@/lib/query-client";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_CLIENT_ID_WEB = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || "";
-const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || "";
-const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || "";
-
-const discovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-};
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
   const colors = theme;
   const { t } = useTranslation();
-  const { signInWithGoogle, isLoading } = useAuthStore();
+  const { setUser, setSession, isLoading } = useAuthStore();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const clientId = Platform.select({
-    ios: GOOGLE_CLIENT_ID_IOS,
-    android: GOOGLE_CLIENT_ID_ANDROID,
-    default: GOOGLE_CLIENT_ID_WEB,
-  }) || GOOGLE_CLIENT_ID_WEB;
-
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: "jsrvis",
-  });
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId,
-      scopes: ["openid", "profile", "email"],
-      responseType: "id_token",
-      redirectUri,
-    },
-    discovery
-  );
-
   useEffect(() => {
-    handleGoogleResponse();
-  }, [response]);
+    const handleDeepLink = (event: { url: string }) => {
+      handleAuthCallback(event.url);
+    };
 
-  const handleGoogleResponse = async () => {
-    if (response?.type === "success") {
-      setIsSigningIn(true);
-      const { id_token } = response.params;
-      
-      if (id_token) {
-        const result = await signInWithGoogle(id_token);
-        if (!result.success) {
-          Alert.alert(t("error"), result.error || t("authFailed"));
+    const subscription = Linking.addEventListener("url", handleDeepLink);
+
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleAuthCallback(url);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const handleAuthCallback = async (url: string) => {
+    if (!url.includes("/auth/success")) return;
+
+    try {
+      const urlObj = new URL(url);
+      const accessToken = urlObj.searchParams.get("accessToken");
+      const refreshToken = urlObj.searchParams.get("refreshToken");
+      const expiresIn = urlObj.searchParams.get("expiresIn");
+      const userJson = urlObj.searchParams.get("user");
+
+      if (accessToken && refreshToken && expiresIn) {
+        const session = {
+          accessToken,
+          refreshToken,
+          expiresIn: parseInt(expiresIn, 10),
+          expiresAt: Date.now() + parseInt(expiresIn, 10) * 1000,
+        };
+        setSession(session);
+
+        if (userJson) {
+          const user = JSON.parse(decodeURIComponent(userJson));
+          setUser(user);
         }
       }
-      setIsSigningIn(false);
-    } else if (response?.type === "error") {
-      Alert.alert(t("error"), response.error?.message || t("authFailed"));
+    } catch (error) {
+      console.error("Error handling auth callback:", error);
     }
+    setIsSigningIn(false);
   };
 
-  const handleGoogleSignIn = async () => {
-    if (!GOOGLE_CLIENT_ID_WEB && !GOOGLE_CLIENT_ID_IOS && !GOOGLE_CLIENT_ID_ANDROID) {
-      Alert.alert(
-        t("configurationRequired"),
-        t("googleOAuthNotConfigured"),
-        [{ text: "OK" }]
-      );
-      return;
-    }
+  const handleLogin = async () => {
+    setIsSigningIn(true);
     
     try {
-      await promptAsync();
+      const baseUrl = getApiUrl();
+      const redirectUri = Linking.createURL("/auth/success");
+      const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
+      
+      const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUri);
+      
+      if (result.type === "success" && result.url) {
+        await handleAuthCallback(result.url);
+      } else {
+        setIsSigningIn(false);
+      }
     } catch (error) {
-      console.error("Google sign in error:", error);
+      console.error("Login error:", error);
       Alert.alert(t("error"), t("authFailed"));
+      setIsSigningIn(false);
     }
   };
-
-  const loading = isLoading || isSigningIn;
 
   const handleDevLogin = async () => {
     setIsSigningIn(true);
-    const { setUser, setSession } = useAuthStore.getState();
     setUser({
       id: "dev-user-1",
       email: "dev@axon.local",
       name: "Dev User",
       picture: null,
-      googleId: null,
+      replitId: null,
     });
     setSession({
       accessToken: "dev-token",
@@ -117,7 +117,8 @@ export default function LoginScreen() {
     setIsSigningIn(false);
   };
 
-  const isDev = __DEV__ || !GOOGLE_CLIENT_ID_WEB;
+  const loading = isLoading || isSigningIn;
+  const isDev = __DEV__;
 
   return (
     <LinearGradient
@@ -159,22 +160,20 @@ export default function LoginScreen() {
         <View style={styles.buttonContainer}>
           <Pressable
             style={({ pressed }) => [
-              styles.googleButton,
-              { opacity: pressed ? 0.8 : 1 },
+              styles.loginButton,
+              { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
               loading && styles.buttonDisabled,
             ]}
-            onPress={handleGoogleSignIn}
-            disabled={loading || !request}
-            testID="button-google-signin"
+            onPress={handleLogin}
+            disabled={loading}
+            testID="button-login"
           >
             {loading ? (
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>
-                <View style={styles.googleIconContainer}>
-                  <Text style={styles.googleIcon}>G</Text>
-                </View>
-                <Text style={styles.googleButtonText}>{t("signInWithGoogle")}</Text>
+                <Feather name="log-in" size={20} color="#FFF" />
+                <Text style={styles.buttonText}>{t("signIn")}</Text>
               </>
             )}
           </Pressable>
@@ -183,14 +182,16 @@ export default function LoginScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.devButton,
-                { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
+                { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
               ]}
               onPress={handleDevLogin}
               disabled={loading}
               testID="button-dev-signin"
             >
-              <Feather name="code" size={18} color="#FFF" />
-              <Text style={styles.googleButtonText}>Continue as Dev User</Text>
+              <Feather name="code" size={18} color={colors.textSecondary} />
+              <Text style={[styles.devButtonText, { color: colors.textSecondary }]}>
+                Continue as Dev User
+              </Text>
             </Pressable>
           ) : null}
 
@@ -290,17 +291,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: Spacing.md,
   },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#4285F4",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    gap: Spacing.md,
-  },
-  devButton: {
+  loginButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -309,26 +300,27 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
   },
+  devButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
   buttonDisabled: {
     opacity: 0.6,
   },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
-    backgroundColor: "#FFF",
-    borderRadius: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleIcon: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#4285F4",
-  },
-  googleButtonText: {
+  buttonText: {
     color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  devButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   termsText: {
     fontSize: 12,

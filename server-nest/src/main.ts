@@ -3,6 +3,8 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import * as express from "express";
+import session from "express-session";
+import passport from "passport";
 import * as fs from "fs";
 import * as path from "path";
 import { AppModule } from "./app.module";
@@ -73,6 +75,25 @@ async function bootstrap() {
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   });
+
+  // Session middleware for Replit Auth
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "axon-session-secret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      },
+    }),
+  );
+
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   // Global validation pipe
   app.useGlobalPipes(

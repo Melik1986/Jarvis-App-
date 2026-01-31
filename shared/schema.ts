@@ -18,7 +18,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name"),
   picture: text("picture"),
-  googleId: text("google_id").unique(),
+  replitId: text("replit_id").unique(),
   createdAt: timestamp("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

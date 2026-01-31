@@ -3,15 +3,23 @@ import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { DATABASE_CONNECTION, Database } from "../../db/db.module";
-import { AuthUser, AuthSession, GoogleTokenPayload, JwtPayload } from "./auth.types";
+import { AuthUser, AuthSession, JwtPayload } from "./auth.types";
 
 const schema = require("../../../../shared/schema");
+
+interface ReplitUserInfo {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+  email_verified?: boolean;
+}
 
 @Injectable()
 export class AuthService {
   private readonly jwtSecret: string;
-  private readonly accessTokenExpiry = "15m";
-  private readonly refreshTokenExpiry = "7d";
+  private readonly accessTokenExpiry = "24h";
+  private readonly refreshTokenExpiry = "30d";
 
   constructor(
     private configService: ConfigService,
@@ -20,36 +28,64 @@ export class AuthService {
     this.jwtSecret = this.configService.get("SESSION_SECRET") || "axon-secret-key-change-in-production";
   }
 
-  async authenticateWithGoogle(idToken: string): Promise<{
+  getAuthUrl(redirectUri: string, state: string): string {
+    const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+    const baseUrl = `https://${replitDomain}`;
+    
+    const params = new URLSearchParams({
+      response_type: "code",
+      redirect_uri: redirectUri,
+      state: state,
+    });
+
+    return `${baseUrl}/__replit/auth?${params.toString()}`;
+  }
+
+  async authenticateWithReplitCallback(
+    code: string,
+    state: string
+  ): Promise<{
     success: boolean;
     user?: AuthUser;
     session?: AuthSession;
     error?: string;
   }> {
     try {
-      const googlePayload = await this.verifyGoogleToken(idToken);
-      if (!googlePayload) {
-        return { success: false, error: "Invalid Google token" };
+      const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+      const tokenUrl = `https://${replitDomain}/__replit/auth/token`;
+      
+      const tokenResponse = await fetch(tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!tokenResponse.ok) {
+        console.error("Token exchange failed:", await tokenResponse.text());
+        return { success: false, error: "Token exchange failed" };
       }
 
-      let user = await this.findUserByGoogleId(googlePayload.sub);
+      const tokenData = await tokenResponse.json();
+      const userInfo = tokenData.user as ReplitUserInfo;
+
+      if (!userInfo || !userInfo.email) {
+        return { success: false, error: "Invalid user data from Replit" };
+      }
+
+      let user = await this.findUserByEmail(userInfo.email);
       
       if (!user) {
-        user = await this.findUserByEmail(googlePayload.email);
-        if (user) {
-          user = await this.updateUserGoogleId(user.id, googlePayload.sub, googlePayload.picture);
-        } else {
-          user = await this.createUser({
-            email: googlePayload.email,
-            name: googlePayload.name,
-            picture: googlePayload.picture,
-            googleId: googlePayload.sub,
-          });
-        }
+        user = await this.createUser({
+          email: userInfo.email,
+          name: userInfo.name || userInfo.email.split("@")[0],
+          picture: userInfo.picture,
+          replitId: userInfo.id,
+        });
       } else {
         user = await this.updateUserProfile(user.id, {
-          name: googlePayload.name,
-          picture: googlePayload.picture,
+          name: userInfo.name || user.name,
+          picture: userInfo.picture || user.picture,
+          replitId: userInfo.id,
         });
       }
 
@@ -62,12 +98,56 @@ export class AuthService {
           email: user.email,
           name: user.name,
           picture: user.picture,
-          googleId: user.googleId,
+          replitId: user.replitId,
         },
         session,
       };
     } catch (error) {
-      console.error("Google auth error:", error);
+      console.error("Replit auth error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Authentication failed",
+      };
+    }
+  }
+
+  async authenticateFromSession(sessionUser: any): Promise<{
+    success: boolean;
+    user?: AuthUser;
+    session?: AuthSession;
+    error?: string;
+  }> {
+    try {
+      if (!sessionUser || !sessionUser.email) {
+        return { success: false, error: "No session user" };
+      }
+
+      let user = await this.findUserByEmail(sessionUser.email);
+      
+      if (!user) {
+        user = await this.createUser({
+          email: sessionUser.email,
+          name: sessionUser.name || sessionUser.email.split("@")[0],
+          picture: sessionUser.picture,
+          replitId: sessionUser.id,
+        });
+      }
+
+      const session = await this.createSession({ id: user.id, email: user.email });
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+          replitId: user.replitId,
+        },
+        session,
+      };
+    } catch (error) {
+      console.error("Session auth error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Authentication failed",
@@ -122,7 +202,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           picture: user.picture,
-          googleId: user.googleId,
+          replitId: user.replitId,
         },
         session: newSession,
       };
@@ -157,7 +237,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           picture: user.picture,
-          googleId: user.googleId,
+          replitId: user.replitId,
         },
       };
     } catch {
@@ -193,42 +273,8 @@ export class AuthService {
       email: user.email,
       name: user.name,
       picture: user.picture,
-      googleId: user.googleId,
+      replitId: user.replitId,
     };
-  }
-
-  private async verifyGoogleToken(idToken: string): Promise<GoogleTokenPayload | null> {
-    try {
-      const response = await fetch(
-        `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
-      );
-      
-      if (!response.ok) {
-        console.error("Google token verification failed:", response.status);
-        return null;
-      }
-      
-      const payload = await response.json() as GoogleTokenPayload;
-      
-      if (!payload.email_verified) {
-        console.error("Google email not verified");
-        return null;
-      }
-      
-      return payload;
-    } catch (error) {
-      console.error("Error verifying Google token:", error);
-      return null;
-    }
-  }
-
-  private async findUserByGoogleId(googleId: string) {
-    const users = await this.db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.googleId, googleId))
-      .limit(1);
-    return users[0] || null;
   }
 
   private async findUserByEmail(email: string) {
@@ -244,7 +290,7 @@ export class AuthService {
     email: string;
     name: string;
     picture?: string;
-    googleId?: string;
+    replitId?: string;
   }) {
     const result = await this.db
       .insert(schema.users)
@@ -252,26 +298,13 @@ export class AuthService {
         email: data.email,
         name: data.name,
         picture: data.picture || null,
-        googleId: data.googleId || null,
+        replitId: data.replitId || null,
       })
       .returning();
     return (result as any[])[0];
   }
 
-  private async updateUserGoogleId(userId: string, googleId: string, picture?: string) {
-    const result = await this.db
-      .update(schema.users)
-      .set({ 
-        googleId,
-        picture: picture || undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.users.id, userId))
-      .returning();
-    return result[0];
-  }
-
-  private async updateUserProfile(userId: string, data: { name?: string; picture?: string }) {
+  private async updateUserProfile(userId: string, data: { name?: string; picture?: string; replitId?: string }) {
     const result = await this.db
       .update(schema.users)
       .set({ 
@@ -297,7 +330,7 @@ export class AuthService {
     );
 
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
     await this.db.insert(schema.sessions).values({
       userId: user.id,
@@ -308,7 +341,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 15 * 60,
+      expiresIn: 24 * 60 * 60,
     };
   }
 }
