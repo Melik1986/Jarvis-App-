@@ -33,14 +33,14 @@ export class RagService {
   private openai: OpenAI;
   private documents: Map<string, DocumentMetadata> = new Map();
   private documentContents: Map<string, string> = new Map();
+  private settingsLoaded = false;
 
   constructor(
     private configService: ConfigService,
     @Inject(DATABASE_CONNECTION) private db: Database,
   ) {
     this.providerConfig = {
-      type:
-        (this.configService.get("RAG_PROVIDER") as RagProviderType) || "none",
+      type: "replit" as RagProviderType,
       qdrant: {
         url: this.configService.get("QDRANT_URL") || "",
         apiKey: this.configService.get("QDRANT_API_KEY"),
@@ -60,6 +60,45 @@ export class RagService {
       apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
       baseURL: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
     });
+
+    this.loadSettingsFromDb();
+  }
+
+  private async loadSettingsFromDb(): Promise<void> {
+    try {
+      const result = await this.db.execute(
+        sql`SELECT value FROM app_settings WHERE key = 'rag_provider_config'`,
+      );
+      if (result.rows && result.rows.length > 0) {
+        const config = JSON.parse(result.rows[0].value as string);
+        this.providerConfig.type = config.type || "replit";
+        if (config.qdrant) this.providerConfig.qdrant = config.qdrant;
+        if (config.supabase) this.providerConfig.supabase = config.supabase;
+        if (config.replit) this.providerConfig.replit = config.replit;
+      }
+      this.settingsLoaded = true;
+    } catch (error) {
+      console.log("Could not load RAG settings from DB, using defaults");
+      this.settingsLoaded = true;
+    }
+  }
+
+  private async saveSettingsToDb(): Promise<void> {
+    try {
+      const configJson = JSON.stringify({
+        type: this.providerConfig.type,
+        qdrant: this.providerConfig.qdrant,
+        supabase: this.providerConfig.supabase,
+        replit: this.providerConfig.replit,
+      });
+      await this.db.execute(
+        sql`INSERT INTO app_settings (key, value, updated_at)
+            VALUES ('rag_provider_config', ${configJson}, CURRENT_TIMESTAMP)
+            ON CONFLICT (key) DO UPDATE SET value = ${configJson}, updated_at = CURRENT_TIMESTAMP`,
+      );
+    } catch (error) {
+      console.error("Failed to save RAG settings to DB:", error);
+    }
   }
 
   getProviders(): { id: RagProviderType; name: string; configured: boolean }[] {
@@ -102,6 +141,7 @@ export class RagService {
     if (settings.replit) {
       this.providerConfig.replit = settings.replit;
     }
+    this.saveSettingsToDb();
   }
 
   isAvailable(): boolean {

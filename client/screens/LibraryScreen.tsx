@@ -340,12 +340,30 @@ export default function LibraryScreen() {
     return `${days}${t("daysAgo")}`;
   };
 
+  const handleDocumentPress = (item: Document) => {
+    const chunkCount = (item as any).chunkCount || 0;
+    Alert.alert(
+      item.name,
+      `Type: ${item.type}\nSize: ${item.size}\nStatus: ${getStatusText(item.status)}\nChunks: ${chunkCount}`,
+      [
+        { text: "Close", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: () => handleDeleteDocument(item.id)
+        }
+      ]
+    );
+  };
+
   const renderDocument = ({ item }: { item: Document }) => (
-    <View
-      style={[
+    <Pressable
+      style={({ pressed }) => [
         styles.documentCard,
         { backgroundColor: theme.backgroundDefault },
+        pressed && { opacity: 0.7 }
       ]}
+      onPress={() => handleDocumentPress(item)}
     >
       <View
         style={[
@@ -396,7 +414,7 @@ export default function LibraryScreen() {
       >
         <TrashIcon size={20} color={theme.textTertiary} />
       </Pressable>
-    </View>
+    </Pressable>
   );
 
   return (

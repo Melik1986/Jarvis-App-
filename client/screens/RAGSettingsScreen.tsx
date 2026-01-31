@@ -24,7 +24,7 @@ export default function RAGSettingsScreen() {
   const { rag, setRagSettings } = useSettingsStore();
 
   const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState<RagProvider>(rag.provider);
+  const [provider, setProvider] = useState<RagProvider | null>(null);
   const [qdrantUrl, setQdrantUrl] = useState(rag.qdrant.url);
   const [qdrantApiKey, setQdrantApiKey] = useState(rag.qdrant.apiKey);
   const [collectionName, setCollectionName] = useState(
@@ -42,13 +42,15 @@ export default function RAGSettingsScreen() {
         const response = await fetch(url.toString());
         if (response.ok) {
           const data = await response.json();
-          if (data.current) {
-            setProvider(data.current as RagProvider);
-            setRagSettings({ ...rag, provider: data.current as RagProvider });
-          }
+          const currentProvider = (data.current || "none") as RagProvider;
+          setProvider(currentProvider);
+          setRagSettings({ ...rag, provider: currentProvider });
+        } else {
+          setProvider(rag.provider);
         }
       } catch (error) {
         console.log("Failed to fetch provider settings:", error);
+        setProvider(rag.provider);
       } finally {
         setLoading(false);
       }
@@ -82,9 +84,11 @@ export default function RAGSettingsScreen() {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!provider) return;
+    
     setSaving(true);
     const settings = {
-      provider,
+      provider: provider as RagProvider,
       qdrant: {
         url: qdrantUrl,
         apiKey: qdrantApiKey,
@@ -111,7 +115,7 @@ export default function RAGSettingsScreen() {
     }
   };
 
-  if (loading) {
+  if (loading || provider === null) {
     return (
       <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
         <ActivityIndicator size="large" color={theme.primary} />
