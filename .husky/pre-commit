@@ -8,8 +8,10 @@ npx lint-staged
 # 2. Run gitleaks via Docker
 # Check if docker is available and running
 if ! docker info > /dev/null 2>&1; then
-    echo "WARNING: Docker is not running or not accessible. Gitleaks scan skipped."
-    exit 0
+    echo "❌ ERROR: Docker is not running!"
+    echo "Gitleaks requires Docker to scan for secrets."
+    echo "Please start Docker Desktop and try again."
+    exit 1
 fi
 
 echo "Running gitleaks protection via Docker..."
