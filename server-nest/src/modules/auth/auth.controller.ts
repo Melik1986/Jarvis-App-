@@ -49,11 +49,11 @@ export class AuthController {
       return res.redirect("/login?error=auth_failed");
     }
 
-    let redirectPath = "/";
     try {
-      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-      redirectPath = stateData.redirect || "/";
-    } catch {}
+      JSON.parse(Buffer.from(state, "base64").toString());
+    } catch {
+      // State parsing failed, use default redirect
+    }
 
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`

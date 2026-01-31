@@ -43,20 +43,14 @@ export default function ChatScreen() {
     currentConversationId,
     isStreaming,
     streamingContent,
-    setMessages,
     addMessage,
     setCurrentConversation,
     setStreaming,
     setStreamingContent,
-    appendStreamingContent,
     clearStreamingContent,
   } = useChatStore();
 
-  useEffect(() => {
-    createOrLoadConversation();
-  }, []);
-
-  const createOrLoadConversation = async () => {
+  const createOrLoadConversation = React.useCallback(async () => {
     try {
       const baseUrl = getApiUrl();
       const response = await fetch(`${baseUrl}api/conversations`, {
@@ -69,7 +63,11 @@ export default function ChatScreen() {
     } catch (error) {
       console.error("Failed to create conversation:", error);
     }
-  };
+  }, [t, setCurrentConversation]);
+
+  useEffect(() => {
+    createOrLoadConversation();
+  }, [createOrLoadConversation]);
 
   const sendMessage = useCallback(async () => {
     if (!inputText.trim() || !currentConversationId || isStreaming) return;

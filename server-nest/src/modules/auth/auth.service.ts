@@ -1,11 +1,11 @@
-import { Injectable, Inject, UnauthorizedException } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { DATABASE_CONNECTION, Database } from "../../db/db.module";
 import { AuthUser, AuthSession, JwtPayload } from "./auth.types";
 
-const schema = require("../../../../shared/schema");
+import * as schema from "../../../../shared/schema";
 
 interface ReplitUserInfo {
   id: string;

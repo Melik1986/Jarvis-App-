@@ -7,20 +7,16 @@ import {
   Pressable,
   Platform,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import Svg, { Path, Circle, Rect } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { File } from "expo-file-system";
 
-import {
-  AnimatedSearchIcon,
-  AnimatedDocumentIcon,
-} from "@/components/AnimatedIcons";
+import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
@@ -187,11 +183,7 @@ export default function LibraryScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const {
-    data: documents = [],
-    isLoading,
-    refetch,
-  } = useQuery<Document[]>({
+  const { data: documents = [] } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
 

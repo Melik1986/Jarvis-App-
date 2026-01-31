@@ -6,7 +6,6 @@ import {
   serial,
   integer,
   timestamp,
-  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
