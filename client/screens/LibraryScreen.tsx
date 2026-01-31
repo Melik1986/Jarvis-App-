@@ -14,7 +14,6 @@ import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { File } from "expo-file-system";
 
 import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
@@ -190,8 +189,18 @@ export default function LibraryScreen() {
   const uploadMutation = useMutation({
     mutationFn: async (file: DocumentPicker.DocumentPickerAsset) => {
       const formData = new FormData();
-      const fileObj = new File(file.uri);
-      formData.append("file", fileObj as any);
+      
+      if (Platform.OS === "web") {
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        formData.append("file", blob, file.name);
+      } else {
+        formData.append("file", {
+          uri: file.uri,
+          type: file.mimeType || "application/octet-stream",
+          name: file.name,
+        } as any);
+      }
       formData.append("name", file.name);
 
       const response = await fetch(
@@ -203,6 +212,8 @@ export default function LibraryScreen() {
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Upload error:", errorText);
         throw new Error("Upload failed");
       }
 
@@ -210,6 +221,11 @@ export default function LibraryScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      Alert.alert("Success", "Document uploaded successfully");
+    },
+    onError: (error) => {
+      Alert.alert("Error", "Failed to upload document. Please try again.");
+      console.error("Upload mutation error:", error);
     },
   });
 
