@@ -79,14 +79,17 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setIsSigningIn(true);
-    
+
     try {
       const baseUrl = getApiUrl();
       const redirectUri = Linking.createURL("/auth/success");
       const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
-      
-      const result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUri);
-      
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        loginUrl,
+        redirectUri,
+      );
+
       if (result.type === "success" && result.url) {
         await handleAuthCallback(result.url);
       } else {
@@ -108,9 +111,9 @@ export default function LoginScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "dev@axon.local", name: "Dev User" }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success && data.session && data.user) {
         setSession({
           accessToken: data.session.accessToken,
@@ -134,12 +137,29 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={isDark ? ["#0A0E1A", "#1A1F2E", "#0A0E1A"] : ["#F8FAFC", "#E2E8F0", "#F8FAFC"]}
+      colors={
+        isDark
+          ? ["#0A0E1A", "#1A1F2E", "#0A0E1A"]
+          : ["#F8FAFC", "#E2E8F0", "#F8FAFC"]
+      }
       style={styles.container}
     >
-      <View style={[styles.content, { paddingTop: insets.top + Spacing["3xl"], paddingBottom: insets.bottom + Spacing.xl }]}>
+      <View
+        style={[
+          styles.content,
+          {
+            paddingTop: insets.top + Spacing["3xl"],
+            paddingBottom: insets.bottom + Spacing.xl,
+          },
+        ]}
+      >
         <View style={styles.header}>
-          <View style={[styles.logoContainer, { backgroundColor: colors.primary + "20" }]}>
+          <View
+            style={[
+              styles.logoContainer,
+              { backgroundColor: colors.primary + "20" },
+            ]}
+          >
             <Feather name="cpu" size={48} color={colors.primary} />
           </View>
           <Text style={[styles.title, { color: colors.text }]}>AXON</Text>
@@ -201,7 +221,9 @@ export default function LoginScreen() {
               testID="button-dev-signin"
             >
               <Feather name="code" size={18} color={colors.textSecondary} />
-              <Text style={[styles.devButtonText, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.devButtonText, { color: colors.textSecondary }]}
+              >
                 Continue as Dev User
               </Text>
             </Pressable>
@@ -229,12 +251,18 @@ function FeatureItem({
 }) {
   return (
     <View style={styles.featureItem}>
-      <View style={[styles.featureIcon, { backgroundColor: colors.primary + "15" }]}>
+      <View
+        style={[styles.featureIcon, { backgroundColor: colors.primary + "15" }]}
+      >
         <Feather name={icon} size={20} color={colors.primary} />
       </View>
       <View style={styles.featureText}>
-        <Text style={[styles.featureTitle, { color: colors.text }]}>{title}</Text>
-        <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>
+        <Text style={[styles.featureTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+        <Text
+          style={[styles.featureDescription, { color: colors.textSecondary }]}
+        >
           {description}
         </Text>
       </View>

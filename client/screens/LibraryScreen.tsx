@@ -187,7 +187,11 @@ export default function LibraryScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: documents = [], isLoading, refetch } = useQuery<Document[]>({
+  const {
+    data: documents = [],
+    isLoading,
+    refetch,
+  } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
 
@@ -198,10 +202,13 @@ export default function LibraryScreen() {
       formData.append("file", fileObj as any);
       formData.append("name", file.name);
 
-      const response = await fetch(new URL("/api/documents/upload", getApiUrl()).toString(), {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        new URL("/api/documents/upload", getApiUrl()).toString(),
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Upload failed");
@@ -226,7 +233,7 @@ export default function LibraryScreen() {
   const filteredDocuments = useMemo(() => {
     if (!searchQuery.trim()) return documents;
     return documents.filter((doc) =>
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+      doc.name.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [documents, searchQuery]);
 
@@ -317,7 +324,10 @@ export default function LibraryScreen() {
 
   const renderDocument = ({ item }: { item: Document }) => (
     <View
-      style={[styles.documentCard, { backgroundColor: theme.backgroundDefault }]}
+      style={[
+        styles.documentCard,
+        { backgroundColor: theme.backgroundDefault },
+      ]}
     >
       <View
         style={[
@@ -336,16 +346,23 @@ export default function LibraryScreen() {
           {item.name}
         </ThemedText>
         <View style={styles.documentMeta}>
-          <ThemedText style={[styles.documentSize, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.documentSize, { color: theme.textSecondary }]}
+          >
             {item.size}
           </ThemedText>
-          <ThemedText style={[styles.documentDate, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.documentDate, { color: theme.textTertiary }]}
+          >
             {formatDate(item.uploadedAt)}
           </ThemedText>
         </View>
         <View style={styles.statusRow}>
           <View
-            style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]}
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
           />
           <ThemedText
             style={[styles.statusText, { color: getStatusColor(item.status) }]}
@@ -367,10 +384,7 @@ export default function LibraryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <View
-        style={[
-          styles.headerSection,
-          { marginTop: headerHeight + Spacing.lg },
-        ]}
+        style={[styles.headerSection, { marginTop: headerHeight + Spacing.lg }]}
       >
         <View style={styles.titleRow}>
           <ThemedText type="h2" style={{ color: theme.text }}>
@@ -387,9 +401,7 @@ export default function LibraryScreen() {
           </Pressable>
         </View>
 
-        <ThemedText
-          style={[styles.subtitle, { color: theme.textSecondary }]}
-        >
+        <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
           {t("ragLibraryDesc")}
         </ThemedText>
 

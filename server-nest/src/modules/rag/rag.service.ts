@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
-import { RagConfig, SearchResult, QdrantSearchResult, DocumentMetadata } from "./rag.types";
+import {
+  RagConfig,
+  SearchResult,
+  QdrantSearchResult,
+  DocumentMetadata,
+} from "./rag.types";
 import { randomUUID } from "crypto";
 
 @Injectable()
@@ -32,7 +37,8 @@ export class RagService {
 
   async listDocuments(): Promise<DocumentMetadata[]> {
     return Array.from(this.documents.values()).sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+      (a, b) =>
+        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
     );
   }
 
@@ -43,7 +49,7 @@ export class RagService {
   async uploadDocument(
     buffer: Buffer,
     fileName: string,
-    mimeType: string
+    mimeType: string,
   ): Promise<DocumentMetadata> {
     const id = randomUUID();
     const fileExtension = fileName.split(".").pop()?.toLowerCase() || "other";
@@ -169,7 +175,8 @@ export class RagService {
       const doc = this.documents.get(id);
       if (doc) {
         doc.status = "error";
-        doc.errorMessage = error instanceof Error ? error.message : "Unknown error";
+        doc.errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         this.documents.set(id, doc);
       }
     }
@@ -197,7 +204,8 @@ export class RagService {
       const doc = this.documents.get(id);
       if (doc) {
         doc.status = "error";
-        doc.errorMessage = error instanceof Error ? error.message : "Unknown error";
+        doc.errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         this.documents.set(id, doc);
       }
     }
@@ -237,7 +245,7 @@ export class RagService {
                 },
               ],
             }),
-          }
+          },
         );
       }
     } catch (error) {
@@ -265,7 +273,7 @@ export class RagService {
             ],
           },
         }),
-      }
+      },
     );
   }
 
@@ -275,7 +283,10 @@ export class RagService {
     let currentChunk = "";
 
     for (const sentence of sentences) {
-      if (currentChunk.length + sentence.length > chunkSize && currentChunk.length > 0) {
+      if (
+        currentChunk.length + sentence.length > chunkSize &&
+        currentChunk.length > 0
+      ) {
         chunks.push(currentChunk.trim());
         currentChunk = sentence;
       } else {
@@ -307,7 +318,7 @@ export class RagService {
   async search(
     query: string,
     limit = 3,
-    customConfig?: RagConfig
+    customConfig?: RagConfig,
   ): Promise<SearchResult[]> {
     const config = customConfig || this.config;
     const isConfigured = Boolean(config.url);
@@ -332,7 +343,7 @@ export class RagService {
             limit,
             with_payload: true,
           }),
-        }
+        },
       );
 
       if (!response.ok) {

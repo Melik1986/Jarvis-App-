@@ -52,7 +52,10 @@ export class RagController {
     @Body("name") name: string,
   ): Promise<DocumentMetadata> {
     if (!url || !name) {
-      throw new HttpException("URL and name are required", HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        "URL and name are required",
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     return this.ragService.uploadFromUrl(url, name);
@@ -77,10 +80,7 @@ export class RagController {
   }
 
   @Post("search")
-  async search(
-    @Body("query") query: string,
-    @Body("limit") limit?: number,
-  ) {
+  async search(@Body("query") query: string, @Body("limit") limit?: number) {
     if (!query) {
       throw new HttpException("Query is required", HttpStatus.BAD_REQUEST);
     }

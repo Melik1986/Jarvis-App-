@@ -49,8 +49,7 @@ export const useAuthStore = create<AuthState>()(
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ refreshToken: session.refreshToken }),
             });
-          } catch {
-          }
+          } catch {}
         }
         set({
           user: null,

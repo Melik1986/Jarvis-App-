@@ -117,7 +117,11 @@ export default function ProfileScreen() {
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           <Image
-            source={user?.picture ? { uri: user.picture } : require("../../assets/images/avatar-default.png")}
+            source={
+              user?.picture
+                ? { uri: user.picture }
+                : require("../../assets/images/avatar-default.png")
+            }
             style={[styles.avatar, { borderColor: theme.primary }]}
           />
           <Pressable

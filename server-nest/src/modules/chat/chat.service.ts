@@ -10,7 +10,7 @@ import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
 import { RagSettingsRequest } from "../rag/rag.types";
 
-interface Message {
+export interface Message {
   id: number;
   conversationId: number;
   role: "user" | "assistant";
@@ -18,7 +18,7 @@ interface Message {
   createdAt: string;
 }
 
-interface Conversation {
+export interface Conversation {
   id: number;
   title: string;
   createdAt: string;
@@ -137,19 +137,19 @@ export class ChatService {
   /**
    * Create tools for Vercel AI SDK with execute handlers
    */
-  private createTools(erpSettings?: ErpConfig) {
+  private createTools(erpSettings?: Partial<ErpConfig>) {
     const erpService = this.erpService;
 
     return {
       get_stock: tool({
         description:
           "Получить остатки товара на складе по названию. Используй когда пользователь спрашивает о наличии, остатках, количестве товара.",
-        parameters: z.object({
+        inputSchema: z.object({
           product_name: z
             .string()
             .describe("Название товара или часть названия для поиска"),
         }),
-        execute: async ({ product_name }) => {
+        execute: async ({ product_name }: { product_name: string }) => {
           const stock = await erpService.getStock(product_name, erpSettings);
           if (stock.length === 0) {
             return `Товары по запросу "${product_name}" не найдены.`;
@@ -166,13 +166,13 @@ export class ChatService {
 
       get_products: tool({
         description: "Получить список товаров из каталога 1С.",
-        parameters: z.object({
+        inputSchema: z.object({
           filter: z
             .string()
             .optional()
             .describe("Фильтр по названию товара (опционально)"),
         }),
-        execute: async ({ filter }) => {
+        execute: async ({ filter }: { filter?: string }) => {
           const products = await erpService.getProducts(filter, erpSettings);
           if (products.length === 0) {
             return filter
@@ -192,7 +192,7 @@ export class ChatService {
 
       create_invoice: tool({
         description: "Создать документ реализации (продажи) в 1С.",
-        parameters: z.object({
+        inputSchema: z.object({
           customer_name: z
             .string()
             .optional()
@@ -206,11 +206,15 @@ export class ChatService {
           ),
           comment: z.string().optional(),
         }),
-        execute: async ({ customer_name, items, comment }) => {
+        execute: async ({ customer_name, items, comment }: { 
+          customer_name?: string; 
+          items: Array<{ product_name: string; quantity: number; price: number }>;
+          comment?: string;
+        }) => {
           const invoice = await erpService.createInvoice(
             {
               customerName: customer_name,
-              items: items.map((item) => ({
+              items: items.map((item: { product_name: string; quantity: number; price: number }) => ({
                 productName: item.product_name,
                 quantity: item.quantity,
                 price: item.price,
@@ -231,7 +235,7 @@ export class ChatService {
     content: string,
     res: Response,
     llmSettings?: LlmSettings,
-    erpSettings?: ErpConfig,
+    erpSettings?: Partial<ErpConfig>,
     ragSettings?: RagSettingsRequest,
   ): Promise<void> {
     // Save user message
@@ -287,21 +291,7 @@ export class ChatService {
         system: systemMessage,
         messages,
         tools,
-        maxSteps: 3, // Allow up to 3 tool call rounds
         maxTokens: 2048,
-        onStepFinish: ({ stepType, toolCalls, toolResults }) => {
-          // Send tool call info to client
-          if (stepType === "tool-result" && toolCalls && toolResults) {
-            for (let i = 0; i < toolCalls.length; i++) {
-              res.write(
-                `data: ${JSON.stringify({
-                  tool_call: toolCalls[i].toolName,
-                  tool_result: toolResults[i].result,
-                })}\n\n`,
-              );
-            }
-          }
-        },
       });
 
       let fullResponse = "";

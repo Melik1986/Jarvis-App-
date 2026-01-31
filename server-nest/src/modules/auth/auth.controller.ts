@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Body, Query, Headers, UseGuards, Req, Res, UnauthorizedException } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Headers,
+  UseGuards,
+  Req,
+  Res,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { RefreshRequest } from "./auth.types";
@@ -10,7 +21,9 @@ export class AuthController {
 
   @Get("login")
   async login(@Query("redirect") redirect: string, @Res() res: Response) {
-    const state = Buffer.from(JSON.stringify({ redirect: redirect || "/" })).toString("base64");
+    const state = Buffer.from(
+      JSON.stringify({ redirect: redirect || "/" }),
+    ).toString("base64");
     const callbackUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/api/auth/callback`;
     const authUrl = this.authService.getAuthUrl(callbackUrl, state);
     res.redirect(authUrl);
@@ -21,14 +34,17 @@ export class AuthController {
     @Query("code") code: string,
     @Query("state") state: string,
     @Req() req: Request,
-    @Res() res: Response
+    @Res() res: Response,
   ) {
     if (!code) {
       return res.redirect("/login?error=no_code");
     }
 
-    const result = await this.authService.authenticateWithReplitCallback(code, state);
-    
+    const result = await this.authService.authenticateWithReplitCallback(
+      code,
+      state,
+    );
+
     if (!result.success || !result.session) {
       return res.redirect("/login?error=auth_failed");
     }
@@ -39,18 +55,24 @@ export class AuthController {
       redirectPath = stateData.redirect || "/";
     } catch {}
 
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : "";
-    
+
     const appRedirectUrl = new URL("/auth/success", baseUrl);
     appRedirectUrl.searchParams.set("accessToken", result.session.accessToken);
-    appRedirectUrl.searchParams.set("refreshToken", result.session.refreshToken);
-    appRedirectUrl.searchParams.set("expiresIn", result.session.expiresIn.toString());
+    appRedirectUrl.searchParams.set(
+      "refreshToken",
+      result.session.refreshToken,
+    );
+    appRedirectUrl.searchParams.set(
+      "expiresIn",
+      result.session.expiresIn.toString(),
+    );
     if (result.user) {
       appRedirectUrl.searchParams.set("user", JSON.stringify(result.user));
     }
-    
+
     res.redirect(appRedirectUrl.toString());
   }
 
@@ -60,7 +82,7 @@ export class AuthController {
     if (!user) {
       return { authenticated: false };
     }
-    
+
     const result = await this.authService.authenticateFromSession(user);
     return result;
   }
@@ -115,14 +137,14 @@ export class AuthController {
   async devLogin(@Body() body: { email?: string; name?: string }) {
     const email = body.email || "dev@axon.local";
     const name = body.name || "Dev User";
-    
+
     const result = await this.authService.authenticateFromSession({
       id: `dev-${Date.now()}`,
       email,
       name,
       picture: null,
     });
-    
+
     return result;
   }
 }

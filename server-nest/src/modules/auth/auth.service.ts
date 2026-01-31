@@ -25,13 +25,17 @@ export class AuthService {
     private configService: ConfigService,
     @Inject(DATABASE_CONNECTION) private db: Database,
   ) {
-    this.jwtSecret = this.configService.get("SESSION_SECRET") || "axon-secret-key-change-in-production";
+    this.jwtSecret =
+      this.configService.get("SESSION_SECRET") ||
+      "axon-secret-key-change-in-production";
   }
 
   getAuthUrl(redirectUri: string, state: string): string {
-    const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+    const replitDomain =
+      process.env.REPLIT_DEV_DOMAIN ||
+      process.env.REPLIT_DOMAINS?.split(",")[0];
     const baseUrl = `https://${replitDomain}`;
-    
+
     const params = new URLSearchParams({
       response_type: "code",
       redirect_uri: redirectUri,
@@ -43,7 +47,7 @@ export class AuthService {
 
   async authenticateWithReplitCallback(
     code: string,
-    state: string
+    state: string,
   ): Promise<{
     success: boolean;
     user?: AuthUser;
@@ -51,9 +55,11 @@ export class AuthService {
     error?: string;
   }> {
     try {
-      const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+      const replitDomain =
+        process.env.REPLIT_DEV_DOMAIN ||
+        process.env.REPLIT_DOMAINS?.split(",")[0];
       const tokenUrl = `https://${replitDomain}/__replit/auth/token`;
-      
+
       const tokenResponse = await fetch(tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +79,7 @@ export class AuthService {
       }
 
       let user = await this.findUserByEmail(userInfo.email);
-      
+
       if (!user) {
         user = await this.createUser({
           email: userInfo.email,
@@ -89,7 +95,10 @@ export class AuthService {
         });
       }
 
-      const session = await this.createSession({ id: user.id, email: user.email });
+      const session = await this.createSession({
+        id: user.id,
+        email: user.email,
+      });
 
       return {
         success: true,
@@ -123,7 +132,7 @@ export class AuthService {
       }
 
       let user = await this.findUserByEmail(sessionUser.email);
-      
+
       if (!user) {
         user = await this.createUser({
           email: sessionUser.email,
@@ -133,7 +142,10 @@ export class AuthService {
         });
       }
 
-      const session = await this.createSession({ id: user.id, email: user.email });
+      const session = await this.createSession({
+        id: user.id,
+        email: user.email,
+      });
 
       return {
         success: true,
@@ -173,9 +185,11 @@ export class AuthService {
       }
 
       const existingSession = sessionData[0];
-      
+
       if (new Date(existingSession.expiresAt) < new Date()) {
-        await this.db.delete(schema.sessions).where(eq(schema.sessions.id, existingSession.id));
+        await this.db
+          .delete(schema.sessions)
+          .where(eq(schema.sessions.id, existingSession.id));
         return { success: false, error: "Refresh token expired" };
       }
 
@@ -190,10 +204,15 @@ export class AuthService {
       }
 
       const user = userData[0];
-      
-      await this.db.delete(schema.sessions).where(eq(schema.sessions.id, existingSession.id));
-      
-      const newSession = await this.createSession({ id: user.id, email: user.email });
+
+      await this.db
+        .delete(schema.sessions)
+        .where(eq(schema.sessions.id, existingSession.id));
+
+      const newSession = await this.createSession({
+        id: user.id,
+        email: user.email,
+      });
 
       return {
         success: true,
@@ -210,15 +229,18 @@ export class AuthService {
       console.error("Refresh session error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to refresh session",
+        error:
+          error instanceof Error ? error.message : "Failed to refresh session",
       };
     }
   }
 
-  async validateToken(token: string): Promise<{ valid: boolean; user?: AuthUser }> {
+  async validateToken(
+    token: string,
+  ): Promise<{ valid: boolean; user?: AuthUser }> {
     try {
       const payload = jwt.verify(token, this.jwtSecret) as JwtPayload;
-      
+
       const userData = await this.db
         .select()
         .from(schema.users)
@@ -304,10 +326,13 @@ export class AuthService {
     return (result as any[])[0];
   }
 
-  private async updateUserProfile(userId: string, data: { name?: string; picture?: string; replitId?: string }) {
+  private async updateUserProfile(
+    userId: string,
+    data: { name?: string; picture?: string; replitId?: string },
+  ) {
     const result = await this.db
       .update(schema.users)
-      .set({ 
+      .set({
         ...data,
         updatedAt: new Date(),
       })
@@ -316,17 +341,20 @@ export class AuthService {
     return result[0];
   }
 
-  private async createSession(user: { id: string; email: string }): Promise<AuthSession> {
+  private async createSession(user: {
+    id: string;
+    email: string;
+  }): Promise<AuthSession> {
     const accessToken = jwt.sign(
       { sub: user.id, email: user.email },
       this.jwtSecret,
-      { expiresIn: this.accessTokenExpiry }
+      { expiresIn: this.accessTokenExpiry },
     );
 
     const refreshToken = jwt.sign(
       { sub: user.id, type: "refresh" },
       this.jwtSecret,
-      { expiresIn: this.refreshTokenExpiry }
+      { expiresIn: this.refreshTokenExpiry },
     );
 
     const expiresAt = new Date();

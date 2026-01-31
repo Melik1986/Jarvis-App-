@@ -48,7 +48,10 @@ async function bootstrap() {
 
   // Enable CORS with dynamic origins
   app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       const origins = new Set<string>();
 
       if (process.env.REPLIT_DEV_DOMAIN) {
@@ -114,40 +117,52 @@ async function bootstrap() {
   }
 
   // Landing page and Expo manifest routing
-  const templatePath = path.resolve(process.cwd(), "server", "templates", "landing-page.html");
+  const templatePath = path.resolve(
+    process.cwd(),
+    "server",
+    "templates",
+    "landing-page.html",
+  );
   const appName = getAppName();
-  
+
   console.log("Serving static Expo files with dynamic manifest routing");
   console.log("Expo routing: Checking expo-platform header on / and /manifest");
 
   // Handle Expo manifest requests
-  expressApp.get(["/", "/manifest"], (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const platform = req.headers["expo-platform"] as string;
-    if (platform) {
-      return serveExpoManifest(platform, res);
-    }
+  expressApp.get(
+    ["/", "/manifest"],
+    (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      const platform = req.headers["expo-platform"] as string;
+      if (platform) {
+        return serveExpoManifest(platform, res);
+      }
 
-    // Serve landing page for browser requests
-    if (fs.existsSync(templatePath)) {
-      const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
-      const forwardedProto = req.header("x-forwarded-proto");
-      const protocol = forwardedProto || req.protocol || "https";
-      const forwardedHost = req.header("x-forwarded-host");
-      const host = forwardedHost || req.get("host");
-      const baseUrl = `${protocol}://${host}`;
-      const expsUrl = `${host}`;
+      // Serve landing page for browser requests
+      if (fs.existsSync(templatePath)) {
+        const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+        const forwardedProto = req.header("x-forwarded-proto");
+        const protocol = forwardedProto || req.protocol || "https";
+        const forwardedHost = req.header("x-forwarded-host");
+        const host = forwardedHost || req.get("host");
+        const baseUrl = `${protocol}://${host}`;
+        const expsUrl = `${host}`;
 
-      const html = landingPageTemplate
-        .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
-        .replace(/EXPS_URL_PLACEHOLDER/g, expsUrl)
-        .replace(/APP_NAME_PLACEHOLDER/g, appName);
+        const html = landingPageTemplate
+          .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
+          .replace(/EXPS_URL_PLACEHOLDER/g, expsUrl)
+          .replace(/APP_NAME_PLACEHOLDER/g, appName);
 
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(html);
-    }
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.status(200).send(html);
+      }
 
-    next();
-  });
+      next();
+    },
+  );
 
   const port = process.env.PORT || 5000;
   await app.listen(port);

@@ -32,7 +32,7 @@ export class ErpService {
 
   async getStock(
     productName?: string,
-    customConfig?: ErpConfig,
+    customConfig?: Partial<ErpConfig>,
   ): Promise<StockItem[]> {
     const config = { ...this.config, ...customConfig };
 
@@ -75,7 +75,7 @@ export class ErpService {
 
   async getProducts(
     filter?: string,
-    customConfig?: ErpConfig,
+    customConfig?: Partial<ErpConfig>,
   ): Promise<Product[]> {
     const config = { ...this.config, ...customConfig };
 
@@ -125,7 +125,7 @@ export class ErpService {
 
   async createInvoice(
     request: CreateInvoiceRequest,
-    customConfig?: ErpConfig,
+    customConfig?: Partial<ErpConfig>,
   ): Promise<Invoice> {
     const config = { ...this.config, ...customConfig };
 
