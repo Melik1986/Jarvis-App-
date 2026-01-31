@@ -28,12 +28,26 @@ export default function RAGSettingsScreen() {
   const [collectionName, setCollectionName] = useState(
     rag.qdrant.collectionName,
   );
+  const [supabaseUrl, setSupabaseUrl] = useState(rag.supabase.url);
+  const [supabaseApiKey, setSupabaseApiKey] = useState(rag.supabase.apiKey);
+  const [supabaseTable, setSupabaseTable] = useState(rag.supabase.tableName);
+  const [replitTable, setReplitTable] = useState(rag.replit.tableName);
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
+      id: "replit",
+      name: "Replit PostgreSQL",
+      description: "Built-in vector storage with pgvector",
+    },
+    {
       id: "qdrant",
       name: "Qdrant",
-      description: t("qdrantDesc") || "Vector database for semantic search",
+      description: t("qdrantDesc") || "Dedicated vector database service",
+    },
+    {
+      id: "supabase",
+      name: "Supabase",
+      description: "PostgreSQL with vector extensions",
     },
     {
       id: "none",
@@ -50,11 +64,17 @@ export default function RAGSettingsScreen() {
         apiKey: qdrantApiKey,
         collectionName: collectionName || "kb_jarvis",
       },
+      supabase: {
+        url: supabaseUrl,
+        apiKey: supabaseApiKey,
+        tableName: supabaseTable || "documents",
+      },
+      replit: {
+        tableName: replitTable || "rag_documents",
+      },
     });
     navigation.goBack();
   };
-
-  const isQdrantEnabled = provider === "qdrant";
 
   return (
     <KeyboardAwareScrollView
@@ -129,12 +149,12 @@ export default function RAGSettingsScreen() {
         </View>
       </View>
 
-      {isQdrantEnabled && (
+      {provider === "qdrant" && (
         <View style={styles.section}>
           <ThemedText
             style={[styles.sectionTitle, { color: theme.textTertiary }]}
           >
-            {t("ragSettings").toUpperCase()}
+            QDRANT SETTINGS
           </ThemedText>
 
           <View style={styles.inputGroup}>
@@ -199,6 +219,122 @@ export default function RAGSettingsScreen() {
               placeholderTextColor={theme.textTertiary}
               value={collectionName}
               onChangeText={setCollectionName}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+      )}
+
+      {provider === "supabase" && (
+        <View style={styles.section}>
+          <ThemedText
+            style={[styles.sectionTitle, { color: theme.textTertiary }]}
+          >
+            SUPABASE SETTINGS
+          </ThemedText>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              Supabase URL
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="https://your-project.supabase.co"
+              placeholderTextColor={theme.textTertiary}
+              value={supabaseUrl}
+              onChangeText={setSupabaseUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              {t("apiKey")}
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="your-anon-key"
+              placeholderTextColor={theme.textTertiary}
+              value={supabaseApiKey}
+              onChangeText={setSupabaseApiKey}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              Table Name
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="documents"
+              placeholderTextColor={theme.textTertiary}
+              value={supabaseTable}
+              onChangeText={setSupabaseTable}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+      )}
+
+      {provider === "replit" && (
+        <View style={styles.section}>
+          <ThemedText
+            style={[styles.sectionTitle, { color: theme.textTertiary }]}
+          >
+            REPLIT POSTGRESQL SETTINGS
+          </ThemedText>
+
+          <ThemedText
+            style={[styles.sectionDescription, { color: theme.textSecondary }]}
+          >
+            Uses the built-in PostgreSQL database with pgvector extension for
+            vector storage.
+          </ThemedText>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              Table Name
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="rag_documents"
+              placeholderTextColor={theme.textTertiary}
+              value={replitTable}
+              onChangeText={setReplitTable}
               autoCapitalize="none"
               autoCorrect={false}
             />
