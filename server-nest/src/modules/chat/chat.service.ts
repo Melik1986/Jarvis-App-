@@ -206,19 +206,33 @@ export class ChatService {
           ),
           comment: z.string().optional(),
         }),
-        execute: async ({ customer_name, items, comment }: { 
-          customer_name?: string; 
-          items: Array<{ product_name: string; quantity: number; price: number }>;
+        execute: async ({
+          customer_name,
+          items,
+          comment,
+        }: {
+          customer_name?: string;
+          items: {
+            product_name: string;
+            quantity: number;
+            price: number;
+          }[];
           comment?: string;
         }) => {
           const invoice = await erpService.createInvoice(
             {
               customerName: customer_name,
-              items: items.map((item: { product_name: string; quantity: number; price: number }) => ({
-                productName: item.product_name,
-                quantity: item.quantity,
-                price: item.price,
-              })),
+              items: items.map(
+                (item: {
+                  product_name: string;
+                  quantity: number;
+                  price: number;
+                }) => ({
+                  productName: item.product_name,
+                  quantity: item.quantity,
+                  price: item.price,
+                }),
+              ),
               comment,
             },
             erpSettings,

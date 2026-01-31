@@ -2,9 +2,7 @@ import { Module, Global } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-
-// Import schema inline to avoid rootDir issues
-const schema = require("../../../shared/schema");
+import * as schema from "../../../shared/schema";
 
 export const DATABASE_CONNECTION = "DATABASE_CONNECTION";
 

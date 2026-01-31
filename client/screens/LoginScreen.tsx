@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Platform,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,6 +28,39 @@ export default function LoginScreen() {
   const { setUser, setSession, isLoading } = useAuthStore();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  const handleAuthCallback = useCallback(
+    async (url: string) => {
+      if (!url.includes("/auth/success")) return;
+
+      try {
+        const urlObj = new URL(url);
+        const accessToken = urlObj.searchParams.get("accessToken");
+        const refreshToken = urlObj.searchParams.get("refreshToken");
+        const expiresIn = urlObj.searchParams.get("expiresIn");
+        const userJson = urlObj.searchParams.get("user");
+
+        if (accessToken && refreshToken && expiresIn) {
+          const session = {
+            accessToken,
+            refreshToken,
+            expiresIn: parseInt(expiresIn, 10),
+            expiresAt: Date.now() + parseInt(expiresIn, 10) * 1000,
+          };
+          setSession(session);
+
+          if (userJson) {
+            const user = JSON.parse(decodeURIComponent(userJson));
+            setUser(user);
+          }
+        }
+      } catch (error) {
+        console.error("Error handling auth callback:", error);
+      }
+      setIsSigningIn(false);
+    },
+    [setSession, setUser],
+  );
+
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       handleAuthCallback(event.url);
@@ -45,37 +77,7 @@ export default function LoginScreen() {
     return () => {
       subscription.remove();
     };
-  }, []);
-
-  const handleAuthCallback = async (url: string) => {
-    if (!url.includes("/auth/success")) return;
-
-    try {
-      const urlObj = new URL(url);
-      const accessToken = urlObj.searchParams.get("accessToken");
-      const refreshToken = urlObj.searchParams.get("refreshToken");
-      const expiresIn = urlObj.searchParams.get("expiresIn");
-      const userJson = urlObj.searchParams.get("user");
-
-      if (accessToken && refreshToken && expiresIn) {
-        const session = {
-          accessToken,
-          refreshToken,
-          expiresIn: parseInt(expiresIn, 10),
-          expiresAt: Date.now() + parseInt(expiresIn, 10) * 1000,
-        };
-        setSession(session);
-
-        if (userJson) {
-          const user = JSON.parse(decodeURIComponent(userJson));
-          setUser(user);
-        }
-      }
-    } catch (error) {
-      console.error("Error handling auth callback:", error);
-    }
-    setIsSigningIn(false);
-  };
+  }, [handleAuthCallback]);
 
   const handleLogin = async () => {
     setIsSigningIn(true);
