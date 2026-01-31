@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { StyleSheet, View, TextInput, Pressable, Alert } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, View, TextInput, Pressable, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -12,7 +12,7 @@ import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
+import { apiRequest, getApiUrl } from "@/lib/query-client";
 
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -23,6 +23,7 @@ export default function RAGSettingsScreen() {
 
   const { rag, setRagSettings } = useSettingsStore();
 
+  const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState<RagProvider>(rag.provider);
   const [qdrantUrl, setQdrantUrl] = useState(rag.qdrant.url);
   const [qdrantApiKey, setQdrantApiKey] = useState(rag.qdrant.apiKey);
@@ -33,6 +34,27 @@ export default function RAGSettingsScreen() {
   const [supabaseApiKey, setSupabaseApiKey] = useState(rag.supabase.apiKey);
   const [supabaseTable, setSupabaseTable] = useState(rag.supabase.tableName);
   const [replitTable, setReplitTable] = useState(rag.replit.tableName);
+
+  useEffect(() => {
+    const fetchProviderSettings = async () => {
+      try {
+        const url = new URL("/api/documents/providers", getApiUrl());
+        const response = await fetch(url.toString());
+        if (response.ok) {
+          const data = await response.json();
+          if (data.current) {
+            setProvider(data.current as RagProvider);
+            setRagSettings({ ...rag, provider: data.current as RagProvider });
+          }
+        }
+      } catch (error) {
+        console.log("Failed to fetch provider settings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProviderSettings();
+  }, []);
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
@@ -88,6 +110,14 @@ export default function RAGSettingsScreen() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -357,7 +387,7 @@ export default function RAGSettingsScreen() {
 
       <View style={styles.buttonContainer}>
         <Button onPress={handleSave} disabled={saving}>
-          {saving ? t("saving") || "Saving..." : t("saveSettings")}
+          {saving ? "Saving..." : t("saveSettings")}
         </Button>
       </View>
     </KeyboardAwareScrollView>
@@ -367,6 +397,10 @@ export default function RAGSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     paddingHorizontal: Spacing.lg,
