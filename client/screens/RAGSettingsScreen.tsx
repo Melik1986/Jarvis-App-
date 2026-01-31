@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, Pressable } from "react-native";
+import { StyleSheet, View, TextInput, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -12,6 +12,7 @@ import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { apiRequest } from "@/lib/query-client";
 
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -56,8 +57,11 @@ export default function RAGSettingsScreen() {
     },
   ];
 
-  const handleSave = () => {
-    setRagSettings({
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const settings = {
       provider,
       qdrant: {
         url: qdrantUrl,
@@ -72,8 +76,17 @@ export default function RAGSettingsScreen() {
       replit: {
         tableName: replitTable || "rag_documents",
       },
-    });
-    navigation.goBack();
+    };
+
+    try {
+      await apiRequest("PUT", "/api/documents/providers", settings);
+      setRagSettings(settings);
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert("Error", "Failed to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -343,7 +356,9 @@ export default function RAGSettingsScreen() {
       )}
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave}>{t("saveSettings")}</Button>
+        <Button onPress={handleSave} disabled={saving}>
+          {saving ? t("saving") || "Saving..." : t("saveSettings")}
+        </Button>
       </View>
     </KeyboardAwareScrollView>
   );

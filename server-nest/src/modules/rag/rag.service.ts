@@ -650,4 +650,167 @@ export class RagService {
 
     return `Релевантная информация из базы знаний:\n\n${contextParts.join("\n\n---\n\n")}`;
   }
+
+  async seedDemoData(): Promise<{ created: number; documents: DocumentMetadata[] }> {
+    const demoDocuments = [
+      {
+        name: "Company Overview",
+        content: `AXON Corporation - Company Overview
+
+Founded in 2020, AXON is a leading provider of AI-powered enterprise solutions. Our flagship product, AXON ERP OS, revolutionizes how businesses interact with their enterprise systems.
+
+Key Products:
+- AXON ERP OS: Universal AI interface for ERP systems
+- AXON Voice: Natural language processing for business commands
+- AXON Vision: Document scanning and OCR capabilities
+
+Company Statistics:
+- Employees: 150+
+- Revenue (2024): $25M
+- Customers: 500+ enterprises worldwide
+- Supported ERP systems: 1C, SAP, Odoo, Oracle, Microsoft Dynamics`,
+      },
+      {
+        name: "Product Catalog",
+        content: `AXON Product Catalog 2025
+
+1. Coffee Beans Premium Blend
+   SKU: CB-001
+   Price: $24.99/kg
+   Stock: 500 units
+   Category: Beverages
+
+2. Office Supplies Kit
+   SKU: OS-102
+   Price: $89.99
+   Stock: 150 units
+   Category: Office
+
+3. Laptop Stand Pro
+   SKU: LS-205
+   Price: $149.99
+   Stock: 75 units
+   Category: Electronics
+
+4. Wireless Mouse Ergonomic
+   SKU: WM-301
+   Price: $45.99
+   Stock: 200 units
+   Category: Electronics
+
+5. Desk Organizer Set
+   SKU: DO-401
+   Price: $35.99
+   Stock: 300 units
+   Category: Office`,
+      },
+      {
+        name: "Financial Report Q4 2024",
+        content: `Quarterly Financial Report - Q4 2024
+
+Revenue Summary:
+- Total Revenue: $6.2M
+- YoY Growth: 35%
+- Gross Margin: 72%
+
+Revenue by Region:
+- North America: $2.8M (45%)
+- Europe: $1.9M (31%)
+- Asia Pacific: $1.1M (18%)
+- Other: $0.4M (6%)
+
+Key Metrics:
+- Customer Acquisition Cost: $2,500
+- Lifetime Value: $45,000
+- Churn Rate: 2.3%
+- Net Promoter Score: 72
+
+Expenses:
+- R&D: $1.8M
+- Sales & Marketing: $1.2M
+- Operations: $0.9M
+- G&A: $0.6M`,
+      },
+      {
+        name: "Employee Handbook",
+        content: `AXON Employee Handbook 2025
+
+Working Hours:
+- Core hours: 10:00 AM - 4:00 PM
+- Flexible scheduling available
+- Remote work: Up to 3 days per week
+
+Benefits:
+- Health Insurance: 100% covered
+- 401(k): 4% company match
+- PTO: 25 days annually
+- Parental Leave: 16 weeks paid
+
+Professional Development:
+- Annual learning budget: $2,500
+- Conference attendance encouraged
+- Internal mentorship program
+
+Contact HR:
+- Email: hr@axon.corp
+- Phone: +1-555-AXON-HR
+- Slack: #hr-support`,
+      },
+      {
+        name: "Technical Documentation",
+        content: `AXON ERP OS - Technical Integration Guide
+
+Supported Protocols:
+- REST API (JSON)
+- OData 4.0
+- GraphQL
+- gRPC
+
+Authentication Methods:
+- OAuth 2.0
+- API Key
+- JWT Tokens
+- SAML 2.0
+
+Rate Limits:
+- Standard: 1000 requests/minute
+- Enterprise: 10000 requests/minute
+- Bulk operations: 100 requests/minute
+
+Webhook Events:
+- order.created
+- inventory.updated
+- payment.received
+- document.processed
+
+SDKs Available:
+- JavaScript/TypeScript
+- Python
+- Java
+- C#
+- Go`,
+      },
+    ];
+
+    const createdDocs: DocumentMetadata[] = [];
+
+    for (const demo of demoDocuments) {
+      const existing = Array.from(this.documents.values()).find(
+        (d) => d.name === demo.name,
+      );
+      if (existing) continue;
+
+      const doc = await this.uploadDocument(
+        Buffer.from(demo.content, "utf-8"),
+        demo.name,
+        "text/plain",
+      );
+      createdDocs.push(doc);
+    }
+
+    return {
+      created: createdDocs.length,
+      documents: createdDocs,
+    };
+  }
 }
