@@ -122,3 +122,28 @@ export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export const ragDocuments = pgTable("rag_documents", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  documentId: varchar("document_id").references(() => documents.id, {
+    onDelete: "cascade",
+  }),
+  content: text("content").notNull(),
+  embedding: text("embedding"),
+  metadata: text("metadata"),
+  chunkIndex: integer("chunk_index").default(0),
+  createdAt: timestamp("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const insertRagDocumentSchema = createInsertSchema(ragDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type RagDocument = typeof ragDocuments.$inferSelect;
+export type InsertRagDocument = z.infer<typeof insertRagDocumentSchema>;

@@ -22,7 +22,7 @@ interface ERPSettings {
   specUrl: string;
 }
 
-export type RagProvider = "qdrant" | "none";
+export type RagProvider = "qdrant" | "supabase" | "replit" | "none";
 
 export interface RagSettings {
   provider: RagProvider;
@@ -30,6 +30,14 @@ export interface RagSettings {
     url: string;
     apiKey: string;
     collectionName: string;
+  };
+  supabase: {
+    url: string;
+    apiKey: string;
+    tableName: string;
+  };
+  replit: {
+    tableName: string;
   };
 }
 
@@ -72,6 +80,14 @@ const defaultRag: RagSettings = {
     url: "",
     apiKey: "",
     collectionName: "kb_jarvis",
+  },
+  supabase: {
+    url: "",
+    apiKey: "",
+    tableName: "documents",
+  },
+  replit: {
+    tableName: "rag_documents",
   },
 };
 

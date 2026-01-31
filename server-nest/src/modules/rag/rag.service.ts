@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import {
@@ -6,24 +6,55 @@ import {
   SearchResult,
   QdrantSearchResult,
   DocumentMetadata,
+  RagProviderType,
+  RagSettingsRequest,
 } from "./rag.types";
 import { randomUUID } from "crypto";
+import { DATABASE_CONNECTION, Database } from "../../db/db.module";
+import { sql } from "drizzle-orm";
+import * as schema from "../../../../shared/schema";
+
+export interface ProviderConfig {
+  type: RagProviderType;
+  qdrant?: RagConfig;
+  supabase?: {
+    url: string;
+    apiKey?: string;
+    tableName: string;
+  };
+  replit?: {
+    tableName: string;
+  };
+}
 
 @Injectable()
 export class RagService {
-  private config: RagConfig;
-  private isConfigured: boolean;
+  private providerConfig: ProviderConfig;
   private openai: OpenAI;
   private documents: Map<string, DocumentMetadata> = new Map();
   private documentContents: Map<string, string> = new Map();
 
-  constructor(private configService: ConfigService) {
-    this.config = {
-      url: this.configService.get("QDRANT_URL") || "",
-      apiKey: this.configService.get("QDRANT_API_KEY"),
-      collectionName: "kb_jarvis",
+  constructor(
+    private configService: ConfigService,
+    @Inject(DATABASE_CONNECTION) private db: Database,
+  ) {
+    this.providerConfig = {
+      type:
+        (this.configService.get("RAG_PROVIDER") as RagProviderType) || "none",
+      qdrant: {
+        url: this.configService.get("QDRANT_URL") || "",
+        apiKey: this.configService.get("QDRANT_API_KEY"),
+        collectionName: "kb_jarvis",
+      },
+      supabase: {
+        url: this.configService.get("SUPABASE_URL") || "",
+        apiKey: this.configService.get("SUPABASE_ANON_KEY"),
+        tableName: "documents",
+      },
+      replit: {
+        tableName: "rag_documents",
+      },
     };
-    this.isConfigured = Boolean(this.config.url);
 
     this.openai = new OpenAI({
       apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
@@ -31,8 +62,56 @@ export class RagService {
     });
   }
 
+  getProviders(): { id: RagProviderType; name: string; configured: boolean }[] {
+    return [
+      {
+        id: "qdrant",
+        name: "Qdrant",
+        configured: Boolean(this.providerConfig.qdrant?.url),
+      },
+      {
+        id: "supabase",
+        name: "Supabase",
+        configured: Boolean(this.providerConfig.supabase?.url),
+      },
+      {
+        id: "replit",
+        name: "Replit PostgreSQL",
+        configured: true,
+      },
+      {
+        id: "none",
+        name: "Disabled",
+        configured: true,
+      },
+    ];
+  }
+
+  getCurrentProvider(): RagProviderType {
+    return this.providerConfig.type;
+  }
+
+  setProvider(settings: RagSettingsRequest): void {
+    this.providerConfig.type = settings.provider;
+    if (settings.qdrant) {
+      this.providerConfig.qdrant = settings.qdrant;
+    }
+    if (settings.supabase) {
+      this.providerConfig.supabase = settings.supabase;
+    }
+    if (settings.replit) {
+      this.providerConfig.replit = settings.replit;
+    }
+  }
+
   isAvailable(): boolean {
-    return this.isConfigured;
+    if (this.providerConfig.type === "none") return false;
+    if (this.providerConfig.type === "replit") return true;
+    if (this.providerConfig.type === "qdrant")
+      return Boolean(this.providerConfig.qdrant?.url);
+    if (this.providerConfig.type === "supabase")
+      return Boolean(this.providerConfig.supabase?.url);
+    return false;
   }
 
   async listDocuments(): Promise<DocumentMetadata[]> {
@@ -118,11 +197,11 @@ export class RagService {
     this.documents.delete(id);
     this.documentContents.delete(id);
 
-    if (this.isConfigured) {
+    if (this.isAvailable()) {
       try {
-        await this.deleteFromQdrant(id);
+        await this.deleteFromProvider(id);
       } catch (error) {
-        console.error("Error deleting from Qdrant:", error);
+        console.error("Error deleting from provider:", error);
       }
     }
 
@@ -212,7 +291,7 @@ export class RagService {
   }
 
   private async indexDocument(id: string, content: string) {
-    if (!this.isConfigured) {
+    if (!this.isAvailable()) {
       return;
     }
 
@@ -220,33 +299,16 @@ export class RagService {
       const chunks = this.splitIntoChunks(content, 500);
       const doc = this.documents.get(id);
 
-      for (let i = 0; i < chunks.length; i++) {
-        const embedding = await this.embed(chunks[i]);
-
-        await fetch(
-          `${this.config.url}/collections/${this.config.collectionName}/points`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(this.config.apiKey && { "api-key": this.config.apiKey }),
-            },
-            body: JSON.stringify({
-              points: [
-                {
-                  id: `${id}-${i}`,
-                  vector: embedding,
-                  payload: {
-                    content: chunks[i],
-                    documentId: id,
-                    documentName: doc?.name,
-                    chunkIndex: i,
-                  },
-                },
-              ],
-            }),
-          },
-        );
+      switch (this.providerConfig.type) {
+        case "qdrant":
+          await this.indexToQdrant(id, chunks, doc);
+          break;
+        case "supabase":
+          await this.indexToSupabase(id, chunks, doc);
+          break;
+        case "replit":
+          await this.indexToReplit(id, chunks, doc);
+          break;
       }
     } catch (error) {
       console.error("Error indexing document:", error);
@@ -254,27 +316,139 @@ export class RagService {
     }
   }
 
+  private async indexToQdrant(
+    id: string,
+    chunks: string[],
+    doc?: DocumentMetadata,
+  ) {
+    const config = this.providerConfig.qdrant;
+    if (!config?.url) return;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const embedding = await this.embed(chunks[i]);
+      await fetch(`${config.url}/collections/${config.collectionName}/points`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.apiKey && { "api-key": config.apiKey }),
+        },
+        body: JSON.stringify({
+          points: [
+            {
+              id: `${id}-${i}`,
+              vector: embedding,
+              payload: {
+                content: chunks[i],
+                documentId: id,
+                documentName: doc?.name,
+                chunkIndex: i,
+              },
+            },
+          ],
+        }),
+      });
+    }
+  }
+
+  private async indexToSupabase(
+    id: string,
+    chunks: string[],
+    doc?: DocumentMetadata,
+  ) {
+    const config = this.providerConfig.supabase;
+    if (!config?.url) return;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const embedding = await this.embed(chunks[i]);
+      await fetch(`${config.url}/rest/v1/${config.tableName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: config.apiKey || "",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          document_id: id,
+          content: chunks[i],
+          embedding: JSON.stringify(embedding),
+          metadata: JSON.stringify({ documentName: doc?.name, chunkIndex: i }),
+        }),
+      });
+    }
+  }
+
+  private async indexToReplit(
+    id: string,
+    chunks: string[],
+    doc?: DocumentMetadata,
+  ) {
+    for (let i = 0; i < chunks.length; i++) {
+      const embedding = await this.embed(chunks[i]);
+      await this.db.insert(schema.ragDocuments).values({
+        documentId: id,
+        content: chunks[i],
+        embedding: JSON.stringify(embedding),
+        metadata: JSON.stringify({ documentName: doc?.name }),
+        chunkIndex: i,
+      });
+    }
+  }
+
+  private async deleteFromProvider(documentId: string) {
+    switch (this.providerConfig.type) {
+      case "qdrant":
+        await this.deleteFromQdrant(documentId);
+        break;
+      case "supabase":
+        await this.deleteFromSupabase(documentId);
+        break;
+      case "replit":
+        await this.deleteFromReplit(documentId);
+        break;
+    }
+  }
+
   private async deleteFromQdrant(documentId: string) {
+    const config = this.providerConfig.qdrant;
+    if (!config?.url) return;
+
     await fetch(
-      `${this.config.url}/collections/${this.config.collectionName}/points/delete`,
+      `${config.url}/collections/${config.collectionName}/points/delete`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(this.config.apiKey && { "api-key": this.config.apiKey }),
+          ...(config.apiKey && { "api-key": config.apiKey }),
         },
         body: JSON.stringify({
           filter: {
-            must: [
-              {
-                key: "documentId",
-                match: { value: documentId },
-              },
-            ],
+            must: [{ key: "documentId", match: { value: documentId } }],
           },
         }),
       },
     );
+  }
+
+  private async deleteFromSupabase(documentId: string) {
+    const config = this.providerConfig.supabase;
+    if (!config?.url) return;
+
+    await fetch(
+      `${config.url}/rest/v1/${config.tableName}?document_id=eq.${documentId}`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: config.apiKey || "",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+      },
+    );
+  }
+
+  private async deleteFromReplit(documentId: string) {
+    await this.db
+      .delete(schema.ragDocuments)
+      .where(sql`document_id = ${documentId}`);
   }
 
   private splitIntoChunks(text: string, chunkSize: number): string[] {
@@ -315,58 +489,131 @@ export class RagService {
     return response.data[0].embedding;
   }
 
-  async search(
-    query: string,
-    limit = 3,
-    customConfig?: RagConfig,
-  ): Promise<SearchResult[]> {
-    const config = customConfig || this.config;
-    const isConfigured = Boolean(config.url);
-
-    if (!isConfigured) {
+  async search(query: string, limit = 3): Promise<SearchResult[]> {
+    if (!this.isAvailable()) {
       return this.getLocalResults(query, limit);
     }
 
     try {
-      const embedding = await this.embed(query);
-
-      const response = await fetch(
-        `${config.url}/collections/${config.collectionName}/points/search`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(config.apiKey && { "api-key": config.apiKey }),
-          },
-          body: JSON.stringify({
-            vector: embedding,
-            limit,
-            with_payload: true,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Qdrant error: ${response.status}`);
+      switch (this.providerConfig.type) {
+        case "qdrant":
+          return await this.searchQdrant(query, limit);
+        case "supabase":
+          return await this.searchSupabase(query, limit);
+        case "replit":
+          return await this.searchReplit(query, limit);
+        default:
+          return this.getLocalResults(query, limit);
       }
-
-      const data = await response.json();
-      const results: QdrantSearchResult[] = data.result || [];
-
-      return results.map((r) => ({
-        id: String(r.id),
-        score: r.score,
-        content: r.payload.content,
-        metadata: {
-          title: r.payload.title,
-          source: r.payload.source,
-          category: r.payload.category,
-        },
-      }));
     } catch (error) {
-      console.error("Error searching Qdrant:", error);
+      console.error("Error searching:", error);
       return this.getLocalResults(query, limit);
     }
+  }
+
+  private async searchQdrant(
+    query: string,
+    limit: number,
+  ): Promise<SearchResult[]> {
+    const config = this.providerConfig.qdrant;
+    if (!config?.url) return [];
+
+    const embedding = await this.embed(query);
+    const response = await fetch(
+      `${config.url}/collections/${config.collectionName}/points/search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.apiKey && { "api-key": config.apiKey }),
+        },
+        body: JSON.stringify({ vector: embedding, limit, with_payload: true }),
+      },
+    );
+
+    if (!response.ok) throw new Error(`Qdrant error: ${response.status}`);
+
+    const data = await response.json();
+    const results: QdrantSearchResult[] = data.result || [];
+
+    return results.map((r) => ({
+      id: String(r.id),
+      score: r.score,
+      content: r.payload.content,
+      metadata: { title: r.payload.title, source: "qdrant" },
+    }));
+  }
+
+  private async searchSupabase(
+    query: string,
+    limit: number,
+  ): Promise<SearchResult[]> {
+    const config = this.providerConfig.supabase;
+    if (!config?.url) return [];
+
+    const embedding = await this.embed(query);
+    const response = await fetch(`${config.url}/rest/v1/rpc/match_documents`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.apiKey || "",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        query_embedding: embedding,
+        match_count: limit,
+      }),
+    });
+
+    if (!response.ok) return this.getLocalResults(query, limit);
+
+    const results = await response.json();
+    return results.map(
+      (r: { id: string; content: string; similarity: number }) => ({
+        id: r.id,
+        score: r.similarity,
+        content: r.content,
+        metadata: { source: "supabase" },
+      }),
+    );
+  }
+
+  private async searchReplit(
+    query: string,
+    limit: number,
+  ): Promise<SearchResult[]> {
+    const queryEmbedding = await this.embed(query);
+
+    const docs = await this.db.select().from(schema.ragDocuments).limit(100);
+
+    const scored = docs
+      .map((doc) => {
+        const docEmbedding = doc.embedding ? JSON.parse(doc.embedding) : [];
+        const score = this.cosineSimilarity(queryEmbedding, docEmbedding);
+        return { ...doc, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    return scored.map((doc) => ({
+      id: doc.id,
+      score: doc.score,
+      content: doc.content,
+      metadata: { source: "replit" },
+    }));
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length || a.length === 0) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   private getLocalResults(query: string, limit: number): SearchResult[] {

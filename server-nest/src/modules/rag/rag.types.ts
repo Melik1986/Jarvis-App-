@@ -28,12 +28,22 @@ export interface QdrantSearchResult {
   };
 }
 
+export type RagProviderType = "qdrant" | "supabase" | "replit" | "none";
+
 export interface RagSettingsRequest {
-  provider: "qdrant" | "none";
+  provider: RagProviderType;
   qdrant?: {
     url: string;
     apiKey?: string;
     collectionName: string;
+  };
+  supabase?: {
+    url: string;
+    apiKey?: string;
+    tableName: string;
+  };
+  replit?: {
+    tableName: string;
   };
 }
 

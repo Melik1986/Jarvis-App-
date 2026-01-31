@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Delete,
+  Put,
   Param,
   Body,
   UploadedFile,
@@ -12,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { RagService } from "./rag.service";
-import { DocumentMetadata } from "./rag.types";
+import { DocumentMetadata, RagSettingsRequest } from "./rag.types";
 
 @Controller("documents")
 export class RagController {
@@ -21,6 +22,23 @@ export class RagController {
   @Get()
   async listDocuments(): Promise<DocumentMetadata[]> {
     return this.ragService.listDocuments();
+  }
+
+  @Get("providers")
+  getProviders() {
+    return {
+      providers: this.ragService.getProviders(),
+      current: this.ragService.getCurrentProvider(),
+    };
+  }
+
+  @Put("providers")
+  setProvider(@Body() settings: RagSettingsRequest) {
+    this.ragService.setProvider(settings);
+    return {
+      success: true,
+      current: this.ragService.getCurrentProvider(),
+    };
   }
 
   @Get(":id")
