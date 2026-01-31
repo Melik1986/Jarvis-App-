@@ -1,0 +1,19 @@
+
+# 1. Run lint-staged (formatting and linting for staged files)
+echo "Running lint-staged (prettier + lint)..."
+npx lint-staged
+
+# 2. Run gitleaks via Docker
+if command -v docker >/dev/null 2>&1; then
+    echo "Running gitleaks detection via Docker..."
+    # Check version first to confirm image is available and working
+    docker run --rm zricethezav/gitleaks:latest version
+    
+    # Run detection
+    # -v: verbose output
+    # --redact: mask secrets in output
+    docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" -v --redact
+else
+    echo "WARNING: Docker is not available/running. Skipping gitleaks scan."
+    echo "Please ensure Docker Desktop is running."
+fi

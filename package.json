@@ -17,7 +17,16 @@
     "lint:fix": "npx expo lint --fix",
     "check:types": "tsc --noEmit",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
-    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\""
+    "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,md}": [
+      "prettier --write"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "npx expo lint"
+    ]
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.23",
@@ -119,6 +128,8 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-node": "^0.3.9",
     "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "3.6.2",
     "typescript": "~5.9.2"
   },
