@@ -222,6 +222,31 @@ export default function LibraryScreen() {
     },
   });
 
+  const seedDemoMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/documents/seed-demo");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      if (data.created > 0) {
+        Alert.alert("Success", `${data.created} demo documents added`);
+      } else {
+        Alert.alert("Info", "Demo documents already exist");
+      }
+    },
+    onError: () => {
+      Alert.alert(t("error"), "Failed to add demo documents");
+    },
+  });
+
+  const handleSeedDemo = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    seedDemoMutation.mutate();
+  };
+
   const filteredDocuments = useMemo(() => {
     if (!searchQuery.trim()) return documents;
     return documents.filter((doc) =>
@@ -433,11 +458,29 @@ export default function LibraryScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <EmptyState
-            title={t("emptyLibrary")}
-            subtitle={t("uploadDocsHint")}
-            image={require("../../assets/images/empty-library.png")}
-          />
+          <View>
+            <EmptyState
+              title={t("emptyLibrary")}
+              subtitle={t("uploadDocsHint")}
+              image={require("../../assets/images/empty-library.png")}
+            />
+            <View style={styles.demoButtonContainer}>
+              <Pressable
+                style={[
+                  styles.demoButton,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+                onPress={handleSeedDemo}
+                disabled={seedDemoMutation.isPending}
+              >
+                <ThemedText
+                  style={[styles.demoButtonText, { color: theme.primary }]}
+                >
+                  {seedDemoMutation.isPending ? "Loading..." : "Add Demo Data"}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
         }
       />
     </View>
@@ -540,5 +583,19 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: Spacing.sm,
+  },
+  demoButtonContainer: {
+    alignItems: "center",
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+  },
+  demoButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  demoButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

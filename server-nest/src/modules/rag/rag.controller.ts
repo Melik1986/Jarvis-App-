@@ -104,4 +104,9 @@ export class RagController {
     }
     return this.ragService.search(query, limit || 5);
   }
+
+  @Post("seed-demo")
+  async seedDemo() {
+    return this.ragService.seedDemoData();
+  }
 }
