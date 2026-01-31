@@ -67,6 +67,7 @@ logs/
 
 # Build outputs
 server/dist/
+server_dist
 project/
 
 # Database
