@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as express from "express";
 import session from "express-session";
 import passport from "passport";
@@ -9,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
+import { LlmProviderExceptionFilter } from "./filters/llm-provider-exception.filter";
 
 function getAppName(): string {
   try {
@@ -112,6 +114,9 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Global exception filter for LLM provider errors (user-friendly messages)
+  app.useGlobalFilters(new LlmProviderExceptionFilter());
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -123,6 +128,18 @@ async function bootstrap() {
 
   // Set global prefix for API routes
   app.setGlobalPrefix("api");
+
+  // Swagger OpenAPI (dev: /api/docs)
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("AXON API")
+    .setDescription("Universal AI ERP OS — Chat, Conductor, Auth, RAG")
+    .setVersion("1.0")
+    .addTag("conversations", "Chat & Conductor")
+    .addTag("auth", "Authentication")
+    .addTag("rag", "Knowledge Base (RAG)")
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup("api/docs", app, document);
 
   // Serve static Expo files
   const staticBuildPath = path.resolve(process.cwd(), "static-build");

@@ -10,6 +10,10 @@ import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
 import { RagSettingsRequest } from "../rag/rag.types";
 import { AppLogger } from "../../utils/logger";
+import {
+  isLlmProviderError,
+  getLlmProviderErrorBody,
+} from "../../filters/llm-provider-exception.filter";
 
 export interface Message {
   id: number;
@@ -136,6 +140,27 @@ export class ChatService {
   }
 
   /**
+   * Get baseURL used for provider (for verbose logging only, no secrets).
+   */
+  private getBaseUrlForLog(llmSettings?: LlmSettings): string | undefined {
+    const settings = llmSettings || { provider: "replit" as const };
+    switch (settings.provider) {
+      case "replit":
+        return process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+      case "openai":
+        return settings.baseUrl || "https://api.openai.com/v1";
+      case "groq":
+        return settings.baseUrl || "https://api.groq.com/openai/v1";
+      case "ollama":
+        return settings.baseUrl || "http://localhost:11434/v1";
+      case "custom":
+        return settings.baseUrl;
+      default:
+        return undefined;
+    }
+  }
+
+  /**
    * Create tools for Vercel AI SDK with execute handlers
    */
   private createTools(erpSettings?: Partial<ErpConfig>) {
@@ -245,6 +270,26 @@ export class ChatService {
     };
   }
 
+  /**
+   * Mask baseURL for logging (scheme + host only, no path or secrets).
+   */
+  private maskBaseUrl(url: string | undefined): string {
+    if (!url || typeof url !== "string") return "(none)";
+    try {
+      const u = new URL(url);
+      return `${u.protocol}//${u.host}`;
+    } catch {
+      return "(invalid)";
+    }
+  }
+
+  private isVerboseLogEnabled(): boolean {
+    return (
+      process.env.NODE_ENV === "development" ||
+      process.env.CONDUCTOR_VERBOSE_LOG === "1"
+    );
+  }
+
   async streamResponse(
     conversationId: number,
     content: string,
@@ -300,7 +345,18 @@ export class ChatService {
       const modelName = this.llmService.getModel(llmSettings);
       const tools = this.createTools(erpSettings);
 
-      // Stream with Vercel AI SDK
+      const provider = llmSettings?.provider ?? "replit";
+      const baseURL = this.getBaseUrlForLog(llmSettings);
+      const verbose = this.isVerboseLogEnabled();
+      if (verbose) {
+        AppLogger.info(
+          `[Conductor] LLM request started | provider=${provider} baseURL=${this.maskBaseUrl(baseURL)} model=${modelName}`,
+          undefined,
+          "Conductor",
+        );
+      }
+
+      // Stream with Vercel AI SDK (fullStream to get tool-call / tool-result for logging)
       const result = streamText({
         model: aiProvider(modelName),
         system: systemMessage,
@@ -311,11 +367,38 @@ export class ChatService {
 
       let fullResponse = "";
 
-      // Stream text deltas to client
-      for await (const chunk of result.textStream) {
-        if (chunk) {
-          fullResponse += chunk;
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      for await (const part of result.fullStream) {
+        if (part.type === "text-delta" && part.delta) {
+          fullResponse += part.delta;
+          res.write(`data: ${JSON.stringify({ content: part.delta })}\n\n`);
+        }
+        if (verbose) {
+          if (part.type === "tool-call") {
+            const args =
+              "input" in part && part.input !== undefined
+                ? JSON.stringify(part.input)
+                : "{}";
+            AppLogger.info(
+              `[Conductor] tool-call | toolName=${part.toolName} args=${args}`,
+              undefined,
+              "Conductor",
+            );
+          }
+          if (part.type === "tool-result") {
+            let out = "[object]";
+            if ("output" in part && part.output !== undefined) {
+              out =
+                typeof part.output === "string"
+                  ? part.output.slice(0, 200) +
+                    (part.output.length > 200 ? "…" : "")
+                  : JSON.stringify(part.output).slice(0, 200) + "…";
+            }
+            AppLogger.info(
+              `[Conductor] tool-result | toolName=${part.toolName} resultSummary=${out}`,
+              undefined,
+              "Conductor",
+            );
+          }
         }
       }
 
@@ -327,13 +410,109 @@ export class ChatService {
     } catch (error) {
       AppLogger.error("Error in chat stream:", error);
       if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to process message" });
+        if (isLlmProviderError(error)) {
+          const body = getLlmProviderErrorBody(error);
+          res.status(body.statusCode).json(body);
+        } else {
+          res.status(500).json({ error: "Failed to process message" });
+        }
       } else {
-        res.write(
-          `data: ${JSON.stringify({ error: "Failed to process message" })}\n\n`,
-        );
+        const msg = isLlmProviderError(error)
+          ? getLlmProviderErrorBody(error).message
+          : "Failed to process message";
+        res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
         res.end();
       }
     }
+  }
+
+  /**
+   * Parse raw text (e.g. from Whisper) into structured tool calls and assistant text.
+   * Used by POST /api/conductor/parse for Swagger/testing without streaming.
+   */
+  async parseRawText(
+    rawText: string,
+    llmSettings?: LlmSettings,
+    erpSettings?: Partial<ErpConfig>,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<{
+    rawText: string;
+    toolCalls: { toolName: string; args: unknown; resultSummary: string }[];
+    assistantText: string;
+  }> {
+    let ragContext = "";
+    try {
+      const ragConfig =
+        ragSettings?.provider === "qdrant" && ragSettings.qdrant?.url
+          ? {
+              url: ragSettings.qdrant.url,
+              apiKey: ragSettings.qdrant.apiKey,
+              collectionName: ragSettings.qdrant.collectionName || "kb_jarvis",
+            }
+          : undefined;
+      const ragResults = await this.ragService.search(rawText, 2, ragConfig);
+      ragContext = this.ragService.buildContext(ragResults);
+    } catch {
+      // ignore RAG errors
+    }
+    const systemMessage = ragContext
+      ? `${SYSTEM_PROMPT}\n\n${ragContext}`
+      : SYSTEM_PROMPT;
+    const aiProvider = this.createAiProvider(llmSettings);
+    const modelName = this.llmService.getModel(llmSettings);
+    const tools = this.createTools(erpSettings);
+
+    const result = streamText({
+      model: aiProvider(modelName),
+      system: systemMessage,
+      messages: [{ role: "user", content: rawText }],
+      tools,
+      maxOutputTokens: 2048,
+    });
+
+    const toolCallsAcc: {
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+      resultSummary?: string;
+    }[] = [];
+    let assistantText = "";
+
+    for await (const part of result.fullStream) {
+      if (part.type === "text-delta" && part.delta) {
+        assistantText += part.delta;
+      }
+      if (part.type === "tool-call") {
+        const args = "input" in part ? part.input : {};
+        toolCallsAcc.push({
+          toolCallId: part.toolCallId,
+          toolName: part.toolName,
+          args,
+        });
+      }
+      if (part.type === "tool-result") {
+        const out =
+          "output" in part && part.output !== undefined
+            ? typeof part.output === "string"
+              ? part.output.slice(0, 300) +
+                (part.output.length > 300 ? "…" : "")
+              : JSON.stringify(part.output).slice(0, 300) + "…"
+            : "";
+        const entry = toolCallsAcc.find(
+          (e) => e.toolCallId === part.toolCallId,
+        );
+        if (entry) entry.resultSummary = out;
+      }
+    }
+
+    return {
+      rawText,
+      toolCalls: toolCallsAcc.map((e) => ({
+        toolName: e.toolName,
+        args: e.args,
+        resultSummary: e.resultSummary ?? "",
+      })),
+      assistantText,
+    };
   }
 }

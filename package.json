@@ -15,6 +15,8 @@
     "db:push": "drizzle-kit push",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
+    "test": "jest",
+    "test:server": "jest --testPathPattern=server/",
     "check:types": "tsc --noEmit",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
     "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
@@ -38,6 +40,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.12",
     "@nestjs/platform-express": "^11.1.12",
+    "@nestjs/swagger": "^11.2.5",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-segmented-control/segmented-control": "^2.5.7",
     "@react-navigation/bottom-tabs": "^7.4.0",
@@ -119,6 +122,9 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.1.12",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "24.10.0",
