@@ -368,16 +368,19 @@ export class ChatService {
       let fullResponse = "";
 
       for await (const part of result.fullStream) {
-        if (part.type === "text-delta" && part.delta) {
-          fullResponse += part.delta;
-          res.write(`data: ${JSON.stringify({ content: part.delta })}\n\n`);
+        const textDelta =
+          (part as { text?: string }).text ??
+          (part as { delta?: string }).delta;
+        if (part.type === "text-delta" && textDelta) {
+          fullResponse += textDelta;
+          res.write(`data: ${JSON.stringify({ content: textDelta })}\n\n`);
         }
         if (verbose) {
           if (part.type === "tool-call") {
-            const args =
-              "input" in part && part.input !== undefined
-                ? JSON.stringify(part.input)
-                : "{}";
+            const argsRaw =
+              (part as { args?: unknown }).args ??
+              (part as { input?: unknown }).input;
+            const args = argsRaw !== undefined ? JSON.stringify(argsRaw) : "{}";
             AppLogger.info(
               `[Conductor] tool-call | toolName=${part.toolName} args=${args}`,
               undefined,
@@ -386,12 +389,15 @@ export class ChatService {
           }
           if (part.type === "tool-result") {
             let out = "[object]";
-            if ("output" in part && part.output !== undefined) {
-              out =
-                typeof part.output === "string"
-                  ? part.output.slice(0, 200) +
-                    (part.output.length > 200 ? "…" : "")
-                  : JSON.stringify(part.output).slice(0, 200) + "…";
+            const resultOutput =
+              (part as { result?: unknown }).result ??
+              (part as { output?: unknown }).output;
+            if (resultOutput !== undefined) {
+              const raw =
+                typeof resultOutput === "string"
+                  ? resultOutput
+                  : JSON.stringify(resultOutput);
+              out = raw.slice(0, 200) + (raw.length > 200 ? "…" : "");
             }
             AppLogger.info(
               `[Conductor] tool-result | toolName=${part.toolName} resultSummary=${out}`,
@@ -479,11 +485,16 @@ export class ChatService {
     let assistantText = "";
 
     for await (const part of result.fullStream) {
-      if (part.type === "text-delta" && part.delta) {
-        assistantText += part.delta;
+      const textDelta =
+        (part as { text?: string }).text ?? (part as { delta?: string }).delta;
+      if (part.type === "text-delta" && textDelta) {
+        assistantText += textDelta;
       }
       if (part.type === "tool-call") {
-        const args = "input" in part ? part.input : {};
+        const args =
+          (part as { args?: unknown }).args ??
+          (part as { input?: unknown }).input ??
+          {};
         toolCallsAcc.push({
           toolCallId: part.toolCallId,
           toolName: part.toolName,
@@ -491,13 +502,17 @@ export class ChatService {
         });
       }
       if (part.type === "tool-result") {
-        const out =
-          "output" in part && part.output !== undefined
-            ? typeof part.output === "string"
-              ? part.output.slice(0, 300) +
-                (part.output.length > 300 ? "…" : "")
-              : JSON.stringify(part.output).slice(0, 300) + "…"
-            : "";
+        let out = "";
+        const resultOutput =
+          (part as { result?: unknown }).result ??
+          (part as { output?: unknown }).output;
+        if (resultOutput !== undefined) {
+          const raw =
+            typeof resultOutput === "string"
+              ? resultOutput
+              : JSON.stringify(resultOutput);
+          out = raw.slice(0, 300) + (raw.length > 300 ? "…" : "");
+        }
         const entry = toolCallsAcc.find(
           (e) => e.toolCallId === part.toolCallId,
         );
