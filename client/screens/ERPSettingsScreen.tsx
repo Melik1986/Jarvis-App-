@@ -9,6 +9,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
+import type { ERPProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { TranslationKey } from "@/i18n/translations";
@@ -25,6 +26,7 @@ export default function ERPSettingsScreen() {
 
   const { erp, setERPSettings } = useSettingsStore();
 
+  const [provider, setProvider] = useState<ERPProvider>(erp.provider);
   const [erpUrl, setErpUrl] = useState(erp.url);
   const [erpApiKey, setErpApiKey] = useState(erp.apiKey);
   const [specUrl, setSpecUrl] = useState(erp.specUrl);
@@ -42,6 +44,7 @@ export default function ERPSettingsScreen() {
 
   const handleSave = () => {
     setERPSettings({
+      provider,
       url: erpUrl,
       apiKey: erpApiKey,
       specUrl,
@@ -49,6 +52,8 @@ export default function ERPSettingsScreen() {
     });
     navigation.goBack();
   };
+
+  const isDemo = provider === "demo";
 
   return (
     <KeyboardAwareScrollView
@@ -68,6 +73,51 @@ export default function ERPSettingsScreen() {
         >
           {t("connectERP")}
         </ThemedText>
+
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("mode")}
+          </ThemedText>
+          <View style={styles.row}>
+            <Pressable
+              style={[
+                styles.segmentOption,
+                {
+                  backgroundColor: isDemo
+                    ? theme.primary
+                    : theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setProvider("demo")}
+            >
+              <ThemedText style={{ color: isDemo ? "#fff" : theme.text }}>
+                Demo
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.segmentOption,
+                {
+                  backgroundColor: !isDemo
+                    ? theme.primary
+                    : theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setProvider("1c")}
+            >
+              <ThemedText style={{ color: !isDemo ? "#fff" : theme.text }}>
+                1C / Connect
+              </ThemedText>
+            </Pressable>
+          </View>
+          <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+            {isDemo
+              ? "Без 1С: кнопка Confirm работает с локальным mock"
+              : "Укажите URL и учётные данные 1С"}
+          </ThemedText>
+        </View>
 
         <View style={styles.inputGroup}>
           <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
@@ -231,6 +281,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     marginBottom: Spacing.sm,
+  },
+  row: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  segmentOption: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   textInput: {
     borderRadius: BorderRadius.md,

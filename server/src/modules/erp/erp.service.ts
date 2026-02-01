@@ -43,7 +43,7 @@ export class ErpService {
   ): Promise<StockItem[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo" || !config.baseUrl) {
       return this.getMockStock(productName);
     }
 
@@ -86,7 +86,7 @@ export class ErpService {
   ): Promise<Product[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo" || !config.baseUrl) {
       return this.getMockProducts(filter);
     }
 
@@ -136,7 +136,7 @@ export class ErpService {
   ): Promise<Invoice> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo" || !config.baseUrl) {
       return this.createMockInvoice(request);
     }
 

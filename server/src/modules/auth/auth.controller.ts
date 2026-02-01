@@ -10,6 +10,7 @@ import {
   Res,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { RefreshRequest, AuthUser } from "./auth.types";
@@ -19,6 +20,7 @@ interface AuthenticatedRequest extends Request {
   user?: AuthUser;
 }
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private authService: AuthService) {}

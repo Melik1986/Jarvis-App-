@@ -11,10 +11,12 @@ import {
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { RagService } from "./rag.service";
 import { DocumentMetadata, RagSettingsRequest } from "./rag.types";
 
+@ApiTags("rag")
 @Controller("documents")
 export class RagController {
   constructor(private readonly ragService: RagService) {}
