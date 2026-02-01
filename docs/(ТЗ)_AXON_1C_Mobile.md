@@ -2,9 +2,9 @@
 
 Ниже я подготовил фундамент проекта. Это твоя дорожная карта, чтобы не просто успеть к дедлайну, но и выделиться на фоне других участников качеством инженерных решений.
 
-Техническое задание (ТЗ): AXON 1C Mobile
+Техническое задание (ТЗ): AXON Mobile ERP Agent
 
-1. Цель проекта Создание мобильного AI-агента для управления бизнес-процессами в 1С. Система должна преобразовывать неструктурированный ввод (голос, фото, чат) в структурированные вызовы API 1С и предоставлять аналитическую поддержку через RAG (базу знаний).
+1. Цель проекта Создание мобильного AI-агента для управления бизнес-процессами в ERP. Система должна преобразовывать неструктурированный ввод (голос, фото, чат) в структурированные вызовы API ERP и предоставлять аналитическую поддержку через RAG (базу знаний).
 
 2. Основные модули
 
@@ -14,7 +14,7 @@
 
 Библиотекарь (RAG): Поиск по внутренним инструкциям и регламентам компании из Qdrant.
 
-Интегратор 1С: Прослойка на Nest.js, которая авторизует запросы и переводит намерения AI в OData или HTTP-запросы к 1С.
+Интегратор ERP: Прослойка на Nest.js, которая авторизует запросы и переводит намерения AI в OData или HTTP-запросы к ERP.
 
 1. Технические требования
 
@@ -30,22 +30,22 @@
 Plaintext
 /axon-1c-mobile
 ├── apps
-│   ├── mobile (Expo Project)
-│   │   ├── src
-│   │   │   ├── components (UI: Chat, VoiceButton, CameraScanner)
-│   │   │   ├── hooks (useJarvis, use1C, useVoice)
-│   │   │   ├── store (Zustand: authStore, inventoryStore)
-│   │   │   └── services (API wrappers)
-│   │   └── app.json (Expo config)
-│   └── server (Nest.js Project)
-│       ├── src
-│       │   ├── ai (OpenAI, Qdrant logic)
-│       │   ├── ones (1C Integration)
-│       │   ├── auth (Supabase Guard)
-│       │   └── main.ts
+│ ├── mobile (Expo Project)
+│ │ ├── src
+│ │ │ ├── components (UI: Chat, VoiceButton, CameraScanner)
+│ │ │ ├── hooks (useJarvis, useERP, useVoice)
+│ │ │ ├── store (Zustand: authStore, inventoryStore)
+│ │ │ └── services (API wrappers)
+│ │ └── app.json (Expo config)
+│ └── server (Nest.js Project)
+│ ├── src
+│ │ ├── ai (OpenAI, Qdrant logic)
+│ │ ├── erp (ERP Integration)
+│ │ ├── auth (Supabase Guard)
+│ │ └── main.ts
 ├── shared
-│   └── types (Общие интерфейсы для документов и товаров)
-├── .env (Ключи: OPENAI, SUPABASE, QDRANT, ONE_C_URL)
+│ └── types (Общие интерфейсы для документов и товаров)
+├── .env (Ключи: OPENAI, SUPABASE, QDRANT, ERP_URL)
 └── README.md
 Чек-лист разработки (Speed-run для хакатона)
 Этот список поможет тебе не утонуть в деталях и двигаться по критическому пути.
@@ -64,9 +64,9 @@ Plaintext
 
 [ ] Написать в Nest.js метод /api/chat, принимающий messages.
 
-[ ] Реализовать Function Calling для связи GPT с 1С (начать с функции get_stock).
+[ ] Реализовать Function Calling для связи GPT с ERP (начать с функции get_stock).
 
-[ ] Пробросить туннель к локальной 1С (если нужно) через Cloudflare или ngrok.
+[ ] Пробросить туннель к локальной ERP (если нужно) через Cloudflare или ngrok.
 
 Этап 3: Мобильный интерфейс (День 2, утро)
 
@@ -110,7 +110,7 @@ const userText = newMessages[0].text;
 
 const data = await response.json();
 
-const botMessage = { _id: Math.random(), text: data.content, createdAt: new Date(), user: {_id: 2, name: 'Jarvis' }, };
+const botMessage = { \_id: Math.random(), text: data.content, createdAt: new Date(), user: {\_id: 2, name: 'Jarvis' }, };
 
 setMessages(previousMessages => GiftedChat.append(previousMessages, [botMessage]));
 

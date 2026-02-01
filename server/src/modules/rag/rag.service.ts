@@ -749,7 +749,7 @@ Company Statistics:
 - Employees: 150+
 - Revenue (2024): $25M
 - Customers: 500+ enterprises worldwide
-- Supported ERP systems: 1C, SAP, Odoo, Oracle, Microsoft Dynamics`,
+- Supported ERP systems: SAP, Odoo, Oracle, Microsoft Dynamics`,
       },
       {
         name: "Product Catalog",
