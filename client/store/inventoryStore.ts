@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "./authStore";
+import { AppLogger } from "@/lib/logger";
 
 export interface StockItem {
   id: string;
@@ -86,7 +87,7 @@ export const useInventoryStore = create<InventoryState>()(
 
           return items;
         } catch (error) {
-          console.error("Error fetching stock:", error);
+          AppLogger.error("Error fetching stock:", error);
           set({ isLoadingStock: false });
 
           // Return cached data on error (offline-first)
@@ -129,7 +130,7 @@ export const useInventoryStore = create<InventoryState>()(
 
           return items;
         } catch (error) {
-          console.error("Error fetching products:", error);
+          AppLogger.error("Error fetching products:", error);
           set({ isLoadingProducts: false });
 
           // Return cached data on error (offline-first)

@@ -20,6 +20,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
+import { AppLogger } from "@/lib/logger";
 
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -56,7 +57,7 @@ export default function RAGSettingsScreen() {
           setProvider(rag.provider);
         }
       } catch (error) {
-        console.log("Failed to fetch provider settings:", error);
+        AppLogger.error("Failed to fetch provider settings:", error);
         setProvider(rag.provider);
       } finally {
         setLoading(false);
@@ -116,7 +117,7 @@ export default function RAGSettingsScreen() {
       setRagSettings(settings);
       navigation.goBack();
     } catch (error) {
-      console.log("Failed to save settings:", error);
+      AppLogger.error("Failed to save settings:", error);
       Alert.alert("Error", "Failed to save settings. Please try again.");
     } finally {
       setSaving(false);

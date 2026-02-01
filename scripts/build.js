@@ -1,13 +1,20 @@
+/* eslint-disable security/detect-non-literal-fs-filename */
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const { Readable } = require("stream");
 const { pipeline } = require("stream/promises");
+const { format } = require("util");
+
+const logger = {
+  log: (...args) => process.stdout.write(format(...args) + "\n"),
+  error: (...args) => process.stderr.write(format(...args) + "\n"),
+};
 
 let metroProcess = null;
 
 function exitWithError(message) {
-  console.error(message);
+  logger.error(message);
   if (metroProcess) {
     metroProcess.kill();
   }
@@ -17,7 +24,7 @@ function exitWithError(message) {
 function setupSignalHandlers() {
   const cleanup = () => {
     if (metroProcess) {
-      console.log("Cleaning up Metro process...");
+      logger.log("Cleaning up Metro process...");
       metroProcess.kill();
     }
     process.exit(0);
@@ -52,14 +59,14 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
 
-  console.error(
+  logger.error(
     "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
   );
   process.exit(1);
 }
 
 function prepareDirectories(timestamp) {
-  console.log("Preparing build directories...");
+  logger.log("Preparing build directories...");
 
   if (fs.existsSync("static-build")) {
     fs.rmSync("static-build", { recursive: true });
@@ -76,11 +83,11 @@ function prepareDirectories(timestamp) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  console.log("Build:", timestamp);
+  logger.log("Build:", timestamp);
 }
 
 function clearMetroCache() {
-  console.log("Clearing Metro cache...");
+  logger.log("Clearing Metro cache...");
 
   const cacheDirs = [
     ...fs.globSync(".metro-cache"),
@@ -91,7 +98,7 @@ function clearMetroCache() {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 
-  console.log("Cache cleared");
+  logger.log("Cache cleared");
 }
 
 async function checkMetroHealth() {
@@ -108,12 +115,12 @@ async function checkMetroHealth() {
 async function startMetro(expoPublicDomain) {
   const isRunning = await checkMetroHealth();
   if (isRunning) {
-    console.log("Metro already running");
+    logger.log("Metro already running");
     return;
   }
 
-  console.log("Starting Metro...");
-  console.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
+  logger.log("Starting Metro...");
+  logger.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
@@ -127,13 +134,13 @@ async function startMetro(expoPublicDomain) {
   if (metroProcess.stdout) {
     metroProcess.stdout.on("data", (data) => {
       const output = data.toString().trim();
-      if (output) console.log(`[Metro] ${output}`);
+      if (output) logger.log(`[Metro] ${output}`);
     });
   }
   if (metroProcess.stderr) {
     metroProcess.stderr.on("data", (data) => {
       const output = data.toString().trim();
-      if (output) console.error(`[Metro Error] ${output}`);
+      if (output) logger.error(`[Metro Error] ${output}`);
     });
   }
 
@@ -142,12 +149,12 @@ async function startMetro(expoPublicDomain) {
 
     const healthy = await checkMetroHealth();
     if (healthy) {
-      console.log("Metro ready");
+      logger.log("Metro ready");
       return;
     }
   }
 
-  console.error("Metro timeout");
+  logger.error("Metro timeout");
   process.exit(1);
 }
 
@@ -157,7 +164,7 @@ async function downloadFile(url, outputPath) {
   const timeoutId = setTimeout(() => controller.abort(), fiveMinMS);
 
   try {
-    console.log(`Downloading: ${url}`);
+    logger.log(`Downloading: ${url}`);
     const response = await fetch(url, { signal: controller.signal });
 
     if (!response.ok) {
@@ -205,9 +212,9 @@ async function downloadBundle(platform, timestamp) {
     "bundle.js",
   );
 
-  console.log(`Fetching ${platform} bundle...`);
+  logger.log(`Fetching ${platform} bundle...`);
   await downloadFile(url.toString(), output);
-  console.log(`${platform} bundle ready`);
+  logger.log(`${platform} bundle ready`);
 }
 
 async function downloadManifest(platform) {
@@ -215,7 +222,7 @@ async function downloadManifest(platform) {
   const timeoutId = setTimeout(() => controller.abort(), 300_000);
 
   try {
-    console.log(`Fetching ${platform} manifest...`);
+    logger.log(`Fetching ${platform} manifest...`);
     const response = await fetch("http://localhost:8081/manifest", {
       headers: { "expo-platform": platform },
       signal: controller.signal,
@@ -226,7 +233,7 @@ async function downloadManifest(platform) {
     }
 
     const manifest = await response.json();
-    console.log(`${platform} manifest ready`);
+    logger.log(`${platform} manifest ready`);
     return manifest;
   } catch (error) {
     if (error.name === "AbortError") {
@@ -241,8 +248,8 @@ async function downloadManifest(platform) {
 }
 
 async function downloadBundlesAndManifests(timestamp) {
-  console.log("Downloading bundles and manifests...");
-  console.log("This may take several minutes for production builds...");
+  logger.log("Downloading bundles and manifests...");
+  logger.log("This may take several minutes for production builds...");
 
   try {
     const results = await Promise.allSettled([
@@ -275,7 +282,7 @@ async function downloadBundlesAndManifests(timestamp) {
     const androidManifest =
       results[3].status === "fulfilled" ? results[3].value : null;
 
-    console.log("All downloads completed successfully");
+    logger.log("All downloads completed successfully");
     return { ios: iosManifest, android: androidManifest };
   } catch (error) {
     exitWithError(`Unexpected download error: ${error.message}`);
@@ -356,7 +363,7 @@ async function downloadAssets(assets, timestamp) {
     return 0;
   }
 
-  console.log("Downloading assets...");
+  logger.log("Downloading assets...");
   let successCount = 0;
   const failures = [];
 
@@ -411,7 +418,7 @@ async function downloadAssets(assets, timestamp) {
     exitWithError(errorMsg);
   }
 
-  console.log(`Downloaded ${successCount} assets`);
+  logger.log(`Downloaded ${successCount} assets`);
   return successCount;
 }
 
@@ -450,7 +457,7 @@ function updateBundleUrls(timestamp, baseUrl) {
 
   updateForPlatform("ios");
   updateForPlatform("android");
-  console.log("Updated bundle URLs");
+  logger.log("Updated bundle URLs");
 }
 
 function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
@@ -492,11 +499,11 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
 
   updateForPlatform("ios", manifests.ios);
   updateForPlatform("android", manifests.android);
-  console.log("Manifests updated");
+  logger.log("Manifests updated");
 }
 
 async function main() {
-  console.log("Building static Expo Go deployment...");
+  logger.log("Building static Expo Go deployment...");
 
   setupSignalHandlers();
 
@@ -524,9 +531,9 @@ async function main() {
 
   const manifests = await Promise.race([downloadPromise, timeoutPromise]);
 
-  console.log("Processing assets...");
+  logger.log("Processing assets...");
   const assets = extractAssets(timestamp);
-  console.log("Found", assets.length, "unique asset(s)");
+  logger.log("Found", assets.length, "unique asset(s)");
 
   const assetsByHash = new Map();
   for (const asset of assets) {
@@ -542,10 +549,10 @@ async function main() {
     updateBundleUrls(timestamp, baseUrl);
   }
 
-  console.log("Updating manifests and creating landing page...");
+  logger.log("Updating manifests and creating landing page...");
   updateManifests(manifests, timestamp, baseUrl, assetsByHash);
 
-  console.log("Build complete! Deploy to:", baseUrl);
+  logger.log("Build complete! Deploy to:", baseUrl);
 
   if (metroProcess) {
     metroProcess.kill();
@@ -554,7 +561,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Build failed:", error.message);
+  logger.error("Build failed:", error.message);
   if (metroProcess) {
     metroProcess.kill();
   }

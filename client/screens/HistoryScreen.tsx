@@ -25,6 +25,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 import { Conversation } from "@/store/chatStore";
+import { AppLogger } from "@/lib/logger";
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -49,7 +50,7 @@ export default function HistoryScreen() {
       const data = await response.json();
       setConversations(data);
     } catch (error) {
-      console.error("Failed to load conversations:", error);
+      AppLogger.error("Failed to load conversations:", error);
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +69,7 @@ export default function HistoryScreen() {
         }
       }
     } catch (error) {
-      console.error("Failed to delete conversation:", error);
+      AppLogger.error("Failed to delete conversation:", error);
     }
   };
 

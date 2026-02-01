@@ -6,6 +6,8 @@ import { DATABASE_CONNECTION, Database } from "../../db/db.module";
 import { AuthUser, AuthSession, JwtPayload } from "./auth.types";
 
 import * as schema from "../../../../shared/schema";
+import type { InsertUser, User } from "../../../../shared/schema";
+import { AppLogger } from "../../utils/logger";
 
 interface ReplitUserInfo {
   id: string;
@@ -67,7 +69,7 @@ export class AuthService {
       });
 
       if (!tokenResponse.ok) {
-        console.error("Token exchange failed:", await tokenResponse.text());
+        AppLogger.error("Token exchange failed:", await tokenResponse.text());
         return { success: false, error: "Token exchange failed" };
       }
 
@@ -112,7 +114,7 @@ export class AuthService {
         session,
       };
     } catch (error) {
-      console.error("Replit auth error:", error);
+      AppLogger.error("Replit auth error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Authentication failed",
@@ -120,14 +122,16 @@ export class AuthService {
     }
   }
 
-  async authenticateFromSession(sessionUser: any): Promise<{
+  async authenticateFromSession(
+    sessionUser: Partial<AuthUser> | null | undefined,
+  ): Promise<{
     success: boolean;
     user?: AuthUser;
     session?: AuthSession;
     error?: string;
   }> {
     try {
-      if (!sessionUser || !sessionUser.email) {
+      if (!sessionUser?.email) {
         return { success: false, error: "No session user" };
       }
 
@@ -137,8 +141,8 @@ export class AuthService {
         user = await this.createUser({
           email: sessionUser.email,
           name: sessionUser.name || sessionUser.email.split("@")[0],
-          picture: sessionUser.picture,
-          replitId: sessionUser.id,
+          picture: sessionUser.picture ?? null,
+          replitId: sessionUser.id ?? null,
         });
       }
 
@@ -159,7 +163,7 @@ export class AuthService {
         session,
       };
     } catch (error) {
-      console.error("Session auth error:", error);
+      AppLogger.error("Session auth error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Authentication failed",
@@ -226,7 +230,7 @@ export class AuthService {
         session: newSession,
       };
     } catch (error) {
-      console.error("Refresh session error:", error);
+      AppLogger.error("Refresh session error:", error);
       return {
         success: false,
         error:
@@ -308,12 +312,7 @@ export class AuthService {
     return users[0] || null;
   }
 
-  private async createUser(data: {
-    email: string;
-    name: string;
-    picture?: string;
-    replitId?: string;
-  }) {
+  private async createUser(data: InsertUser): Promise<User> {
     const result = await this.db
       .insert(schema.users)
       .values({
@@ -323,7 +322,7 @@ export class AuthService {
         replitId: data.replitId || null,
       })
       .returning();
-    return (result as any[])[0];
+    return result[0];
   }
 
   private async updateUserProfile(

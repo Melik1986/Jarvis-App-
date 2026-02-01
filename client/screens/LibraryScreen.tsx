@@ -10,12 +10,13 @@ import {
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
 import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
@@ -23,6 +24,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
+import { AppLogger } from "@/lib/logger";
 
 interface Document {
   id: string;
@@ -32,6 +34,12 @@ interface Document {
   uploadedAt: Date;
   status: "indexed" | "processing" | "error";
 }
+
+type FormDataFile = {
+  uri: string;
+  type: string;
+  name: string;
+};
 
 function DocumentTypeIcon({
   type,
@@ -177,7 +185,7 @@ function CloseIcon({
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<LibraryStackParamList>>();
   const { theme } = useTheme();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -197,11 +205,12 @@ export default function LibraryScreen() {
         const blob = await response.blob();
         formData.append("file", blob, file.name);
       } else {
-        formData.append("file", {
+        const filePart: FormDataFile = {
           uri: file.uri,
           type: file.mimeType || "application/octet-stream",
           name: file.name,
-        } as any);
+        };
+        formData.append("file", filePart as unknown as Blob);
       }
       formData.append("name", file.name);
 
@@ -215,7 +224,7 @@ export default function LibraryScreen() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Upload error:", errorText);
+        AppLogger.error("Upload error:", errorText);
         throw new Error("Upload failed");
       }
 
@@ -227,7 +236,7 @@ export default function LibraryScreen() {
     },
     onError: (error) => {
       Alert.alert("Error", "Failed to upload document. Please try again.");
-      console.error("Upload mutation error:", error);
+      AppLogger.error("Upload mutation error:", error);
     },
   });
 
@@ -297,7 +306,7 @@ export default function LibraryScreen() {
         uploadMutation.mutate(file);
       }
     } catch (error) {
-      console.error("Document picker error:", error);
+      AppLogger.error("Document picker error:", error);
     }
   };
 

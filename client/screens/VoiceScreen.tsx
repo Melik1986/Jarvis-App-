@@ -20,6 +20,7 @@ import {
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 type VoiceType = "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
@@ -36,7 +37,11 @@ export default function VoiceScreen() {
     voice as VoiceType,
   );
 
-  const voices: { id: VoiceType; name: string; descriptionKey: string }[] = [
+  const voices: {
+    id: VoiceType;
+    name: string;
+    descriptionKey: TranslationKey;
+  }[] = [
     { id: "alloy", name: "Alloy", descriptionKey: "neutralBalanced" },
     { id: "echo", name: "Echo", descriptionKey: "deepResonant" },
     { id: "fable", name: "Fable", descriptionKey: "warmExpressive" },
@@ -110,7 +115,7 @@ export default function VoiceScreen() {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  {t(v.descriptionKey as any)}
+                  {t(v.descriptionKey)}
                 </ThemedText>
               </View>
               {selectedVoice === v.id ? (

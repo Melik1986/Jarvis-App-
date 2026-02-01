@@ -11,6 +11,7 @@ import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 type APIType = "odata" | "rest" | "graphql";
@@ -29,7 +30,11 @@ export default function ERPSettingsScreen() {
   const [specUrl, setSpecUrl] = useState(erp.specUrl);
   const [apiType, setApiType] = useState<APIType>(erp.apiType as APIType);
 
-  const apiTypes: { id: APIType; name: string; descriptionKey: string }[] = [
+  const apiTypes: {
+    id: APIType;
+    name: string;
+    descriptionKey: TranslationKey;
+  }[] = [
     { id: "odata", name: t("odata"), descriptionKey: "odataDesc" },
     { id: "rest", name: t("rest"), descriptionKey: "restDesc" },
     { id: "graphql", name: t("graphql"), descriptionKey: "graphqlDesc" },
@@ -166,7 +171,7 @@ export default function ERPSettingsScreen() {
                     { color: theme.textSecondary },
                   ]}
                 >
-                  {t(type.descriptionKey as any)}
+                  {t(type.descriptionKey)}
                 </ThemedText>
               </View>
               {apiType === type.id ? (

@@ -9,7 +9,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import {
+  useRoute,
+  useNavigation,
+  RouteProp,
+  NavigationProp,
+} from "@react-navigation/native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -41,7 +46,7 @@ export default function DocumentViewerScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const route = useRoute<DocumentViewerRouteProp>();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<LibraryStackParamList>>();
   const queryClient = useQueryClient();
   const { theme } = useTheme();
   const { t } = useTranslation();

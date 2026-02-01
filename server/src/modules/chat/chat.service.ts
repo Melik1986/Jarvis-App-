@@ -9,6 +9,7 @@ import { ErpService } from "../erp/erp.service";
 import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
 import { RagSettingsRequest } from "../rag/rag.types";
+import { AppLogger } from "../../utils/logger";
 
 export interface Message {
   id: number;
@@ -272,7 +273,7 @@ export class ChatService {
       const ragResults = await this.ragService.search(content, 2, ragConfig);
       ragContext = this.ragService.buildContext(ragResults);
     } catch (ragError) {
-      console.warn("RAG search failed:", ragError);
+      AppLogger.warn("RAG search failed:", ragError);
     }
 
     // Build system message with RAG context
@@ -324,7 +325,7 @@ export class ChatService {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
-      console.error("Error in chat stream:", error);
+      AppLogger.error("Error in chat stream:", error);
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to process message" });
       } else {

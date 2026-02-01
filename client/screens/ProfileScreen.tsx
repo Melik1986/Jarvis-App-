@@ -11,9 +11,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsItem } from "@/components/SettingsItem";
 import {
@@ -28,6 +29,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
+import { AppLogger } from "@/lib/logger";
 
 const languageNames: Record<string, string> = {
   ru: "Русский",
@@ -42,7 +44,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
@@ -62,7 +64,7 @@ export default function ProfileScreen() {
           }
         }
       } catch (error) {
-        console.log("Failed to fetch provider settings:", error);
+        AppLogger.error("Failed to fetch provider settings:", error);
       }
     };
     fetchProviderSettings();
@@ -104,7 +106,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleNavigate = (screen: string) => {
+  const handleNavigate = (screen: keyof RootStackParamList) => {
     handleHaptic();
     navigation.navigate(screen);
   };
@@ -119,7 +121,7 @@ export default function ProfileScreen() {
     try {
       await Linking.openURL("https://jsrvis.com/help");
     } catch {
-      console.log("Could not open help URL");
+      AppLogger.warn("Could not open help URL");
     }
   };
 
@@ -128,7 +130,7 @@ export default function ProfileScreen() {
     try {
       await Linking.openURL("https://jsrvis.com/privacy");
     } catch {
-      console.log("Could not open privacy URL");
+      AppLogger.warn("Could not open privacy URL");
     }
   };
 

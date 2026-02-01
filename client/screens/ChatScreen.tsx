@@ -23,6 +23,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
+import { AppLogger } from "@/lib/logger";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -61,7 +62,7 @@ export default function ChatScreen() {
       const conversation = await response.json();
       setCurrentConversation(conversation.id);
     } catch (error) {
-      console.error("Failed to create conversation:", error);
+      AppLogger.error("Failed to create conversation:", error);
     }
   }, [t, setCurrentConversation]);
 
@@ -159,7 +160,7 @@ export default function ChatScreen() {
         }
       }
     } catch (error) {
-      console.error("Failed to send message:", error);
+      AppLogger.error("Failed to send message:", error);
     } finally {
       setStreaming(false);
     }

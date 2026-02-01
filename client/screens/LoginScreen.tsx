@@ -16,7 +16,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuthStore } from "@/store/authStore";
 import { getApiUrl } from "@/lib/query-client";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, ThemeColors } from "@/constants/theme";
+import { AppLogger } from "@/lib/logger";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -54,7 +55,7 @@ export default function LoginScreen() {
           }
         }
       } catch (error) {
-        console.error("Error handling auth callback:", error);
+        AppLogger.error("Error handling auth callback:", error);
       }
       setIsSigningIn(false);
     },
@@ -98,7 +99,7 @@ export default function LoginScreen() {
         setIsSigningIn(false);
       }
     } catch (error) {
-      console.error("Login error:", error);
+      AppLogger.error("Login error:", error);
       Alert.alert(t("error"), t("authFailed"));
       setIsSigningIn(false);
     }
@@ -128,7 +129,7 @@ export default function LoginScreen() {
         Alert.alert(t("error"), data.error || t("authFailed"));
       }
     } catch (error) {
-      console.error("Dev login error:", error);
+      AppLogger.error("Dev login error:", error);
       Alert.alert(t("error"), t("authFailed"));
     }
     setIsSigningIn(false);
@@ -249,7 +250,7 @@ function FeatureItem({
   icon: keyof typeof Feather.glyphMap;
   title: string;
   description: string;
-  colors: any;
+  colors: ThemeColors;
 }) {
   return (
     <View style={styles.featureItem}>

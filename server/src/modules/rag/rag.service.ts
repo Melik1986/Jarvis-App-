@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { DATABASE_CONNECTION, Database } from "../../db/db.module";
 import { sql } from "drizzle-orm";
 import * as schema from "../../../../shared/schema";
+import { AppLogger } from "../../utils/logger";
 
 export interface ProviderConfig {
   type: RagProviderType;
@@ -79,7 +80,10 @@ export class RagService {
       }
       this.settingsLoaded = true;
     } catch (error) {
-      console.log("Could not load RAG settings from DB, using defaults", error);
+      AppLogger.warn(
+        "Could not load RAG settings from DB, using defaults",
+        error,
+      );
       this.settingsLoaded = true;
     }
   }
@@ -98,7 +102,7 @@ export class RagService {
             ON CONFLICT (key) DO UPDATE SET value = ${configJson}, updated_at = CURRENT_TIMESTAMP`,
       );
     } catch (error) {
-      console.error("Failed to save RAG settings to DB:", error);
+      AppLogger.error("Failed to save RAG settings to DB:", error);
     }
   }
 
@@ -249,7 +253,7 @@ export class RagService {
       try {
         await this.deleteFromProvider(id);
       } catch (error) {
-        console.error("Error deleting from provider:", error);
+        AppLogger.error("Error deleting from provider:", error);
       }
     }
 
@@ -297,11 +301,11 @@ export class RagService {
             content =
               "[PDF contains no extractable text - may be scanned/image-based]";
           }
-          console.log(
+          AppLogger.info(
             `PDF parsed successfully: ${content.length} characters extracted`,
           );
         } catch (pdfError) {
-          console.error("PDF parsing error:", pdfError);
+          AppLogger.error("PDF parsing error:", pdfError);
           content = `[PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}]`;
         }
       } else {
@@ -319,7 +323,7 @@ export class RagService {
         this.documents.set(id, doc);
       }
     } catch (error) {
-      console.error("Error processing document:", error);
+      AppLogger.error("Error processing document:", error);
       const doc = this.documents.get(id);
       if (doc) {
         doc.status = "error";
@@ -348,7 +352,7 @@ export class RagService {
 
       await this.processDocument(id, buffer, contentType);
     } catch (error) {
-      console.error("Error processing document from URL:", error);
+      AppLogger.error("Error processing document from URL:", error);
       const doc = this.documents.get(id);
       if (doc) {
         doc.status = "error";
@@ -380,7 +384,7 @@ export class RagService {
           break;
       }
     } catch (error) {
-      console.error("Error indexing document:", error);
+      AppLogger.error("Error indexing document:", error);
       throw error;
     }
   }
@@ -579,7 +583,7 @@ export class RagService {
           return this.getLocalResults(query, limit);
       }
     } catch (error) {
-      console.error("Error searching:", error);
+      AppLogger.error("Error searching:", error);
       return this.getLocalResults(query, limit);
     }
   }

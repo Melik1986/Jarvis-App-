@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
+import { AppLogger } from "@/lib/logger";
 
 interface VoiceResponse {
   userTranscript: string;
@@ -35,7 +36,7 @@ export function useVoice() {
       const { status } = await Audio.requestPermissionsAsync();
       return status === "granted";
     } catch (err) {
-      console.error("Error requesting permissions:", err);
+      AppLogger.error("Error requesting permissions:", err);
       return false;
     }
   }, []);
@@ -69,7 +70,7 @@ export function useVoice() {
       setIsRecording(true);
       return true;
     } catch (err) {
-      console.error("Error starting recording:", err);
+      AppLogger.error("Error starting recording:", err);
       setError("Failed to start recording");
       return false;
     }
@@ -177,7 +178,7 @@ export function useVoice() {
 
       return result;
     } catch (err) {
-      console.error("Error processing recording:", err);
+      AppLogger.error("Error processing recording:", err);
       setError("Failed to process voice message");
       return null;
     } finally {
@@ -209,11 +210,11 @@ export function useVoice() {
       } else {
         // For native, we'd need to save as WAV and play
         // This requires additional processing
-        console.log("Native audio playback not fully implemented");
+        AppLogger.info("Native audio playback not fully implemented");
         setIsPlaying(false);
       }
     } catch (err) {
-      console.error("Error playing audio:", err);
+      AppLogger.error("Error playing audio:", err);
       setIsPlaying(false);
     }
   }, []);

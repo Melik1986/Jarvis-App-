@@ -7,6 +7,7 @@ import {
   Invoice,
   CreateInvoiceRequest,
 } from "./erp.types";
+import { AppLogger } from "../../utils/logger";
 
 @Injectable()
 export class ErpService {
@@ -54,7 +55,7 @@ export class ErpService {
       });
 
       if (!response.ok) {
-        console.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`1C OData error: ${response.status}`);
         return this.getMockStock(productName);
       }
 
@@ -68,7 +69,7 @@ export class ErpService {
         }),
       );
     } catch (error) {
-      console.error("Error fetching stock from 1C:", error);
+      AppLogger.error("Error fetching stock from 1C:", error);
       return this.getMockStock(productName);
     }
   }
@@ -97,7 +98,7 @@ export class ErpService {
       });
 
       if (!response.ok) {
-        console.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`1C OData error: ${response.status}`);
         return this.getMockProducts(filter);
       }
 
@@ -118,7 +119,7 @@ export class ErpService {
         }),
       );
     } catch (error) {
-      console.error("Error fetching products from 1C:", error);
+      AppLogger.error("Error fetching products from 1C:", error);
       return this.getMockProducts(filter);
     }
   }
@@ -170,7 +171,7 @@ export class ErpService {
       );
 
       if (!response.ok) {
-        console.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`1C OData error: ${response.status}`);
         return this.createMockInvoice(request);
       }
 
@@ -187,7 +188,7 @@ export class ErpService {
         comment: request.comment,
       };
     } catch (error) {
-      console.error("Error creating invoice in 1C:", error);
+      AppLogger.error("Error creating invoice in 1C:", error);
       return this.createMockInvoice(request);
     }
   }

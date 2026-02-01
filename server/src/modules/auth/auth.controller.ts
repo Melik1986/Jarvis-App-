@@ -12,8 +12,12 @@ import {
 } from "@nestjs/common";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
-import { RefreshRequest } from "./auth.types";
+import { RefreshRequest, AuthUser } from "./auth.types";
 import { AuthGuard } from "./auth.guard";
+
+interface AuthenticatedRequest extends Request {
+  user?: AuthUser;
+}
 
 @Controller("auth")
 export class AuthController {
@@ -77,8 +81,8 @@ export class AuthController {
   }
 
   @Get("session")
-  async getSession(@Req() req: Request) {
-    const user = (req as any).user;
+  async getSession(@Req() req: AuthenticatedRequest) {
+    const user = req.user;
     if (!user) {
       return { authenticated: false };
     }
@@ -97,18 +101,18 @@ export class AuthController {
   }
 
   @Post("logout")
-  async logout(@Body() body: RefreshRequest, @Req() req: Request) {
+  async logout(@Body() body: RefreshRequest, @Req() req: AuthenticatedRequest) {
     if (body.refreshToken) {
       await this.authService.logout(body.refreshToken);
     }
-    (req as any).logout?.(() => {});
+    req.logout?.(() => {});
     return { success: true };
   }
 
   @Get("me")
   @UseGuards(AuthGuard)
-  async me(@Req() req: any) {
-    const user = await this.authService.getMe(req.user.id);
+  async me(@Req() req: AuthenticatedRequest) {
+    const user = await this.authService.getMe(req.user!.id);
     if (!user) {
       throw new UnauthorizedException("User not found");
     }
@@ -125,11 +129,11 @@ export class AuthController {
   }
 
   @Get("status")
-  async status(@Req() req: Request) {
-    const isAuthenticated = (req as any).isAuthenticated?.() || false;
+  async status(@Req() req: AuthenticatedRequest) {
+    const isAuthenticated = req.isAuthenticated?.() || false;
     return {
       authenticated: isAuthenticated,
-      user: isAuthenticated ? (req as any).user : null,
+      user: isAuthenticated ? req.user : null,
     };
   }
 

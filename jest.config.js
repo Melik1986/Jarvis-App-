@@ -1,0 +1,25 @@
+/** @type {import('ts-jest').JestConfigWithTsJest} */
+module.exports = {
+  preset: "ts-jest",
+  testEnvironment: "node",
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/client/$1",
+    "^@shared/(.*)$": "<rootDir>/shared/$1",
+  },
+  transform: {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: "tsconfig.spec.json",
+      },
+    ],
+  },
+  globals: {
+    __DEV__: true,
+  },
+  testMatch: [
+    "**/__tests__/**/*.+(ts|tsx|js)",
+    "**/?(*.)+(spec|test).+(ts|tsx|js)",
+  ],
+  collectCoverageFrom: ["client/lib/logger.ts", "server/src/utils/logger.ts"],
+};

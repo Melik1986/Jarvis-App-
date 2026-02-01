@@ -45,6 +45,8 @@ export const Colors = {
   },
 };
 
+export type ThemeColors = typeof Colors.light;
+
 export type ThemeMode = "light" | "dark";
 
 export const getColors = (mode: ThemeMode) => Colors[mode];

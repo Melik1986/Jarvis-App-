@@ -8,6 +8,7 @@ import passport from "passport";
 import * as fs from "fs";
 import * as path from "path";
 import { AppModule } from "./app.module";
+import { AppLogger } from "./utils/logger";
 
 function getAppName(): string {
   try {
@@ -21,13 +22,25 @@ function getAppName(): string {
 }
 
 function serveExpoManifest(platform: string, res: express.Response) {
+  const normalizedPlatform = platform.toLowerCase();
+  if (normalizedPlatform !== "ios" && normalizedPlatform !== "android") {
+    return res.status(400).json({ error: `Unsupported platform: ${platform}` });
+  }
+
   const manifestPath = path.resolve(
     process.cwd(),
     "static-build",
-    platform,
+    normalizedPlatform,
     "manifest.json",
   );
+  const staticBuildRoot = path.resolve(process.cwd(), "static-build");
+  const relativePath = path.relative(staticBuildRoot, manifestPath);
 
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return res.status(400).json({ error: "Invalid manifest path" });
+  }
+
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(manifestPath)) {
     return res
       .status(404)
@@ -38,6 +51,7 @@ function serveExpoManifest(platform: string, res: express.Response) {
   res.setHeader("expo-sfv-version", "0");
   res.setHeader("content-type", "application/json");
 
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const manifest = fs.readFileSync(manifestPath, "utf-8");
   res.send(manifest);
 }
@@ -125,8 +139,10 @@ async function bootstrap() {
   );
   const appName = getAppName();
 
-  console.log("Serving static Expo files with dynamic manifest routing");
-  console.log("Expo routing: Checking expo-platform header on / and /manifest");
+  AppLogger.info("Serving static Expo files with dynamic manifest routing");
+  AppLogger.info(
+    "Expo routing: Checking expo-platform header on / and /manifest",
+  );
 
   // Handle Expo manifest requests
   expressApp.get(
@@ -166,7 +182,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
-  console.log(`Nest.js server running on port ${port}`);
+  AppLogger.info(`Nest.js server running on port ${port}`);
 }
 
 bootstrap();
