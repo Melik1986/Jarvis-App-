@@ -17,9 +17,15 @@ export class ErpService {
   constructor(private configService: ConfigService) {
     this.config = {
       provider: "1c",
-      baseUrl: this.configService.get("ONE_C_URL"),
-      username: this.configService.get("ONE_C_USER"),
-      password: this.configService.get("ONE_C_PASSWORD"),
+      baseUrl:
+        this.configService.get("ERP_URL") ||
+        this.configService.get("ONE_C_URL"),
+      username:
+        this.configService.get("ERP_USER") ||
+        this.configService.get("ONE_C_USER"),
+      password:
+        this.configService.get("ERP_PASSWORD") ||
+        this.configService.get("ONE_C_PASSWORD"),
       apiType: "odata",
     };
     this.isConfigured = Boolean(this.config.baseUrl);
@@ -55,7 +61,7 @@ export class ErpService {
       });
 
       if (!response.ok) {
-        AppLogger.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`ERP OData error: ${response.status}`);
         return this.getMockStock(productName);
       }
 
@@ -69,7 +75,7 @@ export class ErpService {
         }),
       );
     } catch (error) {
-      AppLogger.error("Error fetching stock from 1C:", error);
+      AppLogger.error("Error fetching stock from ERP:", error);
       return this.getMockStock(productName);
     }
   }
@@ -98,7 +104,7 @@ export class ErpService {
       });
 
       if (!response.ok) {
-        AppLogger.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`ERP OData error: ${response.status}`);
         return this.getMockProducts(filter);
       }
 
@@ -119,7 +125,7 @@ export class ErpService {
         }),
       );
     } catch (error) {
-      AppLogger.error("Error fetching products from 1C:", error);
+      AppLogger.error("Error fetching products from ERP:", error);
       return this.getMockProducts(filter);
     }
   }
@@ -171,7 +177,7 @@ export class ErpService {
       );
 
       if (!response.ok) {
-        AppLogger.error(`1C OData error: ${response.status}`);
+        AppLogger.error(`ERP OData error: ${response.status}`);
         return this.createMockInvoice(request);
       }
 
@@ -188,7 +194,7 @@ export class ErpService {
         comment: request.comment,
       };
     } catch (error) {
-      AppLogger.error("Error creating invoice in 1C:", error);
+      AppLogger.error("Error creating invoice in ERP:", error);
       return this.createMockInvoice(request);
     }
   }

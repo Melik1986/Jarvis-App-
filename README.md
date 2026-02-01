@@ -2,7 +2,7 @@
 
 # � AXON: Universal AI ERP OS
 
-**Build for Replit Mobile Buildathon**
+**Built for Replit Mobile Buildathon**
 
 [![Run on Replit](https://replit.com/badge/github/Melik1986/Jarvis-App)](https://replit.com/new/github/Melik1986/Jarvis-App)
 [![Expo](https://img.shields.io/badge/Expo-54.0-black.svg?style=flat-square&logo=expo&logoColor=white)](https://expo.dev)
@@ -10,7 +10,7 @@
 [![OpenAI](https://img.shields.io/badge/AI-Powered-green.svg?style=flat-square&logo=openai&logoColor=white)](https://openai.com)
 
 **Transforming ERP interaction with Voice, Vision, and AI Agents.**
-*One codebase, infinite possibilities on iOS & Android.*
+_One codebase, infinite possibilities on iOS & Android._
 
 [Features](#features) • [Tech Stack](#tech-stack) • [Architecture](#architecture) • [Getting Started](#getting-started)
 
@@ -20,13 +20,14 @@
 
 ## 🚀 Overview
 
-**AXON** is a mobile-first AI agent designed to revolutionize how businesses interact with their ERP systems (like 1C, SAP, Odoo). Instead of navigating complex menus, users simply **speak** or **show** what they need.
+**AXON** is a mobile-first AI agent designed to revolutionize how businesses interact with their ERP systems (like SAP, Odoo, and other ERP platforms). Instead of navigating complex menus, users simply **speak** or **show** what they need.
 
 Built on the **Replit Native** stack, AXON leverages the power of Large Language Models (LLMs) to translate natural language into structured API calls, making enterprise software accessible to everyone, from warehouse workers to CEOs.
 
 ### 🏆 The "Wow" Factor
-- **Talk to your Business**: "How much coffee do we have left?" -> *AXON checks 1C inventory instantly.*
-- **See and Act**: Snap a photo of an invoice -> *AXON parses it and creates a document in the ERP.*
+
+- **Talk to your Business**: "How much coffee do we have left?" -> _AXON checks ERP inventory instantly._
+- **See and Act**: Snap a photo of an invoice -> _AXON parses it and creates a document in the ERP._
 - **Universal Adapter**: Connects to ANY system via OpenAPI/Swagger specs using the **AI Adapter Pattern**.
 
 ---
@@ -34,24 +35,32 @@ Built on the **Replit Native** stack, AXON leverages the power of Large Language
 ## ✨ Key Features
 
 ### 🗣️ AXON Voice
+
 Hands-free operation using **Expo AV** and **Whisper**.
+
 - Real-time voice command processing.
 - Natural conversation with context awareness.
 - Perfect for on-the-go employees.
 
 ### 👁️ AXON Vision
+
 Intelligent visual analysis using **Expo Camera** and **GPT-4o**.
+
 - Instant document recognition (invoices, receipts).
 - Barcode and product scanning.
 - Visual inventory audits.
 
 ### 📚 RAG Librarian
+
 Smart knowledge base integration.
+
 - Semantic search across internal regulations and manuals.
 - Instant answers to "How do I process a return?" based on company policy.
 
 ### 🔌 Universal ERP Connector (MCP)
+
 **Model Context Protocol** implementation for seamless integration.
+
 - **BYO-LLM**: Bring Your Own LLM (OpenAI, Groq, Ollama).
 - **Auto-Mapping**: Dynamically maps natural language to ERP API endpoints using Swagger/OpenAPI specs.
 - **Zero-Code Integration**: Just provide the API spec, and AXON figures out the rest.
@@ -63,6 +72,7 @@ Smart knowledge base integration.
 We chose a unified, modern stack optimized for speed and cross-platform deployment.
 
 ### Mobile & Frontend (Replit Native)
+
 - **Framework**: [React Native](https://reactnative.dev) (v0.81) + [Expo](https://expo.dev) (v54)
 - **Language**: TypeScript
 - **UI Engine**: React 19, React Native Reanimated, Expo Blur/Glass
@@ -70,12 +80,14 @@ We chose a unified, modern stack optimized for speed and cross-platform deployme
 - **State**: Zustand + React Query
 
 ### Backend & AI
+
 - **Server**: Node.js + Express 5.0 (Running on Replit)
 - **Database**: PostgreSQL (Supabase) + Drizzle ORM
 - **AI Engine**: OpenAI SDK (GPT-4o), Vercel AI SDK patterns
 - **Protocols**: WebSocket (ws), REST
 
 ### Why this stack?
+
 1.  **Write Once, Run Everywhere**: iOS, Android, and Web from a single codebase.
 2.  **Speed**: Instant feedback loop with Expo Go and Replit's fast environment.
 3.  **Modernity**: Leveraging React 19 and the latest React Native architecture.
@@ -85,12 +97,15 @@ We chose a unified, modern stack optimized for speed and cross-platform deployme
 ## 🏗️ Architecture
 
 ### AI Adapter Pattern
+
 Instead of hardcoding integrations, AXON uses an abstract layer:
+
 1.  **Input**: User Voice/Text/Image.
 2.  **Processing**: LLM analyzes intent against a loaded **OpenAPI Specification**.
 3.  **Execution**: System generates the correct API call (REST/OData) for the specific ERP.
 
 ### Local-First & Offline
+
 - **Zustand Persist**: For offline access to critical data (stock levels, tasks).
 - **Optimistic Updates**: Smooth UX even with spotty connections.
 
@@ -99,18 +114,21 @@ Instead of hardcoding integrations, AXON uses an abstract layer:
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - [Node.js](https://nodejs.org/) (v20+)
 - [Expo Go](https://expo.dev/client) app installed on your phone.
 
 ### Installation
 
 1.  **Clone the repository**
+
     ```bash
     git clone https://github.com/Melik1986/Jarvis-App.git
     cd Jarvis-App
     ```
 
 2.  **Install dependencies**
+
     ```bash
     npm install
     # or
@@ -119,12 +137,14 @@ Instead of hardcoding integrations, AXON uses an abstract layer:
 
 3.  **Set up Environment**
     Create a `.env` file with your keys:
+
     ```env
     OPENAI_API_KEY=your_key_here
     DATABASE_URL=your_postgres_url
     ```
 
 4.  **Run the Server**
+
     ```bash
     npm run server:dev
     ```
@@ -133,7 +153,7 @@ Instead of hardcoding integrations, AXON uses an abstract layer:
     ```bash
     npm run expo:dev
     ```
-    *Scan the QR code with Expo Go to launch on your device!*
+    _Scan the QR code with Expo Go to launch on your device!_
 
 ---
 

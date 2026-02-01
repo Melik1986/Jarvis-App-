@@ -1,10 +1,11 @@
-# AXON 1C Mobile - Design Guidelines
+# AXON ERP Mobile - Design Guidelines
 
 ## 1. Brand Identity
 
-**Purpose**: Enterprise AI assistant that transforms unstructured input (voice, photos, chat) into structured 1C business commands. Replaces complex enterprise software navigation with conversational interaction.
+**Purpose**: Enterprise AI assistant that transforms unstructured input (voice, photos, chat) into structured ERP business commands. Replaces complex enterprise software navigation with conversational interaction.
 
 **Aesthetic Direction**: **Tech-refined Professional**
+
 - Inspired by high-end voice assistants (think Jarvis meets enterprise software)
 - Dark theme primary with subtle tech gradients
 - Clean, spacious layouts emphasizing the AI conversation
@@ -20,6 +21,7 @@
 **Root Navigation**: Tab Navigation (4 tabs with floating action button for voice)
 
 **Tabs**:
+
 1. **Chat** - Main conversation interface with Jarvis
 2. **Library** - Knowledge base search (RAG)
 3. **History** - Past commands and analytics
@@ -28,6 +30,7 @@
 **Floating Action Button**: Voice recording (positioned in center-bottom, above tab bar)
 
 **Authentication Flow**: Stack-only flow before main app
+
 - Phone number entry screen
 - OTP verification screen
 - Welcome/onboarding (optional, can be skipped)
@@ -39,8 +42,9 @@
 ### Auth Flow
 
 **Phone Entry Screen**
+
 - Layout: Full-screen centered form, no header
-- Content: 
+- Content:
   - App logo and "AXON" wordmark at top
   - Phone input field with country code selector
   - "Continue" button (disabled until valid number)
@@ -48,6 +52,7 @@
 - Safe area: top: insets.top + 48px, bottom: insets.bottom + 24px
 
 **OTP Verification Screen**
+
 - Layout: Full-screen centered, custom back button top-left
 - Content:
   - "Enter verification code" heading
@@ -59,8 +64,9 @@
 ### Main App (Tab Navigation)
 
 **Chat Screen** (Default tab)
+
 - Header: Transparent with "AXON" title centered, settings icon top-right
-- Content: 
+- Content:
   - Gifted Chat component (full-screen)
   - Voice waveform overlay when recording
   - Camera icon in input toolbar for Vision feature
@@ -70,6 +76,7 @@
 - Floating voice button overlaps tab bar
 
 **Library Screen**
+
 - Header: Standard with "Knowledge Base" title, search icon top-right
 - Content:
   - Search bar below header (sticky)
@@ -80,6 +87,7 @@
 - Safe area: top: 16px, bottom: tabBarHeight + 24px
 
 **History Screen**
+
 - Header: Standard with "Activity" title, filter icon top-right
 - Content:
   - Segmented control: "Commands" / "Analytics"
@@ -90,8 +98,9 @@
 - Safe area: top: 16px, bottom: tabBarHeight + 24px
 
 **Profile Screen**
+
 - Header: Transparent with "Profile" title
-- Content: 
+- Content:
   - User avatar and name at top (editable on tap)
   - Scrollable settings list below:
     - Account section (phone number, logout)
@@ -103,13 +112,15 @@
 **Detail Screens** (Modal or Push)
 
 **Knowledge Article Screen**
+
 - Header: Standard with article title, share icon top-right
 - Content: Scrollable article content with markdown support
 - Safe area: top: 16px, bottom: insets.bottom + 24px
 
 **Voice Settings Screen**
+
 - Header: Standard with "Voice Settings" title
-- Content: 
+- Content:
   - Form with language selection
   - Voice speed slider
   - Test voice button
@@ -151,6 +162,7 @@ Accents:
 **Font**: System fonts (SF Pro for iOS, Roboto for Android) with fallback to Inter from Google Fonts for cross-platform consistency
 
 **Type Scale**:
+
 - H1 (Screen titles): 32px, Bold
 - H2 (Section headers): 24px, Semibold
 - H3 (Card titles): 18px, Semibold
@@ -159,6 +171,7 @@ Accents:
 - Caption: 12px, Regular
 
 **Chat-specific**:
+
 - User messages: 16px Regular, right-aligned
 - AI responses: 16px Regular, left-aligned with subtle glow on code snippets
 
@@ -167,17 +180,20 @@ Accents:
 ## 6. Design System
 
 **Touchable Feedback**:
+
 - Buttons: Scale down to 0.95 on press + slight opacity (0.8)
 - List items: Background color change to surfaceHover
 - FAB: Scale to 0.92 + shadow intensity increase
 
 **Floating Voice Button**:
+
 - Drop shadow: shadowOffset {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8
 - Gradient background (primary to primaryDark)
 - 64px diameter, positioned center-bottom, 16px above tab bar
 - Ripple animation on press, waveform animation while recording
 
 **Visual Elements**:
+
 - Use Feather icons throughout (microphone, camera, search, settings, etc.)
 - Glass-morphism for modal overlays: backdrop blur + semi-transparent surface
 - Subtle gradient borders on cards (1px, primary at 20% opacity)
@@ -187,9 +203,9 @@ Accents:
 ## 7. Assets to Generate
 
 **Required**:
+
 1. **icon.png** - App icon with AXON logo, cyan gradient circular background
    - WHERE: Device home screen, splash screen
-   
 2. **splash-icon.png** - Simplified AXON logo, white on transparent
    - WHERE: App launch screen
 
@@ -202,9 +218,9 @@ Accents:
 5. **empty-history.png** - Illustration of clock/timeline icon
    - WHERE: History screen when no activity
 
-**Recommended**:
-6. **onboarding-1.png** - Illustration showing voice interaction concept
-   - WHERE: Optional onboarding first screen
+**Recommended**: 6. **onboarding-1.png** - Illustration showing voice interaction concept
+
+- WHERE: Optional onboarding first screen
 
 7. **onboarding-2.png** - Illustration showing photo scanning feature
    - WHERE: Optional onboarding second screen

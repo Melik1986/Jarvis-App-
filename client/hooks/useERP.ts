@@ -2,10 +2,10 @@ import { useCallback } from "react";
 import { useInventoryStore, StockItem, Product } from "@/store/inventoryStore";
 
 /**
- * Hook for working with 1C data (inventory, products).
- * Provides offline-first access to 1C data through the inventory store.
+ * Hook for working with ERP data (inventory, products).
+ * Provides offline-first access to ERP data through the inventory store.
  */
-export function use1C() {
+export function useERP() {
   const {
     stockItems,
     products,
@@ -79,7 +79,7 @@ export function use1C() {
   }, [lastSyncAt]);
 
   /**
-   * Sync all data from 1C (refresh cache)
+   * Sync all data from ERP (refresh cache)
    */
   const syncAll = useCallback(async (): Promise<void> => {
     await Promise.all([fetchStock(), fetchProducts()]);
