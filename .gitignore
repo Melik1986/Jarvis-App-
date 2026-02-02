@@ -71,6 +71,8 @@ logs/
 server/dist/
 server_dist
 project/
+static-build/
+.keys/
 
 # Database
 *.db
