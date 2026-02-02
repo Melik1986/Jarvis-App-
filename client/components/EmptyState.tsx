@@ -1,5 +1,12 @@
 import React from "react";
-import { StyleSheet, View, Image, ImageSourcePropType } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Image,
+  ImageSourcePropType,
+  ImageStyle,
+  StyleProp,
+} from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
@@ -9,6 +16,7 @@ interface EmptyStateProps {
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
+  imageStyle?: StyleProp<ImageStyle>;
 }
 
 export function EmptyState({
@@ -16,12 +24,17 @@ export function EmptyState({
   title,
   subtitle,
   children,
+  imageStyle,
 }: EmptyStateProps) {
   const { theme } = useTheme();
 
   return (
     <View style={styles.container}>
-      <Image source={image} style={styles.image} resizeMode="contain" />
+      <Image
+        source={image}
+        style={[styles.image, imageStyle]}
+        resizeMode="contain"
+      />
       <ThemedText type="h4" style={styles.title}>
         {title}
       </ThemedText>

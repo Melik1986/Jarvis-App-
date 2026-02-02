@@ -68,11 +68,19 @@ export default function ERPSettingsScreen() {
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
         >
-          {t("connectERP")}
-        </ThemedText>
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("erpHint")}
+          </ThemedText>
+        </View>
 
         <View style={styles.inputGroup}>
           <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
@@ -274,6 +282,16 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: Spacing.lg,
+  },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputLabel: {
     fontSize: 14,

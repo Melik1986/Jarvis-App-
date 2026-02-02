@@ -13,7 +13,7 @@ interface VoiceResponse {
 }
 
 /**
- * Hook for voice interactions with Jarvis.
+ * Hook for voice interactions with Axon.
  * Handles recording, transcription, and audio playback.
  */
 export function useVoice() {
@@ -21,6 +21,7 @@ export function useVoice() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<string | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -47,18 +48,20 @@ export function useVoice() {
   const startRecording = useCallback(async (): Promise<boolean> => {
     setError(null);
 
-    // Check permissions
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      setError("Microphone permission denied");
-      return false;
-    }
-
     try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        AppLogger.warn("Audio permissions not granted");
+        return false;
+      }
+
       // Configure audio mode
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
 
       // Create and start recording
@@ -74,7 +77,7 @@ export function useVoice() {
       setError("Failed to start recording");
       return false;
     }
-  }, [requestPermissions]);
+  }, []);
 
   /**
    * Stop recording and send to server
@@ -171,6 +174,10 @@ export function useVoice() {
         audioData: audioChunks.length > 0 ? audioChunks.join("") : undefined,
       };
 
+      if (userTranscript) {
+        setTranscription(userTranscript);
+      }
+
       // Auto-play response audio if available
       if (result.audioData) {
         await playAudio(result.audioData);
@@ -256,6 +263,7 @@ export function useVoice() {
     isProcessing,
     isPlaying,
     error,
+    transcription,
 
     // Actions
     startRecording,

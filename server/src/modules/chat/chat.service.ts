@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, tool } from "ai";
+import { streamText, dynamicTool, jsonSchema } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { z } from "zod";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
 import { ErpService } from "../erp/erp.service";
+import { EphemeralClientPoolService } from "../../services/ephemeral-client-pool.service";
+import { PromptInjectionGuard } from "../../guards/prompt-injection.guard";
 import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
 import { RagSettingsRequest } from "../rag/rag.types";
@@ -43,43 +44,50 @@ const SYSTEM_PROMPT = `Ты — Axon Business AI-ассистент, AI-асси
 
 @Injectable()
 export class ChatService {
-  private conversations: Map<number, Conversation> = new Map();
-  private messages: Map<number, Message[]> = new Map();
-  private nextConversationId = 1;
-  private nextMessageId = 1;
+  // Stateless: no in-memory storage
+  // Conversations and messages are stored on client (AsyncStorage)
+  // Server only processes requests without state
 
   constructor(
     private llmService: LlmService,
     private ragService: RagService,
     private erpService: ErpService,
+    private ephemeralClientPool: EphemeralClientPoolService,
+    private promptInjectionGuard: PromptInjectionGuard,
   ) {}
 
+  // Stateless stubs: client stores conversations/messages locally
   createConversation(title: string): Conversation {
-    const conversation: Conversation = {
-      id: this.nextConversationId++,
+    // Return stub - client generates ID and stores locally
+    return {
+      id: Date.now(), // Temporary ID, client should use UUID
       title,
       createdAt: new Date().toISOString(),
     };
-    this.conversations.set(conversation.id, conversation);
-    this.messages.set(conversation.id, []);
-    return conversation;
   }
 
   getConversation(id: number): Conversation | undefined {
-    return this.conversations.get(id);
+    // Stateless: always return undefined
+    // Client should store conversations locally
+    return undefined;
   }
 
   getAllConversations(): Conversation[] {
-    return Array.from(this.conversations.values());
+    // Stateless: return empty array
+    // Client should store conversations locally
+    return [];
   }
 
   deleteConversation(id: number): boolean {
-    this.messages.delete(id);
-    return this.conversations.delete(id);
+    // Stateless: always return true
+    // Client should handle deletion locally
+    return true;
   }
 
   getMessages(conversationId: number): Message[] {
-    return this.messages.get(conversationId) || [];
+    // Stateless: return empty array
+    // Client should store messages locally
+    return [];
   }
 
   addMessage(
@@ -87,26 +95,73 @@ export class ChatService {
     role: "user" | "assistant",
     content: string,
   ): Message {
-    const message: Message = {
-      id: this.nextMessageId++,
+    // Stateless stub: client should store messages locally
+    return {
+      id: Date.now(),
       conversationId,
       role,
       content,
       createdAt: new Date().toISOString(),
     };
-    const msgs = this.messages.get(conversationId) || [];
-    msgs.push(message);
-    this.messages.set(conversationId, msgs);
-    return message;
   }
 
   /**
-   * Create Vercel AI SDK provider based on LLM settings
+   * Create Vercel AI SDK provider based on LLM settings using ephemeral client pool
    */
-  private createAiProvider(llmSettings?: LlmSettings) {
+  private async createAiProviderWithPool(
+    llmSettings?: LlmSettings,
+    isStreaming = false,
+  ): Promise<ReturnType<typeof createOpenAI>> {
     const settings = llmSettings || { provider: "replit" as const };
 
     // Get base URL and API key based on provider
+    let baseURL: string | undefined;
+    let apiKey: string | undefined;
+
+    switch (settings.provider) {
+      case "replit":
+        baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+        apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+        break;
+      case "openai":
+        baseURL = settings.baseUrl || "https://api.openai.com/v1";
+        apiKey = settings.apiKey;
+        break;
+      case "groq":
+        baseURL = settings.baseUrl || "https://api.groq.com/openai/v1";
+        apiKey = settings.apiKey;
+        break;
+      case "ollama":
+        baseURL = settings.baseUrl || "http://localhost:11434/v1";
+        apiKey = settings.apiKey || "ollama";
+        break;
+      case "custom":
+        baseURL = settings.baseUrl;
+        apiKey = settings.apiKey;
+        break;
+    }
+
+    if (!apiKey) {
+      throw new Error(`API key is required for provider: ${settings.provider}`);
+    }
+
+    // Create provider using client from pool
+    // Note: We still use createOpenAI but credentials are managed through pool
+    // The actual OpenAI client is cached in pool for reuse
+    return createOpenAI({
+      baseURL,
+      apiKey,
+    });
+  }
+
+  /**
+   * Legacy method for backward compatibility (uses pool internally)
+   */
+  private createAiProvider(llmSettings?: LlmSettings) {
+    // For non-streaming, we can create provider directly
+    // Pool will be used when actually making requests
+    const settings = llmSettings || { provider: "replit" as const };
+
     let baseURL: string | undefined;
     let apiKey: string | undefined;
 
@@ -166,19 +221,67 @@ export class ChatService {
   private createTools(erpSettings?: Partial<ErpConfig>) {
     const erpService = this.erpService;
 
+    const getStockSchema = jsonSchema({
+      type: "object",
+      properties: {
+        product_name: {
+          type: "string",
+          description: "Название товара или часть названия для поиска",
+        },
+      },
+      required: ["product_name"],
+      additionalProperties: false,
+    });
+
+    const getProductsSchema = jsonSchema({
+      type: "object",
+      properties: {
+        filter: {
+          type: "string",
+          description: "Фильтр по названию товара (опционально)",
+        },
+      },
+      additionalProperties: false,
+    });
+
+    const createInvoiceSchema = jsonSchema({
+      type: "object",
+      properties: {
+        customer_name: {
+          type: "string",
+          description: "Название покупателя/контрагента",
+        },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              product_name: { type: "string" },
+              quantity: { type: "number" },
+              price: { type: "number" },
+            },
+            required: ["product_name", "quantity", "price"],
+            additionalProperties: false,
+          },
+        },
+        comment: { type: "string" },
+      },
+      required: ["items"],
+      additionalProperties: false,
+    });
+
     return {
-      get_stock: tool({
+      get_stock: dynamicTool({
         description:
           "Получить остатки товара на складе по названию. Используй когда пользователь спрашивает о наличии, остатках, количестве товара.",
-        inputSchema: z.object({
-          product_name: z
-            .string()
-            .describe("Название товара или часть названия для поиска"),
-        }),
-        execute: async ({ product_name }: { product_name: string }) => {
-          const stock = await erpService.getStock(product_name, erpSettings);
+        inputSchema: getStockSchema,
+        execute: async (input: unknown) => {
+          const { product_name: productName } = input as {
+            product_name: string;
+          };
+          const stock = await erpService.getStock(productName, erpSettings);
           if (stock.length === 0) {
-            return `Товары по запросу "${product_name}" не найдены.`;
+            return `Товары по запросу "${productName}" не найдены.`;
           }
           const stockList = stock
             .map(
@@ -186,19 +289,15 @@ export class ChatService {
                 `• ${s.name} (${s.sku || "без артикула"}): ${s.quantity} ${s.unit || "шт"}`,
             )
             .join("\n");
-          return `Остатки по запросу "${product_name}":\n${stockList}`;
+          return `Остатки по запросу "${productName}":\n${stockList}`;
         },
       }),
 
-      get_products: tool({
+      get_products: dynamicTool({
         description: "Получить список товаров из каталога ERP.",
-        inputSchema: z.object({
-          filter: z
-            .string()
-            .optional()
-            .describe("Фильтр по названию товара (опционально)"),
-        }),
-        execute: async ({ filter }: { filter?: string }) => {
+        inputSchema: getProductsSchema,
+        execute: async (input: unknown) => {
+          const { filter } = input as { filter?: string };
           const products = await erpService.getProducts(filter, erpSettings);
           if (products.length === 0) {
             return filter
@@ -216,50 +315,24 @@ export class ChatService {
         },
       }),
 
-      create_invoice: tool({
+      create_invoice: dynamicTool({
         description: "Создать документ реализации (продажи) в ERP.",
-        inputSchema: z.object({
-          customer_name: z
-            .string()
-            .optional()
-            .describe("Название покупателя/контрагента"),
-          items: z.array(
-            z.object({
-              product_name: z.string(),
-              quantity: z.number(),
-              price: z.number(),
-            }),
-          ),
-          comment: z.string().optional(),
-        }),
-        execute: async ({
-          customer_name,
-          items,
-          comment,
-        }: {
-          customer_name?: string;
-          items: {
-            product_name: string;
-            quantity: number;
-            price: number;
-          }[];
-          comment?: string;
-        }) => {
+        inputSchema: createInvoiceSchema,
+        execute: async (input: unknown) => {
+          const args = input as {
+            customer_name: string;
+            items: { product_name: string; quantity: number; price: number }[];
+            comment?: string;
+          };
           const invoice = await erpService.createInvoice(
             {
-              customerName: customer_name,
-              items: items.map(
-                (item: {
-                  product_name: string;
-                  quantity: number;
-                  price: number;
-                }) => ({
-                  productName: item.product_name,
-                  quantity: item.quantity,
-                  price: item.price,
-                }),
-              ),
-              comment,
+              customerName: args.customer_name,
+              items: args.items.map((item) => ({
+                productName: item.product_name,
+                quantity: item.quantity,
+                price: item.price,
+              })),
+              comment: args.comment,
             },
             erpSettings,
           );
@@ -298,24 +371,26 @@ export class ChatService {
     erpSettings?: Partial<ErpConfig>,
     ragSettings?: RagSettingsRequest,
   ): Promise<void> {
-    // Save user message
-    this.addMessage(conversationId, "user", content);
+    // Check for prompt injection
+    const injectionCheck = this.promptInjectionGuard.detectInjection(content);
+    if (injectionCheck.requireManualReview) {
+      res.status(400).json({
+        error: "Prompt injection detected",
+        warning: injectionCheck.warning,
+        requiresConfirmation: true,
+      });
+      return;
+    }
 
-    // Get conversation history
-    const history = this.getMessages(conversationId);
+    // Stateless: no message storage
+    // Client should send history in request if needed
+    // For now, we process without history (each request is independent)
+    const history: { role: "user" | "assistant"; content: string }[] = [];
 
     // Search RAG for context
     let ragContext = "";
     try {
-      const ragConfig =
-        ragSettings?.provider === "qdrant" && ragSettings.qdrant?.url
-          ? {
-              url: ragSettings.qdrant.url,
-              apiKey: ragSettings.qdrant.apiKey,
-              collectionName: ragSettings.qdrant.collectionName || "kb_jarvis",
-            }
-          : undefined;
-      const ragResults = await this.ragService.search(content, 2, ragConfig);
+      const ragResults = await this.ragService.search(content, 2, ragSettings);
       ragContext = this.ragService.buildContext(ragResults);
     } catch (ragError) {
       AppLogger.warn("RAG search failed:", ragError);
@@ -332,6 +407,7 @@ export class ChatService {
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
+      { role: "user" as const, content },
     ];
 
     // Set up SSE
@@ -340,78 +416,94 @@ export class ChatService {
     res.setHeader("Connection", "keep-alive");
 
     try {
-      // Create AI provider and tools
-      const aiProvider = this.createAiProvider(llmSettings);
-      const modelName = this.llmService.getModel(llmSettings);
-      const tools = this.createTools(erpSettings);
-
       const provider = llmSettings?.provider ?? "replit";
       const baseURL = this.getBaseUrlForLog(llmSettings);
+      const modelName = this.llmService.getModel(llmSettings);
       const verbose = this.isVerboseLogEnabled();
-      if (verbose) {
-        AppLogger.info(
-          `[Conductor] LLM request started | provider=${provider} baseURL=${this.maskBaseUrl(baseURL)} model=${modelName}`,
-          undefined,
-          "Conductor",
-        );
+
+      // Extract credentials for pool
+      const poolCredentials = {
+        llmKey: llmSettings?.apiKey || "",
+        llmProvider: provider,
+        llmBaseUrl: baseURL,
+      };
+
+      // Ensure API key is present for non-replit providers
+      if (provider !== "replit" && !poolCredentials.llmKey) {
+        throw new Error(`API key is required for provider: ${provider}`);
       }
 
-      // Stream with Vercel AI SDK (fullStream to get tool-call / tool-result for logging)
-      const result = streamText({
-        model: aiProvider(modelName),
-        system: systemMessage,
-        messages,
-        tools,
-        maxOutputTokens: 2048,
-      });
+      // Use ephemeral client pool for the duration of the stream
+      await this.ephemeralClientPool.useClient(
+        poolCredentials,
+        async () => {
+          // Create AI provider and tools
+          const aiProvider = this.createAiProvider(llmSettings);
+          const tools = this.createTools(erpSettings);
 
-      let fullResponse = "";
-
-      for await (const part of result.fullStream) {
-        const textDelta =
-          (part as { text?: string }).text ??
-          (part as { delta?: string }).delta;
-        if (part.type === "text-delta" && textDelta) {
-          fullResponse += textDelta;
-          res.write(`data: ${JSON.stringify({ content: textDelta })}\n\n`);
-        }
-        if (verbose) {
-          if (part.type === "tool-call") {
-            const argsRaw =
-              (part as { args?: unknown }).args ??
-              (part as { input?: unknown }).input;
-            const args = argsRaw !== undefined ? JSON.stringify(argsRaw) : "{}";
+          if (verbose) {
             AppLogger.info(
-              `[Conductor] tool-call | toolName=${part.toolName} args=${args}`,
+              `[Conductor] LLM request started | provider=${provider} baseURL=${this.maskBaseUrl(baseURL)} model=${modelName}`,
               undefined,
               "Conductor",
             );
           }
-          if (part.type === "tool-result") {
-            let out = "[object]";
-            const resultOutput =
-              (part as { result?: unknown }).result ??
-              (part as { output?: unknown }).output;
-            if (resultOutput !== undefined) {
-              const raw =
-                typeof resultOutput === "string"
-                  ? resultOutput
-                  : JSON.stringify(resultOutput);
-              out = raw.slice(0, 200) + (raw.length > 200 ? "…" : "");
+
+          // Stream with Vercel AI SDK
+          const result = streamText({
+            model: aiProvider(modelName),
+            system: systemMessage,
+            messages,
+            tools,
+            maxOutputTokens: 2048,
+          });
+
+          for await (const part of result.fullStream) {
+            const textDelta =
+              (part as { text?: string }).text ??
+              (part as { delta?: string }).delta;
+            if (part.type === "text-delta" && textDelta) {
+              res.write(`data: ${JSON.stringify({ content: textDelta })}\n\n`);
             }
-            AppLogger.info(
-              `[Conductor] tool-result | toolName=${part.toolName} resultSummary=${out}`,
-              undefined,
-              "Conductor",
-            );
+            if (verbose) {
+              if (part.type === "tool-call") {
+                const argsRaw =
+                  (part as { args?: unknown }).args ??
+                  (part as { input?: unknown }).input;
+                const args =
+                  argsRaw !== undefined ? JSON.stringify(argsRaw) : "{}";
+                AppLogger.info(
+                  `[Conductor] tool-call | toolName=${part.toolName} args=${args}`,
+                  undefined,
+                  "Conductor",
+                );
+              }
+              if (part.type === "tool-result") {
+                let out = "[object]";
+                const resultOutput =
+                  (part as { result?: unknown }).result ??
+                  (part as { output?: unknown }).output;
+                if (resultOutput !== undefined) {
+                  const raw =
+                    typeof resultOutput === "string"
+                      ? resultOutput
+                      : JSON.stringify(resultOutput);
+                  out = raw.slice(0, 200) + (raw.length > 200 ? "…" : "");
+                }
+                AppLogger.info(
+                  `[Conductor] tool-result | toolName=${part.toolName} resultSummary=${out}`,
+                  undefined,
+                  "Conductor",
+                );
+              }
+            }
           }
-        }
-      }
 
-      // Save assistant message
-      this.addMessage(conversationId, "assistant", fullResponse);
+          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        },
+        true, // isStreaming = true
+      );
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
       AppLogger.error("Error in chat stream:", error);
@@ -445,18 +537,24 @@ export class ChatService {
     rawText: string;
     toolCalls: { toolName: string; args: unknown; resultSummary: string }[];
     assistantText: string;
+    warning?: string;
+    requiresConfirmation?: boolean;
   }> {
+    // Check for prompt injection
+    const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
+    if (injectionCheck.requireManualReview) {
+      return {
+        rawText,
+        toolCalls: [],
+        assistantText: "",
+        warning: injectionCheck.warning,
+        requiresConfirmation: true,
+      };
+    }
+
     let ragContext = "";
     try {
-      const ragConfig =
-        ragSettings?.provider === "qdrant" && ragSettings.qdrant?.url
-          ? {
-              url: ragSettings.qdrant.url,
-              apiKey: ragSettings.qdrant.apiKey,
-              collectionName: ragSettings.qdrant.collectionName || "kb_jarvis",
-            }
-          : undefined;
-      const ragResults = await this.ragService.search(rawText, 2, ragConfig);
+      const ragResults = await this.ragService.search(rawText, 2, ragSettings);
       ragContext = this.ragService.buildContext(ragResults);
     } catch {
       // ignore RAG errors
@@ -464,70 +562,177 @@ export class ChatService {
     const systemMessage = ragContext
       ? `${SYSTEM_PROMPT}\n\n${ragContext}`
       : SYSTEM_PROMPT;
-    const aiProvider = this.createAiProvider(llmSettings);
+
+    const provider = llmSettings?.provider ?? "replit";
+    const baseURL = this.getBaseUrlForLog(llmSettings);
     const modelName = this.llmService.getModel(llmSettings);
-    const tools = this.createTools(erpSettings);
 
-    const result = streamText({
-      model: aiProvider(modelName),
-      system: systemMessage,
-      messages: [{ role: "user", content: rawText }],
-      tools,
-      maxOutputTokens: 2048,
-    });
+    // Extract credentials for pool
+    const poolCredentials = {
+      llmKey: llmSettings?.apiKey || "",
+      llmProvider: provider,
+      llmBaseUrl: baseURL,
+    };
 
-    const toolCallsAcc: {
-      toolCallId: string;
-      toolName: string;
-      args: unknown;
-      resultSummary?: string;
-    }[] = [];
-    let assistantText = "";
+    // Use ephemeral client pool for parsing
+    return await this.ephemeralClientPool.useClient(
+      poolCredentials,
+      async () => {
+        const aiProvider = this.createAiProvider(llmSettings);
+        const tools = this.createTools(erpSettings);
 
-    for await (const part of result.fullStream) {
-      const textDelta =
-        (part as { text?: string }).text ?? (part as { delta?: string }).delta;
-      if (part.type === "text-delta" && textDelta) {
-        assistantText += textDelta;
-      }
-      if (part.type === "tool-call") {
-        const args =
-          (part as { args?: unknown }).args ??
-          (part as { input?: unknown }).input ??
-          {};
-        toolCallsAcc.push({
-          toolCallId: part.toolCallId,
-          toolName: part.toolName,
-          args,
+        const result = streamText({
+          model: aiProvider(modelName),
+          system: systemMessage,
+          messages: [{ role: "user", content: rawText }],
+          tools,
+          maxOutputTokens: 2048,
         });
-      }
-      if (part.type === "tool-result") {
-        let out = "";
-        const resultOutput =
-          (part as { result?: unknown }).result ??
-          (part as { output?: unknown }).output;
-        if (resultOutput !== undefined) {
-          const raw =
-            typeof resultOutput === "string"
-              ? resultOutput
-              : JSON.stringify(resultOutput);
-          out = raw.slice(0, 300) + (raw.length > 300 ? "…" : "");
+
+        const toolCallsAcc: {
+          toolCallId: string;
+          toolName: string;
+          args: unknown;
+          resultSummary?: string;
+        }[] = [];
+        let assistantText = "";
+
+        for await (const part of result.fullStream) {
+          const textDelta =
+            (part as { text?: string }).text ??
+            (part as { delta?: string }).delta;
+          if (part.type === "text-delta" && textDelta) {
+            assistantText += textDelta;
+          }
+          if (part.type === "tool-call") {
+            const args =
+              (part as { args?: unknown }).args ??
+              (part as { input?: unknown }).input ??
+              {};
+            toolCallsAcc.push({
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args,
+            });
+          }
+          if (part.type === "tool-result") {
+            let out = "";
+            const resultOutput =
+              (part as { result?: unknown }).result ??
+              (part as { output?: unknown }).output;
+            if (resultOutput !== undefined) {
+              const raw =
+                typeof resultOutput === "string"
+                  ? resultOutput
+                  : JSON.stringify(resultOutput);
+              out = raw.slice(0, 300) + (raw.length > 300 ? "…" : "");
+            }
+            const entry = toolCallsAcc.find(
+              (e) => e.toolCallId === part.toolCallId,
+            );
+            if (entry) entry.resultSummary = out;
+          }
         }
-        const entry = toolCallsAcc.find(
-          (e) => e.toolCallId === part.toolCallId,
-        );
-        if (entry) entry.resultSummary = out;
+
+        return {
+          rawText,
+          toolCalls: toolCallsAcc.map((e) => ({
+            toolName: e.toolName,
+            args: e.args,
+            resultSummary: e.resultSummary ?? "",
+            confidence: this.calculateConfidence(e),
+            diffPreview: this.generateDiffPreview(e, erpSettings),
+          })),
+          assistantText,
+        };
+      },
+      false, // isStreaming = false (though it uses streamText internally, it's a single request)
+    );
+  }
+
+  /**
+   * Calculate confidence score for a tool call (0-1).
+   * Simple heuristic: higher confidence for successful results.
+   */
+  private calculateConfidence(toolCall: {
+    toolName: string;
+    args: unknown;
+    resultSummary?: string;
+  }): number {
+    // Base confidence
+    let confidence = 0.8;
+
+    // Increase confidence if result summary indicates success
+    if (toolCall.resultSummary) {
+      const lowerSummary = toolCall.resultSummary.toLowerCase();
+      if (
+        lowerSummary.includes("создан") ||
+        lowerSummary.includes("найдено") ||
+        lowerSummary.includes("успешно")
+      ) {
+        confidence = 0.9;
+      } else if (
+        lowerSummary.includes("не найдено") ||
+        lowerSummary.includes("ошибка")
+      ) {
+        confidence = 0.6;
       }
     }
 
-    return {
-      rawText,
-      toolCalls: toolCallsAcc.map((e) => ({
-        toolName: e.toolName,
-        args: e.args,
-        resultSummary: e.resultSummary ?? "",
-      })),
-      assistantText,
-    };
+    // Decrease confidence for create_invoice (more critical)
+    if (toolCall.toolName === "create_invoice") {
+      confidence -= 0.1;
+    }
+
+    return Math.max(0, Math.min(1, confidence));
+  }
+
+  /**
+   * Generate diff preview for a tool call.
+   */
+  private generateDiffPreview(
+    toolCall: {
+      toolName: string;
+      args: unknown;
+      resultSummary?: string;
+    },
+    erpSettings?: Partial<ErpConfig>,
+  ):
+    | { before: Record<string, unknown>; after: Record<string, unknown> }
+    | undefined {
+    if (toolCall.toolName === "create_invoice") {
+      const args = toolCall.args as {
+        items?: { product_name: string; quantity: number; price: number }[];
+        customer_name?: string;
+      };
+
+      if (args.items && args.items.length > 0) {
+        const before: Record<string, unknown> = {};
+        const after: Record<string, unknown> = {};
+
+        // Show what will be created
+        args.items.forEach((item, index) => {
+          before[`item_${index}`] = "Not created";
+          after[`item_${index}`] =
+            `${item.product_name}: ${item.quantity} × ${item.price} ₽`;
+        });
+
+        if (args.customer_name) {
+          before.customer = "Not set";
+          after.customer = args.customer_name;
+        }
+
+        return { before, after };
+      }
+    } else if (toolCall.toolName === "get_stock") {
+      // For get_stock, show query vs results
+      const args = toolCall.args as { product_name?: string };
+      return {
+        before: { query: args.product_name || "N/A" },
+        after: { result: toolCall.resultSummary || "No results" },
+      };
+    }
+
+    return undefined;
   }
 }

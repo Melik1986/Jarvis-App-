@@ -3,10 +3,10 @@ import { useChatStore, ChatMessage } from "@/store/chatStore";
 import { getApiUrl } from "@/lib/query-client";
 
 /**
- * Hook for interacting with Jarvis AI assistant.
+ * Hook for interacting with Axon AI assistant.
  * Provides methods to send messages and manage chat state.
  */
-export function useJarvis() {
+export function useAxon() {
   const {
     messages,
     currentConversationId,
@@ -21,7 +21,7 @@ export function useJarvis() {
   } = useChatStore();
 
   /**
-   * Send a message to Jarvis and get streaming response
+   * Send a message to Axon and get streaming response
    */
   const ask = useCallback(
     async (question: string): Promise<string> => {

@@ -17,7 +17,10 @@ import * as DocumentPicker from "expo-document-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
-import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
+import {
+  AnimatedDocumentIcon,
+  AnimatedSearchIcon,
+} from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
@@ -41,95 +44,17 @@ type FormDataFile = {
   name: string;
 };
 
-function DocumentTypeIcon({
+const DocumentTypeIcon = ({
   type,
-  size = 24,
+  size,
   color,
 }: {
-  type: Document["type"];
-  size?: number;
+  type: string;
+  size: number;
   color: string;
-}) {
-  const strokeWidth = 1.5;
-
-  switch (type) {
-    case "pdf":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M14 2v6h6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M9 15h6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-          <Path
-            d="M9 18h6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-        </Svg>
-      );
-    case "txt":
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M14 2v6h6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M8 13h8M8 17h5"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-        </Svg>
-      );
-    default:
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M14 2v6h6"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      );
-  }
-}
+}) => {
+  return <AnimatedDocumentIcon size={size} color={color} />;
+};
 
 function PlusIcon({ size = 24, color }: { size?: number; color: string }) {
   return (
@@ -384,13 +309,8 @@ export default function LibraryScreen() {
       ]}
       onPress={() => handleDocumentPress(item)}
     >
-      <View
-        style={[
-          styles.documentIcon,
-          { backgroundColor: theme.backgroundSecondary },
-        ]}
-      >
-        <DocumentTypeIcon type={item.type} size={28} color={theme.primary} />
+      <View style={styles.documentIcon}>
+        <DocumentTypeIcon type={item.type} size={32} color={theme.primary} />
       </View>
       <View style={styles.documentContent}>
         <ThemedText
@@ -580,12 +500,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   documentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.md,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.md,
+    marginRight: 12,
   },
   documentContent: {
     flex: 1,

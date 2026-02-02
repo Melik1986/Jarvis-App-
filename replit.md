@@ -40,7 +40,7 @@ Our architecture is designed for speed, scalability, and "Write Once, Run Everyw
 
 - **Framework**: Nest.js (TypeScript) with modular architecture
 - **Runtime**: Node.js with ts-node + SWC for fast compilation
-- **Database**: PostgreSQL (via Supabase)
+- **Database**: PostgreSQL (Replit Postgres on deploy, or any provider)
 - **ORM**: Drizzle ORM (Type-safe SQL)
 - **Modules**:
   - `ChatModule`: Conversation management and AI chat

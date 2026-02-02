@@ -256,6 +256,20 @@ export default function LLMProviderScreen() {
           {t("chooseProvider")}
         </ThemedText>
 
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("llmHint")}
+          </ThemedText>
+        </View>
+
         <View style={styles.providerList}>
           {providers.map((provider) => (
             <Pressable
@@ -273,12 +287,7 @@ export default function LLMProviderScreen() {
               ]}
               onPress={() => handleProviderSelect(provider.id)}
             >
-              <View
-                style={[
-                  styles.providerIcon,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
+              <View style={styles.providerIcon}>
                 <ProviderIcon
                   name={provider.icon}
                   size={20}
@@ -496,10 +505,19 @@ const styles = StyleSheet.create({
   providerIcon: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
+  },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   providerContent: {
     flex: 1,

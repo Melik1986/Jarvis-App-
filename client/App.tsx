@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, useColorScheme } from "react-native";
+import { getLocales } from "expo-localization";
 import {
   NavigationContainer,
   DarkTheme,
@@ -16,6 +17,7 @@ import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { GlobalLoader } from "@/components/GlobalLoader";
 import { Colors } from "@/constants/theme";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -49,7 +51,22 @@ const customLightTheme = {
 
 function AppContent() {
   const themeMode = useSettingsStore((state) => state.theme);
-  const isDark = themeMode === "dark";
+  const systemColorScheme = useColorScheme();
+  const isDark =
+    themeMode === "system"
+      ? systemColorScheme === "dark"
+      : themeMode === "dark";
+
+  const language = useSettingsStore((state) => state.language);
+
+  useEffect(() => {
+    if (language === "system") {
+      const deviceLanguage = getLocales()[0].languageCode;
+      if (deviceLanguage) {
+        // Just use the code for now (e.g., 'en', 'ru')
+      }
+    }
+  }, [language]);
 
   return (
     <GestureHandlerRootView
@@ -68,6 +85,7 @@ function AppContent() {
         >
           <RootStackNavigator />
         </NavigationContainer>
+        <GlobalLoader />
         <StatusBar style={isDark ? "light" : "dark"} />
       </KeyboardProvider>
     </GestureHandlerRootView>

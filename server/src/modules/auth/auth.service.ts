@@ -1,12 +1,7 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
-import { eq } from "drizzle-orm";
-import { DATABASE_CONNECTION, Database } from "../../db/db.module";
-import { AuthUser, AuthSession, JwtPayload } from "./auth.types";
-
-import * as schema from "../../../../shared/schema";
-import type { InsertUser, User } from "../../../../shared/schema";
+import { AuthUser, AuthSession } from "./auth.types";
 import { AppLogger } from "../../utils/logger";
 
 interface ReplitUserInfo {
@@ -23,10 +18,7 @@ export class AuthService {
   private readonly accessTokenExpiry = "24h";
   private readonly refreshTokenExpiry = "30d";
 
-  constructor(
-    private configService: ConfigService,
-    @Inject(DATABASE_CONNECTION) private db: Database,
-  ) {
+  constructor(private configService: ConfigService) {
     this.jwtSecret =
       this.configService.get("SESSION_SECRET") ||
       "axon-secret-key-change-in-production";
@@ -80,37 +72,20 @@ export class AuthService {
         return { success: false, error: "Invalid user data from Replit" };
       }
 
-      let user = await this.findUserByEmail(userInfo.email);
+      // Stateless: Create user object from Replit data
+      const user: AuthUser = {
+        id: `replit-${userInfo.id}`,
+        email: userInfo.email,
+        name: userInfo.name || userInfo.email.split("@")[0],
+        picture: userInfo.picture || null,
+        replitId: userInfo.id,
+      };
 
-      if (!user) {
-        user = await this.createUser({
-          email: userInfo.email,
-          name: userInfo.name || userInfo.email.split("@")[0],
-          picture: userInfo.picture,
-          replitId: userInfo.id,
-        });
-      } else {
-        user = await this.updateUserProfile(user.id, {
-          name: userInfo.name ?? user.name ?? undefined,
-          picture: userInfo.picture ?? user.picture ?? undefined,
-          replitId: userInfo.id,
-        });
-      }
-
-      const session = await this.createSession({
-        id: user.id,
-        email: user.email,
-      });
+      const session = this.createSession(user);
 
       return {
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-          replitId: user.replitId,
-        },
+        user,
         session,
       };
     } catch (error) {
@@ -135,31 +110,19 @@ export class AuthService {
         return { success: false, error: "No session user" };
       }
 
-      let user = await this.findUserByEmail(sessionUser.email);
+      const user: AuthUser = {
+        id: sessionUser.id || `user-${Date.now()}`,
+        email: sessionUser.email,
+        name: sessionUser.name || sessionUser.email.split("@")[0],
+        picture: sessionUser.picture || null,
+        replitId: sessionUser.replitId || null,
+      };
 
-      if (!user) {
-        user = await this.createUser({
-          email: sessionUser.email,
-          name: sessionUser.name || sessionUser.email.split("@")[0],
-          picture: sessionUser.picture ?? null,
-          replitId: sessionUser.id ?? null,
-        });
-      }
-
-      const session = await this.createSession({
-        id: user.id,
-        email: user.email,
-      });
+      const session = this.createSession(user);
 
       return {
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-          replitId: user.replitId,
-        },
+        user,
         session,
       };
     } catch (error) {
@@ -178,55 +141,30 @@ export class AuthService {
     error?: string;
   }> {
     try {
-      const sessionData = await this.db
-        .select()
-        .from(schema.sessions)
-        .where(eq(schema.sessions.refreshToken, refreshToken))
-        .limit(1);
+      const payload = jwt.verify(
+        refreshToken,
+        this.jwtSecret,
+      ) as jwt.JwtPayload & {
+        sub: string;
+        email: string;
+        name?: string;
+        picture?: string;
+        replitId?: string;
+      };
 
-      if (!sessionData.length) {
-        return { success: false, error: "Invalid refresh token" };
-      }
+      const user: AuthUser = {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name || "User",
+        picture: payload.picture,
+        replitId: payload.replitId,
+      };
 
-      const existingSession = sessionData[0];
-
-      if (new Date(existingSession.expiresAt) < new Date()) {
-        await this.db
-          .delete(schema.sessions)
-          .where(eq(schema.sessions.id, existingSession.id));
-        return { success: false, error: "Refresh token expired" };
-      }
-
-      const userData = await this.db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, existingSession.userId))
-        .limit(1);
-
-      if (!userData.length) {
-        return { success: false, error: "User not found" };
-      }
-
-      const user = userData[0];
-
-      await this.db
-        .delete(schema.sessions)
-        .where(eq(schema.sessions.id, existingSession.id));
-
-      const newSession = await this.createSession({
-        id: user.id,
-        email: user.email,
-      });
+      const newSession = this.createSession(user);
 
       return {
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-          replitId: user.replitId,
-        },
+        user,
         session: newSession,
       };
     } catch (error) {
@@ -243,27 +181,22 @@ export class AuthService {
     token: string,
   ): Promise<{ valid: boolean; user?: AuthUser }> {
     try {
-      const payload = jwt.verify(token, this.jwtSecret) as JwtPayload;
+      const payload = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload & {
+        sub: string;
+        email: string;
+        name?: string;
+        picture?: string;
+        replitId?: string;
+      };
 
-      const userData = await this.db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, payload.sub))
-        .limit(1);
-
-      if (!userData.length) {
-        return { valid: false };
-      }
-
-      const user = userData[0];
       return {
         valid: true,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture,
-          replitId: user.replitId,
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+          replitId: payload.replitId,
         },
       };
     } catch {
@@ -272,98 +205,36 @@ export class AuthService {
   }
 
   async logout(refreshToken: string): Promise<{ success: boolean }> {
-    try {
-      await this.db
-        .delete(schema.sessions)
-        .where(eq(schema.sessions.refreshToken, refreshToken));
-      return { success: true };
-    } catch {
-      return { success: false };
-    }
+    // Stateless logout is client-side only
+    return { success: true };
   }
 
+  // Helper for Controller compatibility
   async getMe(userId: string): Promise<AuthUser | null> {
-    const userData = await this.db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.id, userId))
-      .limit(1);
+    // This should ideally not be used in stateless mode without passing the full user object.
+    // But since the controller uses it, and the controller has req.user,
+    // we will update the controller to NOT call this, or pass the user object.
+    return null;
+  }
 
-    if (!userData.length) {
-      return null;
-    }
-
-    const user = userData[0];
-    return {
-      id: user.id,
+  private createSession(user: AuthUser): AuthSession {
+    const payload = {
+      sub: user.id,
       email: user.email,
       name: user.name,
       picture: user.picture,
       replitId: user.replitId,
     };
-  }
 
-  private async findUserByEmail(email: string) {
-    const users = await this.db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.email, email))
-      .limit(1);
-    return users[0] || null;
-  }
-
-  private async createUser(data: InsertUser): Promise<User> {
-    const result = await this.db
-      .insert(schema.users)
-      .values({
-        email: data.email,
-        name: data.name,
-        picture: data.picture || null,
-        replitId: data.replitId || null,
-      })
-      .returning();
-    return result[0];
-  }
-
-  private async updateUserProfile(
-    userId: string,
-    data: { name?: string; picture?: string; replitId?: string },
-  ) {
-    const result = await this.db
-      .update(schema.users)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.users.id, userId))
-      .returning();
-    return result[0];
-  }
-
-  private async createSession(user: {
-    id: string;
-    email: string;
-  }): Promise<AuthSession> {
-    const accessToken = jwt.sign(
-      { sub: user.id, email: user.email },
-      this.jwtSecret,
-      { expiresIn: this.accessTokenExpiry },
-    );
+    const accessToken = jwt.sign(payload, this.jwtSecret, {
+      expiresIn: this.accessTokenExpiry,
+    });
 
     const refreshToken = jwt.sign(
-      { sub: user.id, type: "refresh" },
+      { ...payload, type: "refresh" },
       this.jwtSecret,
       { expiresIn: this.refreshTokenExpiry },
     );
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    await this.db.insert(schema.sessions).values({
-      userId: user.id,
-      refreshToken,
-      expiresAt,
-    });
 
     return {
       accessToken,

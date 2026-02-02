@@ -1,6 +1,8 @@
 /**
  * Интерфейс для ошибок Supabase
  */
+import { sanitizeForLogging } from "./logger-sanitizer";
+
 interface SupabaseError {
   message?: string;
   details?: string;
@@ -82,8 +84,9 @@ export class AppLogger {
         prefix,
         timestamp: true,
       });
+      const sanitized = data ? sanitizeForLogging(data) : "";
       // eslint-disable-next-line no-console
-      console.log(formatted, data || "");
+      console.log(formatted, sanitized);
     }
   }
 
@@ -104,24 +107,26 @@ export class AppLogger {
           supabaseError.details ||
           supabaseError.hint
         ) {
-          // eslint-disable-next-line no-console
-          console.error(formatted, {
+          const sanitized = sanitizeForLogging({
             message: supabaseError.message,
             details: supabaseError.details,
             hint: supabaseError.hint,
             code: supabaseError.code,
-            originalError: error,
           });
-        } else if (Object.keys(error).length > 0) {
           // eslint-disable-next-line no-console
-          console.error(formatted, error);
+          console.error(formatted, sanitized);
+        } else if (Object.keys(error).length > 0) {
+          const sanitized = sanitizeForLogging(error);
+          // eslint-disable-next-line no-console
+          console.error(formatted, sanitized);
         } else {
           // eslint-disable-next-line no-console
-          console.error(formatted, "Empty error object:", error);
+          console.error(formatted, "Empty error object");
         }
       } else {
+        const sanitized = sanitizeForLogging(error);
         // eslint-disable-next-line no-console
-        console.error(formatted, error);
+        console.error(formatted, sanitized);
       }
     } else {
       // eslint-disable-next-line no-console
@@ -136,8 +141,9 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.warn(formatted, data || "");
+    console.warn(formatted, sanitized);
   }
 
   static info(message: string, data?: unknown, prefix?: string): void {
@@ -147,8 +153,9 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.info(formatted, data || "");
+    console.info(formatted, sanitized);
   }
 
   static debug(message: string, data?: unknown, prefix?: string): void {
@@ -158,8 +165,9 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.debug(formatted, data || "");
+    console.debug(formatted, sanitized);
   }
 
   /**

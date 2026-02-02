@@ -149,3 +149,32 @@ export const insertRagDocumentSchema = createInsertSchema(ragDocuments).omit({
 
 export type RagDocument = typeof ragDocuments.$inferSelect;
 export type InsertRagDocument = z.infer<typeof insertRagDocumentSchema>;
+
+export const tasks = pgTable("tasks", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"),
+  priority: text("priority").notNull().default("medium"),
+  relatedRules: text("related_rules"), // Stored as JSON string or comma-separated
+  relatedSkill: text("related_skill"),
+  result: text("result"), // JSON string
+  metadata: text("metadata"), // JSON string
+  createdAt: timestamp("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;

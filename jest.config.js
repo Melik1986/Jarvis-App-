@@ -22,6 +22,6 @@ module.exports = {
     "**/__tests__/**/*.+(ts|tsx|js)",
     "**/?(*.)+(spec|test).+(ts|tsx|js)",
   ],
-  testPathIgnorePatterns: ["/node_modules/", "conductor"],
+  testPathIgnorePatterns: ["/node_modules/", "conductor", "/dist/"],
   collectCoverageFrom: ["client/lib/logger.ts", "server/src/utils/logger.ts"],
 };

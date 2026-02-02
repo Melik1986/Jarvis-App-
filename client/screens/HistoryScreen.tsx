@@ -123,13 +123,8 @@ export default function HistoryScreen() {
           },
         ]}
       >
-        <View
-          style={[
-            styles.itemIcon,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <AnimatedChatIcon size={18} color={theme.primary} />
+        <View style={styles.itemIcon}>
+          <AnimatedChatIcon size={22} color={theme.primary} />
         </View>
         <Pressable
           style={styles.itemContent}
@@ -254,7 +249,6 @@ const styles = StyleSheet.create({
   itemIcon: {
     width: 36,
     height: 36,
-    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,

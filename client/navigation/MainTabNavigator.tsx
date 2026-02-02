@@ -18,6 +18,7 @@ import {
   AnimatedProfileFilledIcon,
 } from "@/components/AnimatedIcons";
 import { Colors } from "@/constants/theme";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export type MainTabParamList = {
   ChatTab: undefined;
@@ -29,6 +30,8 @@ export type MainTabParamList = {
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       initialRouteName="ChatTab"
@@ -60,7 +63,7 @@ export default function MainTabNavigator() {
         name="ChatTab"
         component={ChatStackNavigator}
         options={{
-          title: "Chat",
+          title: t("chat"),
           tabBarIcon: ({ color, size, focused }) =>
             focused ? (
               <AnimatedChatFilledIcon size={size} color={color} />
@@ -73,7 +76,7 @@ export default function MainTabNavigator() {
         name="LibraryTab"
         component={LibraryStackNavigator}
         options={{
-          title: "Library",
+          title: t("library"),
           tabBarIcon: ({ color, size, focused }) =>
             focused ? (
               <AnimatedLibraryFilledIcon size={size} color={color} />
@@ -86,7 +89,7 @@ export default function MainTabNavigator() {
         name="HistoryTab"
         component={HistoryStackNavigator}
         options={{
-          title: "History",
+          title: t("history"),
           tabBarIcon: ({ color, size, focused }) =>
             focused ? (
               <AnimatedHistoryFilledIcon size={size} color={color} />
@@ -99,7 +102,7 @@ export default function MainTabNavigator() {
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          title: "Profile",
+          title: t("profile"),
           tabBarIcon: ({ color, size, focused }) =>
             focused ? (
               <AnimatedProfileFilledIcon size={size} color={color} />

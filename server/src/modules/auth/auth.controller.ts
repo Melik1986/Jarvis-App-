@@ -10,11 +10,12 @@ import {
   Res,
   UnauthorizedException,
 } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { RefreshRequest, AuthUser } from "./auth.types";
 import { AuthGuard } from "./auth.guard";
+import { SERVER_PUBLIC_KEY } from "../../config/jwk.config";
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -114,11 +115,11 @@ export class AuthController {
   @Get("me")
   @UseGuards(AuthGuard)
   async me(@Req() req: AuthenticatedRequest) {
-    const user = await this.authService.getMe(req.user!.id);
-    if (!user) {
+    // Stateless: req.user contains the user data from token
+    if (!req.user) {
       throw new UnauthorizedException("User not found");
     }
-    return { user };
+    return { user: req.user };
   }
 
   @Get("validate")
@@ -132,10 +133,34 @@ export class AuthController {
 
   @Get("status")
   async status(@Req() req: AuthenticatedRequest) {
-    const isAuthenticated = req.isAuthenticated?.() || false;
+    const isAuthenticated = !!req.user;
     return {
       authenticated: isAuthenticated,
       user: isAuthenticated ? req.user : null,
+    };
+  }
+
+  @Get("public-key")
+  @ApiOperation({
+    summary: "Get server public key for JWE encryption",
+    description:
+      "Returns the public key that clients should use to encrypt credentials before sending them to the server.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Public key in PEM format",
+    schema: {
+      type: "object",
+      properties: {
+        publicKey: { type: "string" },
+        algorithm: { type: "string", example: "ECDH-ES+HKDF-256" },
+      },
+    },
+  })
+  getPublicKey() {
+    return {
+      publicKey: SERVER_PUBLIC_KEY,
+      algorithm: "ECDH-ES+HKDF-256",
     };
   }
 

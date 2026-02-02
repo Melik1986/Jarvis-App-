@@ -82,7 +82,7 @@ We chose a unified, modern stack optimized for speed and cross-platform deployme
 ### Backend & AI
 
 - **Server**: Node.js + Express 5.0 (Running on Replit)
-- **Database**: PostgreSQL (Supabase) + Drizzle ORM
+- **Database**: PostgreSQL (Replit Postgres on deploy, or any provider) + Drizzle ORM
 - **AI Engine**: OpenAI SDK (GPT-4o), Vercel AI SDK patterns
 - **Protocols**: WebSocket (ws), REST
 

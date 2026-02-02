@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   Platform,
-  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -17,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsItem } from "@/components/SettingsItem";
+import { SpendingTracker } from "@/components/SpendingTracker";
 import {
   AnimatedPencilIcon,
   AnimatedLogoutIcon,
@@ -114,24 +114,6 @@ export default function ProfileScreen() {
   const handleToggleTheme = () => {
     handleHaptic();
     toggleTheme();
-  };
-
-  const handleOpenHelp = async () => {
-    handleHaptic();
-    try {
-      await Linking.openURL("https://jsrvis.com/help");
-    } catch {
-      AppLogger.warn("Could not open help URL");
-    }
-  };
-
-  const handleOpenPrivacy = async () => {
-    handleHaptic();
-    try {
-      await Linking.openURL("https://jsrvis.com/privacy");
-    } catch {
-      AppLogger.warn("Could not open privacy URL");
-    }
   };
 
   const handleLogout = async () => {
@@ -254,6 +236,15 @@ export default function ProfileScreen() {
         <ThemedText
           style={[styles.sectionTitle, { color: theme.textTertiary }]}
         >
+          {t("usage")}
+        </ThemedText>
+        <SpendingTracker />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
           {t("preferences")}
         </ThemedText>
         <SettingsItem
@@ -320,7 +311,7 @@ export default function ProfileScreen() {
         <ThemedText
           style={[styles.sectionTitle, { color: theme.textTertiary }]}
         >
-          {t("about")}
+          {t("aboutApp")}
         </ThemedText>
         <SettingsItem
           icon="information-circle-outline"
@@ -331,12 +322,12 @@ export default function ProfileScreen() {
         <SettingsItem
           icon="help-circle-outline"
           title={t("helpSupport")}
-          onPress={handleOpenHelp}
+          onPress={() => handleNavigate("Help")}
         />
         <SettingsItem
           icon="shield-outline"
           title={t("privacyPolicy")}
-          onPress={handleOpenPrivacy}
+          onPress={() => handleNavigate("Privacy")}
         />
       </View>
 

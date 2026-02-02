@@ -76,3 +76,6 @@ project/
 *.db
 *.sqlite
 
+
+# Added by ggshield
+.cache_ggshield

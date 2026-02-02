@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "../../../shared/schema";
+import { AppLogger } from "../utils/logger";
 
 export const DATABASE_CONNECTION = "DATABASE_CONNECTION";
 
@@ -14,10 +15,18 @@ export const DATABASE_CONNECTION = "DATABASE_CONNECTION";
       useFactory: (configService: ConfigService) => {
         const connectionString = configService.get<string>("DATABASE_URL");
         if (!connectionString) {
-          throw new Error("DATABASE_URL is not defined");
+          AppLogger.info(
+            "Stateless Mode: No DATABASE_URL provided. Database features are disabled.",
+          );
+          return null;
         }
-        const pool = new Pool({ connectionString });
-        return drizzle(pool, { schema });
+        try {
+          const pool = new Pool({ connectionString });
+          return drizzle(pool, { schema });
+        } catch (error) {
+          AppLogger.warn("Failed to initialize database connection:", error);
+          return null;
+        }
       },
       inject: [ConfigService],
     },
@@ -26,4 +35,4 @@ export const DATABASE_CONNECTION = "DATABASE_CONNECTION";
 })
 export class DbModule {}
 
-export type Database = NodePgDatabase<typeof schema>;
+export type Database = NodePgDatabase<typeof schema> | null;

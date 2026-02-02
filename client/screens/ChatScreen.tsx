@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -21,6 +22,7 @@ import { useChatStore, ChatMessage } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useVoice } from "@/hooks/useVoice";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -37,7 +39,14 @@ export default function ChatScreen() {
   const ragSettings = useSettingsStore((state) => state.rag);
 
   const [inputText, setInputText] = React.useState("");
-  const [isRecording, setIsRecording] = React.useState(false);
+  const { isRecording, startRecording, stopRecording, transcription } =
+    useVoice();
+
+  useEffect(() => {
+    if (transcription) {
+      setInputText(transcription);
+    }
+  }, [transcription]);
 
   const {
     messages,
@@ -167,8 +176,12 @@ export default function ChatScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputText, currentConversationId, isStreaming]);
 
-  const handleVoicePress = () => {
-    setIsRecording(!isRecording);
+  const handleVoicePress = async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -192,6 +205,7 @@ export default function ChatScreen() {
     <View style={styles.emptyContainer}>
       <EmptyState
         image={require("../../assets/images/icon.png")}
+        imageStyle={{ borderRadius: 80, opacity: 1 }}
         title={t("startConversation")}
         subtitle={t("askJarvis")}
       >
@@ -275,7 +289,11 @@ export default function ChatScreen() {
       : messages;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    >
       <FlatList
         ref={flatListRef}
         style={styles.list}
@@ -303,7 +321,7 @@ export default function ChatScreen() {
         style={[
           styles.inputContainer,
           {
-            paddingBottom: tabBarHeight + Spacing.lg,
+            paddingBottom: insets.bottom + Spacing.lg,
             backgroundColor: theme.backgroundRoot,
           },
         ]}
@@ -353,7 +371,7 @@ export default function ChatScreen() {
           />
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -391,12 +409,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   inputContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.05)",
   },
   inputRow: {
     flexDirection: "row",

@@ -6,6 +6,8 @@ import {
   Param,
   Body,
   Res,
+  Req,
+  UseGuards,
   NotFoundException,
   ParseIntPipe,
 } from "@nestjs/common";
@@ -16,9 +18,19 @@ import {
   ApiResponse,
   ApiParam,
 } from "@nestjs/swagger";
-import { Response } from "express";
+import { Response, Request } from "express";
 import { ChatService } from "./chat.service";
 import { SendMessageDto, CreateConversationDto } from "./chat.dto";
+import { RateLimitGuard } from "../../guards/rate-limit.guard";
+import { AuthGuard } from "../auth/auth.guard";
+
+interface ExtendedRequest extends Request {
+  ephemeralCredentials?: {
+    llmKey?: string;
+    llmProvider?: string;
+    llmBaseUrl?: string;
+  };
+}
 
 @ApiTags("conversations")
 @Controller("conversations")
@@ -68,27 +80,46 @@ export class ChatController {
   }
 
   @Post(":id/messages")
+  @UseGuards(AuthGuard, RateLimitGuard)
   @ApiOperation({ summary: "Send message (SSE stream)" })
   @ApiParam({ name: "id", type: Number })
   @ApiBody({ type: SendMessageDto })
   @ApiResponse({ status: 200, description: "SSE stream of response" })
   @ApiResponse({ status: 404, description: "Conversation not found" })
+  @ApiResponse({ status: 429, description: "Rate limit exceeded" })
   @ApiResponse({ status: 502, description: "LLM provider error" })
   async sendMessage(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: SendMessageDto,
     @Res() res: Response,
+    @Req() req: ExtendedRequest,
   ) {
     const conversation = this.chatService.getConversation(id);
     if (!conversation) {
       throw new NotFoundException("Conversation not found");
     }
 
+    // Merge ephemeralCredentials with body settings (ephemeralCredentials take priority)
+    const credentials = req.ephemeralCredentials;
+    const llmSettings = {
+      ...body.llmSettings,
+      ...(credentials?.llmKey && { apiKey: credentials.llmKey }),
+      ...(credentials?.llmProvider && {
+        provider: credentials.llmProvider as
+          | "openai"
+          | "groq"
+          | "ollama"
+          | "replit"
+          | "custom",
+      }),
+      ...(credentials?.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
+    } as typeof body.llmSettings;
+
     await this.chatService.streamResponse(
       id,
       body.content,
       res,
-      body.llmSettings,
+      llmSettings,
       body.erpSettings,
       body.ragSettings,
     );

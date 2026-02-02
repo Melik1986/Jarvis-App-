@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
@@ -11,117 +11,37 @@ import {
   RagSettingsRequest,
 } from "./rag.types";
 import { randomUUID } from "crypto";
-import { DATABASE_CONNECTION, Database } from "../../db/db.module";
-import { sql } from "drizzle-orm";
-import * as schema from "../../../../shared/schema";
 import { AppLogger } from "../../utils/logger";
-
-export interface ProviderConfig {
-  type: RagProviderType;
-  qdrant?: RagConfig;
-  supabase?: {
-    url: string;
-    apiKey?: string;
-    tableName: string;
-  };
-  replit?: {
-    tableName: string;
-  };
-}
+import { EphemeralClientPoolService } from "../../services/ephemeral-client-pool.service";
 
 @Injectable()
 export class RagService {
-  private providerConfig: ProviderConfig;
-  private openai: OpenAI;
-  private documents: Map<string, DocumentMetadata> = new Map();
-  private documentContents: Map<string, string> = new Map();
-  private settingsLoaded = false;
+  // Stateless: no in-memory storage
+  // Documents are stored in user's RAG provider (Qdrant/Supabase)
+  // OpenAI client is created per-request via EphemeralClientPoolService
 
   constructor(
     private configService: ConfigService,
-    @Inject(DATABASE_CONNECTION) private db: Database,
-  ) {
-    this.providerConfig = {
-      type: "replit" as RagProviderType,
-      qdrant: {
-        url: this.configService.get("QDRANT_URL") || "",
-        apiKey: this.configService.get("QDRANT_API_KEY"),
-        collectionName: "kb_jarvis",
-      },
-      supabase: {
-        url: this.configService.get("SUPABASE_URL") || "",
-        apiKey: this.configService.get("SUPABASE_ANON_KEY"),
-        tableName: "documents",
-      },
-      replit: {
-        tableName: "rag_documents",
-      },
-    };
-
-    this.openai = new OpenAI({
-      apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
-      baseURL: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
-    });
-
-    this.loadSettingsFromDb();
-  }
-
-  private async loadSettingsFromDb(): Promise<void> {
-    try {
-      const result = await this.db.execute(
-        sql`SELECT value FROM app_settings WHERE key = 'rag_provider_config'`,
-      );
-      if (result.rows && result.rows.length > 0) {
-        const config = JSON.parse(result.rows[0].value as string);
-        this.providerConfig.type = config.type || "replit";
-        if (config.qdrant) this.providerConfig.qdrant = config.qdrant;
-        if (config.supabase) this.providerConfig.supabase = config.supabase;
-        if (config.replit) this.providerConfig.replit = config.replit;
-      }
-      this.settingsLoaded = true;
-    } catch (error) {
-      AppLogger.warn(
-        "Could not load RAG settings from DB, using defaults",
-        error,
-      );
-      this.settingsLoaded = true;
-    }
-  }
-
-  private async saveSettingsToDb(): Promise<void> {
-    try {
-      const configJson = JSON.stringify({
-        type: this.providerConfig.type,
-        qdrant: this.providerConfig.qdrant,
-        supabase: this.providerConfig.supabase,
-        replit: this.providerConfig.replit,
-      });
-      await this.db.execute(
-        sql`INSERT INTO app_settings (key, value, updated_at)
-            VALUES ('rag_provider_config', ${configJson}, CURRENT_TIMESTAMP)
-            ON CONFLICT (key) DO UPDATE SET value = ${configJson}, updated_at = CURRENT_TIMESTAMP`,
-      );
-    } catch (error) {
-      AppLogger.error("Failed to save RAG settings to DB:", error);
-    }
-  }
+    private ephemeralClientPool: EphemeralClientPoolService,
+  ) {}
 
   getProviders(): { id: RagProviderType; name: string; configured: boolean }[] {
+    // Stateless: providers are configured per-request
     return [
       {
         id: "qdrant",
         name: "Qdrant",
-        configured: Boolean(this.providerConfig.qdrant?.url),
+        configured: false, // Checked per-request from ragSettings
       },
       {
         id: "supabase",
         name: "Supabase",
-        configured: Boolean(this.providerConfig.supabase?.url),
+        configured: false, // Checked per-request from ragSettings
       },
       {
         id: "replit",
         name: "Replit PostgreSQL",
-        configured: true,
+        configured: false, // Disabled in stateless mode
       },
       {
         id: "none",
@@ -132,56 +52,51 @@ export class RagService {
   }
 
   getCurrentProvider(): RagProviderType {
-    return this.providerConfig.type;
+    // Stateless: no global provider
+    return "none";
   }
 
   setProvider(settings: RagSettingsRequest): void {
-    this.providerConfig.type = settings.provider;
-    if (settings.qdrant) {
-      this.providerConfig.qdrant = settings.qdrant;
-    }
-    if (settings.supabase) {
-      this.providerConfig.supabase = settings.supabase;
-    }
-    if (settings.replit) {
-      this.providerConfig.replit = settings.replit;
-    }
-    this.saveSettingsToDb();
+    // Stateless: settings are passed per-request, not stored
+    // This method is kept for API compatibility but does nothing
   }
 
-  isAvailable(): boolean {
-    if (this.providerConfig.type === "none") return false;
-    if (this.providerConfig.type === "replit") return true;
-    if (this.providerConfig.type === "qdrant")
-      return Boolean(this.providerConfig.qdrant?.url);
-    if (this.providerConfig.type === "supabase")
-      return Boolean(this.providerConfig.supabase?.url);
+  isAvailable(ragSettings?: RagSettingsRequest): boolean {
+    if (!ragSettings || ragSettings.provider === "none") return false;
+    if (ragSettings.provider === "replit") return false; // Disabled
+    if (ragSettings.provider === "qdrant")
+      return Boolean(ragSettings.qdrant?.url);
+    if (ragSettings.provider === "supabase")
+      return Boolean(ragSettings.supabase?.url);
     return false;
   }
 
+  // Stateless: documents are stored in user's RAG provider
   async listDocuments(): Promise<DocumentMetadata[]> {
-    return Array.from(this.documents.values()).sort(
-      (a, b) =>
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
-    );
+    // Stateless: return empty array
+    // Client should query RAG provider directly if needed
+    return [];
   }
 
   async getDocument(id: string): Promise<DocumentMetadata | null> {
-    return this.documents.get(id) || null;
+    // Stateless: return null
+    // Client should query RAG provider directly if needed
+    return null;
   }
 
   async getDocumentContent(id: string): Promise<string | null> {
-    if (!this.documents.has(id)) {
-      return null;
-    }
-    return this.documentContents.get(id) || "";
+    // Stateless: return null
+    // Client should query RAG provider directly if needed
+    return null;
   }
 
   async uploadDocument(
     buffer: Buffer,
     fileName: string,
     mimeType: string,
+    ragSettings?: RagSettingsRequest,
   ): Promise<DocumentMetadata> {
+    // Stateless: process and upload directly to provider, no local storage
     const id = randomUUID();
     const fileExtension = fileName.split(".").pop()?.toLowerCase() || "other";
     const fileType: DocumentMetadata["type"] =
@@ -204,14 +119,20 @@ export class RagService {
       status: "processing",
     };
 
-    this.documents.set(id, doc);
-
-    this.processDocument(id, buffer, mimeType);
+    // Process and upload to provider asynchronously
+    this.processDocument(id, buffer, mimeType, ragSettings).catch((error) => {
+      AppLogger.error(`Failed to process document ${id}:`, error);
+    });
 
     return doc;
   }
 
-  async uploadFromUrl(url: string, name: string): Promise<DocumentMetadata> {
+  async uploadFromUrl(
+    url: string,
+    name: string,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<DocumentMetadata> {
+    // Stateless: process and upload directly to provider
     const id = randomUUID();
     const fileExtension = name.split(".").pop()?.toLowerCase() || "other";
     const fileType: DocumentMetadata["type"] =
@@ -234,52 +155,50 @@ export class RagService {
       status: "processing",
     };
 
-    this.documents.set(id, doc);
-
-    this.processDocumentFromUrl(id, url);
+    // Process and upload to provider asynchronously
+    this.processDocumentFromUrl(id, url, ragSettings).catch((error) => {
+      AppLogger.error(`Failed to process document from URL ${id}:`, error);
+    });
 
     return doc;
   }
 
-  async deleteDocument(id: string): Promise<boolean> {
-    if (!this.documents.has(id)) {
+  async deleteDocument(
+    id: string,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<boolean> {
+    // Stateless: delete from provider only
+    if (!ragSettings || !this.isAvailable(ragSettings)) {
       return false;
     }
 
-    this.documents.delete(id);
-    this.documentContents.delete(id);
-
-    if (this.isAvailable()) {
-      try {
-        await this.deleteFromProvider(id);
-      } catch (error) {
-        AppLogger.error("Error deleting from provider:", error);
-      }
+    try {
+      await this.deleteFromProvider(id, ragSettings);
+      return true;
+    } catch (error) {
+      AppLogger.error("Error deleting from provider:", error);
+      return false;
     }
-
-    return true;
   }
 
-  async reindexDocument(id: string): Promise<DocumentMetadata | null> {
-    const doc = this.documents.get(id);
-    if (!doc) return null;
-
-    const content = this.documentContents.get(id);
-    if (!content) {
-      doc.status = "error";
-      doc.errorMessage = "No content to reindex";
-      return doc;
-    }
-
-    doc.status = "processing";
-    this.documents.set(id, doc);
-
-    this.indexDocument(id, content);
-
-    return doc;
+  async reindexDocument(
+    id: string,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<DocumentMetadata | null> {
+    // Stateless: reindexing requires content, which we don't store
+    // Client should re-upload document if reindexing is needed
+    AppLogger.warn(
+      "Reindexing not supported in stateless mode. Please re-upload the document.",
+    );
+    return null;
   }
 
-  private async processDocument(id: string, buffer: Buffer, mimeType: string) {
+  private async processDocument(
+    id: string,
+    buffer: Buffer,
+    mimeType: string,
+    ragSettings?: RagSettingsRequest,
+  ) {
     try {
       let content: string;
 
@@ -312,29 +231,18 @@ export class RagService {
         content = `[Document content - format: ${mimeType}]`;
       }
 
-      this.documentContents.set(id, content);
-
-      await this.indexDocument(id, content);
-
-      const doc = this.documents.get(id);
-      if (doc) {
-        doc.status = "indexed";
-        doc.chunkCount = Math.ceil(content.length / 500);
-        this.documents.set(id, doc);
-      }
+      // Stateless: index directly to provider, no local storage
+      await this.indexDocument(id, content, ragSettings);
     } catch (error) {
       AppLogger.error("Error processing document:", error);
-      const doc = this.documents.get(id);
-      if (doc) {
-        doc.status = "error";
-        doc.errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        this.documents.set(id, doc);
-      }
     }
   }
 
-  private async processDocumentFromUrl(id: string, url: string) {
+  private async processDocumentFromUrl(
+    id: string,
+    url: string,
+    ragSettings?: RagSettingsRequest,
+  ) {
     try {
       const response = await fetch(url);
       if (!response.ok) {
@@ -344,43 +252,62 @@ export class RagService {
       const buffer = Buffer.from(await response.arrayBuffer());
       const contentType = response.headers.get("content-type") || "text/plain";
 
-      const doc = this.documents.get(id);
-      if (doc) {
-        doc.size = this.formatFileSize(buffer.length);
-        this.documents.set(id, doc);
-      }
-
-      await this.processDocument(id, buffer, contentType);
+      // Stateless: process and index directly to provider
+      await this.processDocument(id, buffer, contentType, ragSettings);
     } catch (error) {
       AppLogger.error("Error processing document from URL:", error);
-      const doc = this.documents.get(id);
-      if (doc) {
-        doc.status = "error";
-        doc.errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        this.documents.set(id, doc);
-      }
     }
   }
 
-  private async indexDocument(id: string, content: string) {
-    if (!this.isAvailable()) {
+  private async indexDocument(
+    id: string,
+    content: string,
+    ragSettings?: RagSettingsRequest,
+  ) {
+    if (!ragSettings || !this.isAvailable(ragSettings)) {
       return;
     }
 
     try {
       const chunks = this.splitIntoChunks(content, 500);
-      const doc = this.documents.get(id);
+      const doc: DocumentMetadata = {
+        id,
+        name: `Document ${id}`,
+        type: "txt",
+        size: this.formatFileSize(content.length),
+        uploadedAt: new Date(),
+        status: "indexed",
+        chunkCount: chunks.length,
+      };
 
-      switch (this.providerConfig.type) {
+      // Extract LLM settings for embeddings
+      const llmSettings = {
+        apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
+        baseUrl: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+        provider: "openai",
+      };
+
+      switch (ragSettings.provider) {
         case "qdrant":
-          await this.indexToQdrant(id, chunks, doc);
+          await this.indexToQdrant(
+            id,
+            chunks,
+            doc,
+            ragSettings.qdrant,
+            llmSettings,
+          );
           break;
         case "supabase":
-          await this.indexToSupabase(id, chunks, doc);
+          await this.indexToSupabase(
+            id,
+            chunks,
+            doc,
+            ragSettings.supabase,
+            llmSettings,
+          );
           break;
         case "replit":
-          await this.indexToReplit(id, chunks, doc);
+          // Disabled in stateless mode
           break;
       }
     } catch (error) {
@@ -392,13 +319,14 @@ export class RagService {
   private async indexToQdrant(
     id: string,
     chunks: string[],
-    doc?: DocumentMetadata,
+    doc: DocumentMetadata,
+    config?: RagConfig,
+    llmSettings?: { apiKey?: string; baseUrl?: string; provider?: string },
   ) {
-    const config = this.providerConfig.qdrant;
     if (!config?.url) return;
 
     for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.embed(chunks[i]);
+      const embedding = await this.embed(chunks[i], llmSettings);
       await fetch(`${config.url}/collections/${config.collectionName}/points`, {
         method: "PUT",
         headers: {
@@ -426,13 +354,14 @@ export class RagService {
   private async indexToSupabase(
     id: string,
     chunks: string[],
-    doc?: DocumentMetadata,
+    doc: DocumentMetadata,
+    config?: { url: string; apiKey?: string; tableName: string },
+    llmSettings?: { apiKey?: string; baseUrl?: string; provider?: string },
   ) {
-    const config = this.providerConfig.supabase;
     if (!config?.url) return;
 
     for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.embed(chunks[i]);
+      const embedding = await this.embed(chunks[i], llmSettings);
       await fetch(`${config.url}/rest/v1/${config.tableName}`, {
         method: "POST",
         headers: {
@@ -450,39 +379,24 @@ export class RagService {
     }
   }
 
-  private async indexToReplit(
-    id: string,
-    chunks: string[],
-    doc?: DocumentMetadata,
+  private async deleteFromProvider(
+    documentId: string,
+    ragSettings: RagSettingsRequest,
   ) {
-    for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.embed(chunks[i]);
-      await this.db.insert(schema.ragDocuments).values({
-        documentId: id,
-        content: chunks[i],
-        embedding: JSON.stringify(embedding),
-        metadata: JSON.stringify({ documentName: doc?.name }),
-        chunkIndex: i,
-      });
-    }
-  }
-
-  private async deleteFromProvider(documentId: string) {
-    switch (this.providerConfig.type) {
+    switch (ragSettings.provider) {
       case "qdrant":
-        await this.deleteFromQdrant(documentId);
+        await this.deleteFromQdrant(documentId, ragSettings.qdrant);
         break;
       case "supabase":
-        await this.deleteFromSupabase(documentId);
+        await this.deleteFromSupabase(documentId, ragSettings.supabase);
         break;
       case "replit":
-        await this.deleteFromReplit(documentId);
+        // Disabled in stateless mode
         break;
     }
   }
 
-  private async deleteFromQdrant(documentId: string) {
-    const config = this.providerConfig.qdrant;
+  private async deleteFromQdrant(documentId: string, config?: RagConfig) {
     if (!config?.url) return;
 
     await fetch(
@@ -502,8 +416,10 @@ export class RagService {
     );
   }
 
-  private async deleteFromSupabase(documentId: string) {
-    const config = this.providerConfig.supabase;
+  private async deleteFromSupabase(
+    documentId: string,
+    config?: { url: string; apiKey?: string; tableName: string },
+  ) {
     if (!config?.url) return;
 
     await fetch(
@@ -516,12 +432,6 @@ export class RagService {
         },
       },
     );
-  }
-
-  private async deleteFromReplit(documentId: string) {
-    await this.db
-      .delete(schema.ragDocuments)
-      .where(sql`document_id = ${documentId}`);
   }
 
   private splitIntoChunks(text: string, chunkSize: number): string[] {
@@ -554,49 +464,93 @@ export class RagService {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  async embed(text: string): Promise<number[]> {
-    const response = await this.openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-    });
-    return response.data[0].embedding;
+  async embed(
+    text: string,
+    llmSettings?: { apiKey?: string; baseUrl?: string; provider?: string },
+  ): Promise<number[]> {
+    // Use ephemeral client pool for OpenAI embeddings
+    const llmKey =
+      llmSettings?.apiKey ||
+      this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") ||
+      "";
+    const llmBaseUrl =
+      llmSettings?.baseUrl ||
+      this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL");
+
+    if (!llmKey) {
+      throw new Error("OpenAI API key is required for embeddings");
+    }
+
+    return await this.ephemeralClientPool.useClient(
+      {
+        llmKey,
+        llmProvider: (llmSettings?.provider as string) || "openai",
+        llmBaseUrl,
+      },
+      async (client: OpenAI) => {
+        const response = await client.embeddings.create({
+          model: "text-embedding-3-small",
+          input: text,
+        });
+        return response.data[0].embedding;
+      },
+    );
   }
 
   async search(
     query: string,
     limit = 3,
-    overrideQdrantConfig?: RagConfig,
+    ragSettings?: RagSettingsRequest,
   ): Promise<SearchResult[]> {
-    if (!this.isAvailable()) {
-      return this.getLocalResults(query, limit);
+    if (!ragSettings || !this.isAvailable(ragSettings)) {
+      return [];
     }
 
     try {
-      switch (this.providerConfig.type) {
+      // Extract LLM settings from request if available
+      // Note: RagSettingsRequest doesn't include llmSettings, so we use defaults
+      const llmSettings = {
+        apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
+        baseUrl: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+        provider: "openai",
+      };
+
+      switch (ragSettings.provider) {
         case "qdrant":
-          return await this.searchQdrant(query, limit, overrideQdrantConfig);
+          return await this.searchQdrant(
+            query,
+            limit,
+            ragSettings.qdrant,
+            llmSettings,
+          );
         case "supabase":
-          return await this.searchSupabase(query, limit);
+          return await this.searchSupabase(
+            query,
+            limit,
+            ragSettings.supabase,
+            llmSettings,
+          );
         case "replit":
-          return await this.searchReplit(query, limit);
+          // Disabled in stateless mode
+          return [];
         default:
-          return this.getLocalResults(query, limit);
+          return [];
       }
     } catch (error) {
       AppLogger.error("Error searching:", error);
-      return this.getLocalResults(query, limit);
+      return [];
     }
   }
 
   private async searchQdrant(
     query: string,
     limit: number,
-    overrideConfig?: RagConfig,
+    config?: RagConfig,
+    llmSettings?: { apiKey?: string; baseUrl?: string; provider?: string },
   ): Promise<SearchResult[]> {
-    const config = overrideConfig || this.providerConfig.qdrant;
     if (!config?.url) return [];
 
-    const embedding = await this.embed(query);
+    const embedding = await this.embed(query, llmSettings);
     const response = await fetch(
       `${config.url}/collections/${config.collectionName}/points/search`,
       {
@@ -625,11 +579,12 @@ export class RagService {
   private async searchSupabase(
     query: string,
     limit: number,
+    config?: { url: string; apiKey?: string; tableName: string },
+    llmSettings?: { apiKey?: string; baseUrl?: string; provider?: string },
   ): Promise<SearchResult[]> {
-    const config = this.providerConfig.supabase;
     if (!config?.url) return [];
 
-    const embedding = await this.embed(query);
+    const embedding = await this.embed(query, llmSettings);
     const response = await fetch(`${config.url}/rest/v1/rpc/match_documents`, {
       method: "POST",
       headers: {
@@ -643,7 +598,7 @@ export class RagService {
       }),
     });
 
-    if (!response.ok) return this.getLocalResults(query, limit);
+    if (!response.ok) return [];
 
     const results = await response.json();
     return results.map(
@@ -654,31 +609,6 @@ export class RagService {
         metadata: { source: "supabase" },
       }),
     );
-  }
-
-  private async searchReplit(
-    query: string,
-    limit: number,
-  ): Promise<SearchResult[]> {
-    const queryEmbedding = await this.embed(query);
-
-    const docs = await this.db.select().from(schema.ragDocuments).limit(100);
-
-    const scored = docs
-      .map((doc) => {
-        const docEmbedding = doc.embedding ? JSON.parse(doc.embedding) : [];
-        const score = this.cosineSimilarity(queryEmbedding, docEmbedding);
-        return { ...doc, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-
-    return scored.map((doc) => ({
-      id: doc.id,
-      score: doc.score,
-      content: doc.content,
-      metadata: { source: "replit" },
-    }));
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {
@@ -694,26 +624,10 @@ export class RagService {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  private getLocalResults(query: string, limit: number): SearchResult[] {
-    const lowerQuery = query.toLowerCase();
-    const results: SearchResult[] = [];
-
-    for (const [id, content] of this.documentContents) {
-      if (content.toLowerCase().includes(lowerQuery)) {
-        const doc = this.documents.get(id);
-        results.push({
-          id,
-          score: 0.8,
-          content: content.substring(0, 500),
-          metadata: {
-            title: doc?.name,
-            source: "local",
-          },
-        });
-      }
-    }
-
-    return results.slice(0, limit);
+  // Stateless: no local results storage
+  private getLocalResults(_query: string, _limit: number): SearchResult[] {
+    // Return empty array - client should use RAG provider
+    return [];
   }
 
   buildContext(results: SearchResult[]): string {
@@ -729,10 +643,15 @@ export class RagService {
     return `Релевантная информация из базы знаний:\n\n${contextParts.join("\n\n---\n\n")}`;
   }
 
-  async seedDemoData(): Promise<{
+  // Stateless: seedDemoData requires ragSettings to upload to provider
+  async seedDemoData(ragSettings?: RagSettingsRequest): Promise<{
     created: number;
     documents: DocumentMetadata[];
   }> {
+    if (!ragSettings || !this.isAvailable(ragSettings)) {
+      return { created: 0, documents: [] };
+    }
+
     const demoDocuments = [
       {
         name: "Company Overview",
@@ -876,15 +795,12 @@ SDKs Available:
     const createdDocs: DocumentMetadata[] = [];
 
     for (const demo of demoDocuments) {
-      const existing = Array.from(this.documents.values()).find(
-        (d) => d.name === demo.name,
-      );
-      if (existing) continue;
-
+      // Stateless: upload directly to provider
       const doc = await this.uploadDocument(
         Buffer.from(demo.content, "utf-8"),
         demo.name,
         "text/plain",
+        ragSettings,
       );
       createdDocs.push(doc);
     }

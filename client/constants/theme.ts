@@ -47,9 +47,15 @@ export const Colors = {
 
 export type ThemeColors = typeof Colors.light;
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
-export const getColors = (mode: ThemeMode) => Colors[mode];
+export const getColors = (mode: ThemeMode) => {
+  if (mode === "system") {
+    // This is a fallback, actual system theme is handled via hooks
+    return Colors.light;
+  }
+  return Colors[mode];
+};
 
 export const Spacing = {
   xs: 4,

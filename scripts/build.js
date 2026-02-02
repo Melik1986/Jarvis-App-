@@ -125,9 +125,11 @@ async function startMetro(expoPublicDomain) {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
   };
-  metroProcess = spawn("npm", ["run", "expo:start:static:build"], {
+  const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+  metroProcess = spawn(npmCmd, ["run", "expo:start:static:build"], {
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,
+    shell: true,
     env,
   });
 

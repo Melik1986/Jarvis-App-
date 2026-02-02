@@ -85,6 +85,12 @@ module.exports = defineConfig([
 
   // Ignores
   {
-    ignores: ["dist/*", "server_dist/*", "server-nest/dist/*", "**/*.d.ts"],
+    ignores: [
+      "dist/*",
+      "server_dist/*",
+      "server/dist/*",
+      "server-nest/dist/*",
+      "**/*.d.ts",
+    ],
   },
 ]);

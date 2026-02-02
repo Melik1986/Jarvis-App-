@@ -100,7 +100,7 @@ export default function RAGSettingsScreen() {
       qdrant: {
         url: qdrantUrl,
         apiKey: qdrantApiKey,
-        collectionName: collectionName || "kb_jarvis",
+        collectionName: collectionName || "kb_axon",
       },
       supabase: {
         url: supabaseUrl,
@@ -151,11 +151,19 @@ export default function RAGSettingsScreen() {
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
         >
-          {t("ragConfigDesc")}
-        </ThemedText>
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("ragHint")}
+          </ThemedText>
+        </View>
 
         <View style={styles.providerList}>
           {providers.map((p) => (
@@ -277,7 +285,7 @@ export default function RAGSettingsScreen() {
                   color: theme.text,
                 },
               ]}
-              placeholder="kb_jarvis"
+              placeholder="kb_axon"
               placeholderTextColor={theme.textTertiary}
               value={collectionName}
               onChangeText={setCollectionName}
@@ -474,6 +482,16 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: Spacing.lg,
+  },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputLabel: {
     fontSize: 14,

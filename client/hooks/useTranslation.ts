@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { getLocales } from "expo-localization";
 import { useSettingsStore } from "@/store/settingsStore";
 import {
   translations,
@@ -7,17 +8,28 @@ import {
 } from "@/i18n/translations";
 
 export function useTranslation() {
-  const language = useSettingsStore(
-    (state) => state.language,
-  ) as SupportedLanguage;
+  const languageSetting = useSettingsStore((state) => state.language);
 
   const t = useCallback(
     (key: TranslationKey): string => {
-      const lang = translations[language] ? language : "en";
-      return translations[lang][key] || translations.en[key] || key;
+      let language = languageSetting;
+
+      if (language === "system") {
+        const deviceLanguage = getLocales()[0].languageCode;
+        language = deviceLanguage || "en";
+      }
+
+      const lang = (
+        translations[language as SupportedLanguage] ? language : "en"
+      ) as SupportedLanguage;
+
+      const translationSet = translations[lang] as Record<string, string>;
+      const fallbackSet = translations.en as Record<string, string>;
+
+      return translationSet[key] || fallbackSet[key] || key;
     },
-    [language],
+    [languageSetting],
   );
 
-  return { t, language };
+  return { t, language: languageSetting };
 }

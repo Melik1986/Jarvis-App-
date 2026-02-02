@@ -7,8 +7,11 @@ import ERPSettingsScreen from "@/screens/ERPSettingsScreen";
 import RAGSettingsScreen from "@/screens/RAGSettingsScreen";
 import LanguageScreen from "@/screens/LanguageScreen";
 import VoiceScreen from "@/screens/VoiceScreen";
+import HelpScreen from "@/screens/HelpScreen";
+import PrivacyScreen from "@/screens/PrivacyScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useAuthStore } from "@/store/authStore";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -18,11 +21,14 @@ export type RootStackParamList = {
   RAGSettings: undefined;
   Language: undefined;
   Voice: undefined;
+  Help: undefined;
+  Privacy: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
+  const { t } = useTranslation();
   const screenOptions = useScreenOptions();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -46,7 +52,7 @@ export default function RootStackNavigator() {
             component={LLMProviderScreen}
             options={{
               presentation: "modal",
-              headerTitle: "AI Provider",
+              headerTitle: t("provider"),
             }}
           />
           <Stack.Screen
@@ -54,7 +60,7 @@ export default function RootStackNavigator() {
             component={ERPSettingsScreen}
             options={{
               presentation: "modal",
-              headerTitle: "ERP Connection",
+              headerTitle: t("provider"),
             }}
           />
           <Stack.Screen
@@ -62,7 +68,7 @@ export default function RootStackNavigator() {
             component={RAGSettingsScreen}
             options={{
               presentation: "modal",
-              headerTitle: "Knowledge Base",
+              headerTitle: t("settings"),
             }}
           />
           <Stack.Screen
@@ -70,7 +76,7 @@ export default function RootStackNavigator() {
             component={LanguageScreen}
             options={{
               presentation: "modal",
-              headerTitle: "Language",
+              headerTitle: t("language"),
             }}
           />
           <Stack.Screen
@@ -78,7 +84,23 @@ export default function RootStackNavigator() {
             component={VoiceScreen}
             options={{
               presentation: "modal",
-              headerTitle: "Voice Settings",
+              headerTitle: t("theme"),
+            }}
+          />
+          <Stack.Screen
+            name="Help"
+            component={HelpScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: t("helpSupport"),
+            }}
+          />
+          <Stack.Screen
+            name="Privacy"
+            component={PrivacyScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: t("privacyPolicy"),
             }}
           />
         </>

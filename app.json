@@ -19,7 +19,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.axon.mobile"
+      "package": "com.axon.mobile",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "single",

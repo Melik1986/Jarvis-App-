@@ -79,7 +79,7 @@ const defaultRag: RagSettings = {
   qdrant: {
     url: "",
     apiKey: "",
-    collectionName: "kb_jarvis",
+    collectionName: "kb_axon",
   },
   supabase: {
     url: "",
@@ -98,8 +98,8 @@ export const useSettingsStore = create<SettingsState>()(
       erp: defaultERP,
       rag: defaultRag,
       voice: "alloy",
-      language: "ru",
-      theme: "dark",
+      language: "system",
+      theme: "system",
       setLLMSettings: (settings) =>
         set((state) => ({ llm: { ...state.llm, ...settings } })),
       setERPSettings: (settings) =>
@@ -113,8 +113,8 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
       setVoice: (voice) => set({ voice }),
-      setLanguage: (language) => set({ language }),
-      setTheme: (theme) => set({ theme }),
+      setLanguage: (language: string) => set({ language }),
+      setTheme: (theme: ThemeMode) => set({ theme }),
       resetToDefaults: () =>
         set({
           llm: defaultLLM,

@@ -198,8 +198,8 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 5000;
-  await app.listen(port);
-  AppLogger.info(`Nest.js server running on port ${port}`);
+  await app.listen(port, "0.0.0.0");
+  AppLogger.info(`Nest.js server running on port ${port} (0.0.0.0)`);
 }
 
 bootstrap();

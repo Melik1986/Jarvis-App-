@@ -1,7 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**
- * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
+ * Gets the base URL for the Express API server (e.g., "http://localhost:5000" or "https://repl.replit.app").
+ * For local run without Replit use EXPO_PUBLIC_DOMAIN=http://localhost:5000 (or http://YOUR_IP:5000 for device).
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
@@ -11,7 +12,11 @@ export function getApiUrl(): string {
     throw new Error("EXPO_PUBLIC_DOMAIN is not set");
   }
 
-  const url = new URL(`https://${host}`);
+  const withProtocol =
+    host.startsWith("http://") || host.startsWith("https://")
+      ? host
+      : `https://${host}`;
+  const url = new URL(withProtocol);
 
   return url.href;
 }
