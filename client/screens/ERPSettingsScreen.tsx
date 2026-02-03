@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, Pressable } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -12,6 +18,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import type { ERPProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -23,6 +30,7 @@ export default function ERPSettingsScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
 
   const { erp, setERPSettings } = useSettingsStore();
 
@@ -54,6 +62,31 @@ export default function ERPSettingsScreen() {
   };
 
   const isDemo = provider === "demo";
+
+  if (!isUnlocked) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
+        {isAuthenticating ? (
+          <ActivityIndicator size="large" color={theme.primary} />
+        ) : (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              Доступ заблокирован. Требуется подтверждение личности.
+            </ThemedText>
+            <Button onPress={authenticate}>Попробовать снова</Button>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -262,6 +295,10 @@ export default function ERPSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     paddingHorizontal: Spacing.lg,

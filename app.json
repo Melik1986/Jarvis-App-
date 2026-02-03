@@ -59,7 +59,8 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice commands."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "reactCompiler": true
