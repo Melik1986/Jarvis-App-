@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
+import {
+  createHybridStorage,
+  AUTH_SENSITIVE_PATHS,
+} from "@/lib/secure-settings-storage";
 
 export interface User {
   id: string;
@@ -96,7 +99,13 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "axon-auth",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() =>
+        createHybridStorage(
+          "axon-auth",
+          AUTH_SENSITIVE_PATHS,
+          "axon-auth-session",
+        ),
+      ),
       partialize: (state) => ({
         user: state.user,
         session: state.session,

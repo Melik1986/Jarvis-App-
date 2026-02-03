@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeMode } from "@/constants/theme";
+import {
+  createHybridStorage,
+  SETTINGS_SENSITIVE_PATHS,
+} from "@/lib/secure-settings-storage";
 
 interface LLMSettings {
   baseUrl: string;
@@ -127,7 +130,13 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "jsrvis-settings",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() =>
+        createHybridStorage(
+          "jsrvis-settings",
+          SETTINGS_SENSITIVE_PATHS,
+          "axon-settings-secrets",
+        ),
+      ),
     },
   ),
 );

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppLogger } from "./logger";
 
 export interface AuditEntry {
   timestamp: Date;
@@ -28,8 +29,7 @@ export class AuditLog {
       const trimmed = logs.slice(-this.MAX_ENTRIES);
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(trimmed));
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to add audit log entry:", error);
+      AppLogger.error("Failed to add audit log entry:", error);
     }
   }
 
@@ -49,8 +49,7 @@ export class AuditLog {
         timestamp: new Date(entry.timestamp),
       }));
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to get audit logs:", error);
+      AppLogger.error("Failed to get audit logs:", error);
       return [];
     }
   }
@@ -62,8 +61,7 @@ export class AuditLog {
     try {
       await AsyncStorage.removeItem(this.STORAGE_KEY);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to clear audit logs:", error);
+      AppLogger.error("Failed to clear audit logs:", error);
     }
   }
 

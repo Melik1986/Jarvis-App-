@@ -18,6 +18,7 @@ import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -28,6 +29,7 @@ export default function RAGSettingsScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
 
   const { rag, setRagSettings } = useSettingsStore();
 
@@ -124,7 +126,7 @@ export default function RAGSettingsScreen() {
     }
   };
 
-  if (loading || provider === null) {
+  if (loading || provider === null || !isUnlocked) {
     return (
       <View
         style={[
@@ -133,7 +135,18 @@ export default function RAGSettingsScreen() {
           { backgroundColor: theme.backgroundRoot },
         ]}
       >
-        <ActivityIndicator size="large" color={theme.primary} />
+        {!isUnlocked && !isAuthenticating ? (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              Доступ заблокирован. Требуется подтверждение личности.
+            </ThemedText>
+            <Button onPress={authenticate}>Попробовать снова</Button>
+          </View>
+        ) : (
+          <ActivityIndicator size="large" color={theme.primary} />
+        )}
       </View>
     );
   }

@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -22,6 +23,7 @@ import {
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
@@ -174,6 +176,7 @@ export default function LLMProviderScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
 
   const { llm, setLLMSettings } = useSettingsStore();
 
@@ -236,6 +239,31 @@ export default function LLMProviderScreen() {
 
   const showCustomFields = selectedProvider !== "replit";
   const availableModels = modelsByProvider[selectedProvider];
+
+  if (!isUnlocked) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
+        {isAuthenticating ? (
+          <ActivityIndicator size="large" color={theme.primary} />
+        ) : (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              Доступ заблокирован. Требуется подтверждение личности.
+            </ThemedText>
+            <Button onPress={authenticate}>Попробовать снова</Button>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -474,6 +502,10 @@ export default function LLMProviderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     paddingHorizontal: Spacing.lg,
