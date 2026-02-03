@@ -30,13 +30,27 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env and secrets (never commit)
 .env
 .env.local
 .env*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+*.secret
+.secrets/
+credentials*.json
+*-credentials*.json
+.api-keys
 
 # typescript
 *.tsbuildinfo
+
+# test/coverage
+coverage/
+.nyc_output/
+.turbo/
 
 # example app
 app-example
@@ -73,6 +87,11 @@ server_dist
 project/
 static-build/
 .keys/
+
+# Dependency-check (OWASP) — binaries and reports, regeneratable
+dependency-check-bin/
+dependency-check-report.json
+dependency-list.txt
 
 # Database
 *.db
