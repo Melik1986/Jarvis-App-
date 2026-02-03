@@ -1,5 +1,6 @@
 {
-  "extends": "expo/tsconfig.base.json",
+  "$schema": "https://json.schemastore.org/tsconfig.json",
+  "extends": "./node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,

@@ -6,6 +6,7 @@ import {
   serial,
   integer,
   timestamp,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -178,3 +179,56 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+export const rules = pgTable("rules", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(),
+  description: text("description"),
+  condition: text("condition").notNull(), // JSON string: { tool: "create_invoice", field: "quantity", operator: "<", value: 0 }
+  action: text("action").notNull(), // "reject" | "warn" | "require_confirmation"
+  message: text("message"), // Message to user
+  priority: integer("priority").default(0),
+  enabled: boolean("enabled").default(true),
+  createdAt: timestamp("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const insertRuleSchema = createInsertSchema(rules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Rule = typeof rules.$inferSelect;
+export type InsertRule = z.infer<typeof insertRuleSchema>;
+
+export const skills = pgTable("skills", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(),
+  description: text("description"),
+  code: text("code").notNull(), // JavaScript code
+  inputSchema: text("input_schema"), // JSON Schema for input
+  outputSchema: text("output_schema"), // JSON Schema for output
+  enabled: boolean("enabled").default(true),
+  createdAt: timestamp("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const insertSkillSchema = createInsertSchema(skills).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Skill = typeof skills.$inferSelect;
+export type InsertSkill = z.infer<typeof insertSkillSchema>;

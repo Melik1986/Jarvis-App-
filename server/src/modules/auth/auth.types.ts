@@ -1,9 +1,20 @@
+import { Request } from "express";
+
 export interface AuthUser {
   id: string;
   email: string;
   name?: string | null;
   picture?: string | null;
   replitId?: string | null;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: AuthUser;
+  ephemeralCredentials?: {
+    llmKey?: string;
+    llmProvider?: string;
+    llmBaseUrl?: string;
+  };
 }
 
 export interface AuthSession {

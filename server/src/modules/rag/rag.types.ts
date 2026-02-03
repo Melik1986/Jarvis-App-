@@ -45,6 +45,8 @@ export interface RagSettingsRequest {
   replit?: {
     tableName: string;
   };
+  openaiApiKey?: string;
+  openaiBaseUrl?: string;
 }
 
 export interface DocumentMetadata {
