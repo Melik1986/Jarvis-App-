@@ -18,19 +18,12 @@ import {
   ApiResponse,
   ApiParam,
 } from "@nestjs/swagger";
-import { Response, Request } from "express";
+import { Response } from "express";
 import { ChatService } from "./chat.service";
 import { SendMessageDto, CreateConversationDto } from "./chat.dto";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
-
-interface ExtendedRequest extends Request {
-  ephemeralCredentials?: {
-    llmKey?: string;
-    llmProvider?: string;
-    llmBaseUrl?: string;
-  };
-}
+import { AuthenticatedRequest } from "../auth/auth.types";
 
 @ApiTags("conversations")
 @Controller("conversations")
@@ -92,7 +85,7 @@ export class ChatController {
     @Param("id", ParseIntPipe) id: number,
     @Body() body: SendMessageDto,
     @Res() res: Response,
-    @Req() req: ExtendedRequest,
+    @Req() req: AuthenticatedRequest,
   ) {
     const conversation = this.chatService.getConversation(id);
     if (!conversation) {
@@ -116,6 +109,7 @@ export class ChatController {
     } as typeof body.llmSettings;
 
     await this.chatService.streamResponse(
+      req.user.id,
       id,
       body.content,
       res,

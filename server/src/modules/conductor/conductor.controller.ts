@@ -1,18 +1,10 @@
 import { Controller, Post, Body, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from "@nestjs/swagger";
-import { Request } from "express";
 import { ChatService } from "../chat/chat.service";
 import { ConductorParseDto } from "./conductor.dto";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
-
-interface ExtendedRequest extends Request {
-  ephemeralCredentials?: {
-    llmKey?: string;
-    llmProvider?: string;
-    llmBaseUrl?: string;
-  };
-}
+import { AuthenticatedRequest } from "../auth/auth.types";
 
 @ApiTags("conversations")
 @Controller("conductor")
@@ -51,7 +43,10 @@ export class ConductorController {
   })
   @ApiResponse({ status: 429, description: "Rate limit exceeded" })
   @ApiResponse({ status: 502, description: "LLM provider error" })
-  async parse(@Body() body: ConductorParseDto, @Req() req: ExtendedRequest) {
+  async parse(
+    @Body() body: ConductorParseDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     // Merge ephemeralCredentials with body settings (ephemeralCredentials take priority)
     const credentials = req.ephemeralCredentials;
     const llmSettings = {
@@ -69,6 +64,7 @@ export class ConductorController {
     } as typeof body.llmSettings;
 
     return this.chatService.parseRawText(
+      req.user.id,
       body.rawText,
       llmSettings,
       body.erpSettings,

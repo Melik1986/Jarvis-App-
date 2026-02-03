@@ -7,6 +7,7 @@ export interface ErpConfig {
   password?: string;
   apiKey?: string;
   apiType?: "rest" | "odata" | "graphql";
+  openApiSpecUrl?: string;
 }
 
 export interface StockItem {

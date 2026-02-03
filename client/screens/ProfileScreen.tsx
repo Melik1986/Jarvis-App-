@@ -236,6 +236,38 @@ export default function ProfileScreen() {
         <ThemedText
           style={[styles.sectionTitle, { color: theme.textTertiary }]}
         >
+          Agent Platform
+        </ThemedText>
+        <SettingsItem
+          icon="shield-checkmark-outline"
+          title="Agent Rules"
+          subtitle="Validation and constraints"
+          onPress={() => handleNavigate("Rulebook")}
+        />
+        <SettingsItem
+          icon="library-outline"
+          title="Local Knowledge"
+          subtitle="Offline document search"
+          onPress={() => handleNavigate("LocalRAG")}
+        />
+        <SettingsItem
+          icon="flash-outline"
+          title="Skill Store"
+          subtitle="Custom agent capabilities"
+          onPress={() => handleNavigate("SkillStore")}
+        />
+        <SettingsItem
+          icon="server-outline"
+          title="MCP Servers"
+          subtitle="External tool providers"
+          onPress={() => handleNavigate("MCPServers")}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
           {t("usage")}
         </ThemedText>
         <SpendingTracker />

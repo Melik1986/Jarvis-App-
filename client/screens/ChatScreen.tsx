@@ -19,6 +19,7 @@ import { ChatBubble } from "@/components/ChatBubble";
 import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
+import type { ToolCall } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -134,6 +135,7 @@ export default function ChatScreen() {
 
       const decoder = new TextDecoder();
       let fullContent = "";
+      const toolCalls: ToolCall[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -150,12 +152,32 @@ export default function ChatScreen() {
               fullContent += data.content;
               setStreamingContent(fullContent);
             }
+            if (data.toolCall) {
+              toolCalls.push({ ...data.toolCall, status: "calling" });
+            }
+            if (data.toolResult) {
+              const idx = toolCalls.findIndex(
+                (t) =>
+                  t.toolName === data.toolResult.toolName &&
+                  t.status === "calling",
+              );
+              if (idx !== -1) {
+                toolCalls[idx] = {
+                  ...toolCalls[idx],
+                  ...data.toolResult,
+                  status: "done",
+                };
+              } else {
+                toolCalls.push({ ...data.toolResult, status: "done" });
+              }
+            }
             if (data.done) {
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
                 content: fullContent,
                 createdAt: new Date().toISOString(),
+                toolCalls: toolCalls,
               };
               addMessage(assistantMessage);
               clearStreamingContent();
@@ -187,9 +209,25 @@ export default function ChatScreen() {
     }
   };
 
+  const handleConfirmAction = (toolName: string) => {
+    setInputText(`Confirm: ${toolName}`);
+    // Optional: automatically send the message
+    // setTimeout(sendMessage, 100);
+  };
+
+  const handleRejectAction = (toolName: string) => {
+    setInputText(`Reject: ${toolName}`);
+  };
+
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => (
-      <ChatBubble content={item.content} isUser={item.role === "user"} />
+      <ChatBubble
+        content={item.content}
+        isUser={item.role === "user"}
+        toolCalls={item.toolCalls}
+        onConfirm={handleConfirmAction}
+        onReject={handleRejectAction}
+      />
     ),
     [],
   );

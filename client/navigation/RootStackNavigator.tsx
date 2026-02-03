@@ -9,6 +9,10 @@ import LanguageScreen from "@/screens/LanguageScreen";
 import VoiceScreen from "@/screens/VoiceScreen";
 import HelpScreen from "@/screens/HelpScreen";
 import PrivacyScreen from "@/screens/PrivacyScreen";
+import RulebookScreen from "@/screens/RulebookScreen";
+import LocalRAGScreen from "@/screens/LocalRAGScreen";
+import SkillStoreScreen from "@/screens/SkillStoreScreen";
+import MCPServersScreen from "@/screens/MCPServersScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useAuthStore } from "@/store/authStore";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -23,6 +27,10 @@ export type RootStackParamList = {
   Voice: undefined;
   Help: undefined;
   Privacy: undefined;
+  Rulebook: undefined;
+  LocalRAG: undefined;
+  SkillStore: undefined;
+  MCPServers: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -101,6 +109,38 @@ export default function RootStackNavigator() {
             options={{
               presentation: "modal",
               headerTitle: t("privacyPolicy"),
+            }}
+          />
+          <Stack.Screen
+            name="Rulebook"
+            component={RulebookScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: "Agent Rules",
+            }}
+          />
+          <Stack.Screen
+            name="LocalRAG"
+            component={LocalRAGScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: "Local Knowledge",
+            }}
+          />
+          <Stack.Screen
+            name="SkillStore"
+            component={SkillStoreScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: "Skill Store",
+            }}
+          />
+          <Stack.Screen
+            name="MCPServers"
+            component={MCPServersScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: "MCP Servers",
             }}
           />
         </>

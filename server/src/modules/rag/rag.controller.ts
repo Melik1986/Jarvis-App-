@@ -158,4 +158,19 @@ export class RagController {
       ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
     return this.ragService.seedDemoData(settings);
   }
+
+  @Post("embeddings")
+  @UseGuards(AuthGuard, RateLimitGuard)
+  async getEmbeddings(
+    @Body("text") text: string,
+    @Body("ragSettings") ragSettings?: RagSettingsRequest,
+    @Req() req?: ExtendedRequest,
+  ) {
+    if (!text) {
+      throw new HttpException("Text is required", HttpStatus.BAD_REQUEST);
+    }
+    const settings =
+      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
+    return { embedding: await this.ragService.getEmbeddings(text, settings) };
+  }
 }

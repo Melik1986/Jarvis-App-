@@ -316,6 +316,41 @@ export class RagService {
     }
   }
 
+  /**
+   * Generate embeddings for text using OpenAI.
+   */
+  async getEmbeddings(
+    text: string,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<number[]> {
+    const llmKey =
+      ragSettings?.openaiApiKey ||
+      this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") ||
+      "";
+    const llmBaseUrl =
+      ragSettings?.openaiBaseUrl ||
+      this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL");
+
+    if (!llmKey) {
+      throw new Error("OpenAI API key is required for embeddings");
+    }
+
+    return this.ephemeralClientPool.useClient(
+      {
+        llmKey,
+        llmProvider: "openai",
+        llmBaseUrl,
+      },
+      async (client) => {
+        const response = await client.embeddings.create({
+          model: "text-embedding-3-small",
+          input: text,
+        });
+        return response.data[0].embedding;
+      },
+    );
+  }
+
   private async indexToQdrant(
     id: string,
     chunks: string[],
