@@ -116,6 +116,7 @@ export class ChatController {
       llmSettings,
       body.erpSettings,
       body.ragSettings,
+      body.attachments,
     );
   }
 }

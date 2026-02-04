@@ -245,6 +245,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     flexGrow: 1,
   },
+  emptyListContent: {
+    justifyContent: "center",
+    flexGrow: 1,
+  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",

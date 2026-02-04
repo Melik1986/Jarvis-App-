@@ -7,19 +7,26 @@ import {
   Pressable,
   Platform,
   KeyboardAvoidingView,
+  Alert,
+  ActionSheetIOS,
+  ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import { Image } from "expo-image";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
 import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
-import type { ToolCall } from "@shared/types";
+import type { ToolCall, Attachment } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -40,6 +47,7 @@ export default function ChatScreen() {
   const ragSettings = useSettingsStore((state) => state.rag);
 
   const [inputText, setInputText] = React.useState("");
+  const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const { isRecording, startRecording, stopRecording, transcription } =
     useVoice();
 
@@ -81,17 +89,24 @@ export default function ChatScreen() {
   }, [createOrLoadConversation]);
 
   const sendMessage = useCallback(async () => {
-    if (!inputText.trim() || !currentConversationId || isStreaming) return;
+    if (
+      (!inputText.trim() && attachments.length === 0) ||
+      !currentConversationId ||
+      isStreaming
+    )
+      return;
 
     const userMessage: ChatMessage = {
       id: Date.now(),
       role: "user",
       content: inputText.trim(),
       createdAt: new Date().toISOString(),
+      attachments: attachments,
     };
 
     addMessage(userMessage);
     setInputText("");
+    setAttachments([]);
     setStreaming(true);
     clearStreamingContent();
 
@@ -108,6 +123,7 @@ export default function ChatScreen() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             content: userMessage.content,
+            attachments: userMessage.attachments,
             llmSettings: {
               provider: llmSettings.provider,
               baseUrl: llmSettings.baseUrl,
@@ -196,7 +212,7 @@ export default function ChatScreen() {
       setStreaming(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputText, currentConversationId, isStreaming]);
+  }, [inputText, attachments, currentConversationId, isStreaming]);
 
   const handleVoicePress = async () => {
     if (isRecording) {
@@ -217,6 +233,125 @@ export default function ChatScreen() {
 
   const handleRejectAction = (toolName: string) => {
     setInputText(`Reject: ${toolName}`);
+  };
+
+  const handleCamera = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const attachment: Attachment = {
+          name: `Photo ${new Date().toLocaleTimeString()}`,
+          type: "image",
+          mimeType: asset.mimeType || "image/jpeg",
+          uri: asset.uri,
+          base64: asset.base64 || undefined,
+        };
+        setAttachments((prev) => [...prev, attachment]);
+      }
+    } catch (error) {
+      AppLogger.error("Camera error:", error);
+    }
+  };
+
+  const handleImageLibrary = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const attachment: Attachment = {
+          name: asset.fileName || "Image",
+          type: "image",
+          mimeType: asset.mimeType || "image/jpeg",
+          uri: asset.uri,
+          base64: asset.base64 || undefined,
+        };
+        setAttachments((prev) => [...prev, attachment]);
+      }
+    } catch (error) {
+      AppLogger.error("Image library error:", error);
+    }
+  };
+
+  const handleDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        let base64: string | undefined;
+
+        try {
+          base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: "base64",
+          });
+        } catch (e) {
+          AppLogger.warn("Failed to read document as base64", e);
+        }
+
+        const attachment: Attachment = {
+          name: asset.name,
+          type: "file",
+          mimeType: asset.mimeType || "application/octet-stream",
+          uri: asset.uri,
+          base64,
+        };
+        setAttachments((prev) => [...prev, attachment]);
+      }
+    } catch (error) {
+      AppLogger.error("Document picker error:", error);
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAttach = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    const options = [
+      t("cancel"),
+      t("camera"),
+      t("photoLibrary"),
+      t("document"),
+    ];
+    const cancelButtonIndex = 0;
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleCamera();
+          else if (buttonIndex === 2) handleImageLibrary();
+          else if (buttonIndex === 3) handleDocument();
+        },
+      );
+    } else {
+      Alert.alert(t("addAttachment"), t("chooseSource"), [
+        { text: t("camera"), onPress: handleCamera },
+        { text: t("photoLibrary"), onPress: handleImageLibrary },
+        { text: t("document"), onPress: handleDocument },
+        { text: t("cancel"), style: "cancel" },
+      ]);
+    }
   };
 
   const renderMessage = useCallback(
@@ -366,7 +501,56 @@ export default function ChatScreen() {
           },
         ]}
       >
+        {attachments.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.attachmentsContainer}
+            contentContainerStyle={styles.attachmentsContent}
+          >
+            {attachments.map((att, index) => (
+              <View key={index} style={styles.attachmentPreview}>
+                {att.type === "image" ? (
+                  <Image
+                    source={{ uri: att.uri }}
+                    style={styles.attachmentImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.attachmentFile,
+                      { backgroundColor: theme.backgroundSecondary },
+                    ]}
+                  >
+                    <Ionicons
+                      name="document-text"
+                      size={24}
+                      color={theme.primary}
+                    />
+                  </View>
+                )}
+                <Pressable
+                  style={[
+                    styles.removeAttachment,
+                    { backgroundColor: theme.backgroundRoot },
+                  ]}
+                  onPress={() => handleRemoveAttachment(index)}
+                >
+                  <Ionicons name="close" size={12} color={theme.text} />
+                </Pressable>
+              </View>
+            ))}
+          </ScrollView>
+        )}
         <View style={styles.inputRow}>
+          <Pressable
+            style={styles.attachButton}
+            onPress={handleAttach}
+            disabled={isStreaming}
+          >
+            <Ionicons name="add" size={28} color={theme.textSecondary} />
+          </Pressable>
           <View
             style={[
               styles.textInputContainer,
@@ -488,5 +672,48 @@ const styles = StyleSheet.create({
   },
   voiceButtonContainer: {
     display: "none",
+  },
+  attachButton: {
+    padding: Spacing.sm,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.xs,
+  },
+  attachmentsContainer: {
+    maxHeight: 80,
+    marginBottom: Spacing.sm,
+  },
+  attachmentsContent: {
+    paddingHorizontal: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  attachmentPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    position: "relative",
+  },
+  attachmentImage: {
+    width: "100%",
+    height: "100%",
+  },
+  attachmentFile: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeAttachment: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.1)",
   },
 });

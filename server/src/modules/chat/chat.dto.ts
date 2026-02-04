@@ -69,9 +69,32 @@ export class RagSettingsDto implements RagSettingsRequest {
   qdrant?: QdrantSettingsDto;
 }
 
+export class AttachmentDto {
+  @IsString()
+  name!: string;
+
+  @IsIn(["image", "file"])
+  type!: "image" | "file";
+
+  @IsString()
+  mimeType!: string;
+
+  @IsString()
+  uri!: string;
+
+  @IsOptional()
+  @IsString()
+  base64?: string;
+}
+
 export class SendMessageDto {
   @IsString()
   content!: string;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[];
 
   @IsOptional()
   @ValidateNested()

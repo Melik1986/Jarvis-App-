@@ -1,7 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, type Tool } from "ai";
+import {
+  streamText,
+  type Tool,
+  type ModelMessage,
+  type TextPart,
+  type ImagePart,
+} from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import pdfParse from "pdf-parse";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
 import { ErpService } from "../erp/erp.service";
@@ -29,6 +36,14 @@ export interface Message {
   createdAt: string;
 }
 
+export interface Attachment {
+  name: string;
+  type: "image" | "file";
+  mimeType: string;
+  uri: string;
+  base64?: string;
+}
+
 export interface Conversation {
   id: number;
   title: string;
@@ -46,6 +61,10 @@ type StreamPart = {
   text?: string;
   delta?: string;
 };
+
+type UserContentPart = TextPart | ImagePart;
+type PdfParse = (data: Buffer) => Promise<{ text: string }>;
+const parsePdf = pdfParse as unknown as PdfParse;
 
 const SYSTEM_PROMPT = `Ты — Axon Business AI-ассистент, AI-ассистент для управления бизнес-процессами в ERP.
 Ты можешь:
@@ -264,6 +283,7 @@ export class ChatService {
     llmSettings?: LlmSettings,
     erpSettings?: Partial<ErpConfig>,
     ragSettings?: RagSettingsRequest,
+    attachments?: Attachment[],
   ) {
     // Check for prompt injection
     const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
@@ -296,13 +316,61 @@ export class ChatService {
       : SYSTEM_PROMPT;
 
     // Build messages array for Vercel AI SDK
-    const messages = [
+    const messages: ModelMessage[] = [
       ...history.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      { role: "user" as const, content: rawText },
     ];
+
+    // Handle multimodal content
+    if (attachments && attachments.length > 0) {
+      const contentParts: UserContentPart[] = [{ type: "text", text: rawText }];
+
+      for (const att of attachments) {
+        if (att.type === "image" && att.base64) {
+          contentParts.push({
+            type: "image",
+            image: att.base64,
+          });
+        } else if (att.type === "file") {
+          // Process documents
+          if (att.mimeType === "application/pdf" && att.base64) {
+            try {
+              const buffer = Buffer.from(att.base64, "base64");
+              // Use a simple mock or real pdf-parse if available.
+              // Since we imported * as pdf, we assume it works.
+              // Note: pdf-parse might need to be awaited if it's async
+              const data = await parsePdf(buffer);
+              contentParts.push({
+                type: "text",
+                text: `\n[Document Content: ${att.name}]\n${data.text}\n[End Document Content]\n`,
+              });
+            } catch (e) {
+              AppLogger.error(`Failed to parse PDF ${att.name}`, e);
+              contentParts.push({
+                type: "text",
+                text: `\n[System: Failed to parse PDF ${att.name}]\n`,
+              });
+            }
+          } else if (att.base64) {
+            // Assume text-based file
+            try {
+              const text = Buffer.from(att.base64, "base64").toString("utf-8");
+              contentParts.push({
+                type: "text",
+                text: `\n[File Content: ${att.name}]\n${text}\n[End File Content]\n`,
+              });
+            } catch (e) {
+              AppLogger.error(`Failed to decode text file ${att.name}`, e);
+            }
+          }
+        }
+      }
+      messages.push({ role: "user", content: contentParts });
+    } else {
+      messages.push({ role: "user", content: rawText });
+    }
 
     // Set up SSE
     res.setHeader("Content-Type", "text/event-stream");

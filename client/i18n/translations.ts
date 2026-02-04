@@ -1,4 +1,5 @@
 export type TranslationKey = keyof typeof translations.en;
+export type SupportedLanguage = keyof typeof translations;
 
 const privacyPolicyRu = `🛡 SECURITY & PRIVACY ARCHITECTURE
 Проект AURA (ранее JSRVIS) базируется на принципе Zero-Knowledge Architecture. Мы не храним, не передаем и не имеем доступа к секретным ключам или бизнес-данным пользователей. Приложение выступает в роли «дирижёра», обеспечивая защищенный канал связи между локальным устройством и выбранной инфраструктурой.
@@ -285,6 +286,11 @@ export const translations = {
     command: "Command",
     arguments: "Arguments",
     connect: "Connect",
+    camera: "Camera",
+    photoLibrary: "Photo Library",
+    addAttachment: "Add Attachment",
+    chooseSource: "Choose Source",
+    document: "Document",
   },
   ru: {
     appName: "AXON",
@@ -511,6 +517,11 @@ export const translations = {
     command: "Команда",
     arguments: "Аргументы",
     connect: "Подключить",
+    camera: "Камера",
+    photoLibrary: "Медиатека",
+    addAttachment: "Добавить вложение",
+    chooseSource: "Выберите источник",
+    document: "Документ",
   },
   de: {
     // ... existing ...

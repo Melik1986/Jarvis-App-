@@ -544,6 +544,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
+  deleteButton: {
+    padding: Spacing.sm,
+  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",

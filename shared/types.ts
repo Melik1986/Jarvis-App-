@@ -12,11 +12,20 @@ export type ToolCall = {
   status?: "calling" | "done";
 };
 
+export type Attachment = {
+  name: string;
+  type: "image" | "file";
+  mimeType: string;
+  uri: string;
+  base64?: string;
+};
+
 export type ChatMessage = {
   id: number;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  attachments?: Attachment[];
   toolCalls?: {
     toolName: string;
     args: Record<string, unknown>;
