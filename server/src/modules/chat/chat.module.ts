@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ChatController } from "./chat.controller";
+import { ChatController, VoiceController } from "./chat.controller";
 import { ChatService } from "./chat.service";
 import { ToolRegistryService } from "./tool-registry.service";
 import { ConfidenceScorerService } from "./confidence-scorer.service";
@@ -15,7 +15,7 @@ import { RulebookModule } from "../rules/rulebook.module";
 
 @Module({
   imports: [LlmModule, RagModule, ErpModule, AuthModule, RulebookModule],
-  controllers: [ChatController, ConductorController],
+  controllers: [ChatController, VoiceController, ConductorController],
   providers: [
     ChatService,
     ToolRegistryService,

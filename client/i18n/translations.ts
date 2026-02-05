@@ -91,6 +91,10 @@ export const translations = {
       "Connect your ERP system (1C, MoySklad, etc.) to access business data.",
     ragHint:
       "Configure the knowledge base for accurate answers based on your regulations.",
+    secretsWarningTitle: "Secrets security",
+    secretsWarningBody:
+      "Never paste keys into chat, screenshots, or source code. Do not store secrets in EXPO_PUBLIC_* env. If a key leaks, revoke and rotate it immediately.",
+    apiKeyDocs: "Where to get API key",
     checkInventory: "Check inventory stock",
     createInvoice: "Create new invoice",
     showSalesReport: "Show sales report",
@@ -332,6 +336,10 @@ export const translations = {
     erpHint:
       "Подключите вашу ERP систему (1С, МойСклад и др.) для доступа к бизнес-данным.",
     ragHint: "Настройте базу знаний для точных ответов по вашим регламентам.",
+    secretsWarningTitle: "Безопасность секретов",
+    secretsWarningBody:
+      "Никогда не вставляйте ключи в чат, скриншоты или исходники. Не храните секреты в EXPO_PUBLIC_* переменных. При утечке — сразу отзовите и выпустите новый ключ.",
+    apiKeyDocs: "Где получить API key",
     checkInventory: "Проверить остатки",
     createInvoice: "Создать счёт",
     showSalesReport: "Отчёт по продажам",
@@ -607,6 +615,10 @@ export const translations = {
     selectLanguage: "Wählen Sie Ihre bevorzugte Sprache.",
     chooseVoice: "Wählen Sie die Stimme für KI-Antworten.",
     chooseProvider: "Wählen Sie Ihren KI-Anbieter.",
+    secretsWarningTitle: "Sicherheit von Geheimnissen",
+    secretsWarningBody:
+      "Geben Sie Schlüssel niemals in Chat, Screenshots oder Quellcode ein. Speichern Sie keine Secrets in EXPO_PUBLIC_* Variablen. Bei Leaks: Schlüssel sofort widerrufen und rotieren.",
+    apiKeyDocs: "Wo bekomme ich den API-Schlüssel",
     providerSettings: "Anbieter-Einstellungen",
     baseUrl: "Basis-URL",
     apiKey: "API-Schlüssel",

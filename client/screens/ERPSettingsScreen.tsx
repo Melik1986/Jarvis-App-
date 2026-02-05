@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -63,6 +64,18 @@ export default function ERPSettingsScreen() {
     navigation.goBack();
   };
 
+  const providerDocsUrlByProvider: Partial<Record<ERPProvider, string>> = {
+    "1c": "https://kb.1ci.com/1C_Enterprise_Platform/FAQ/Development/Integration/Publishing_standard_REST_API_for_your_infobase/",
+  };
+
+  const selectedProviderDocsUrl = providerDocsUrlByProvider[provider];
+  const selectedProviderLabel = provider === "1c" ? "1C" : provider;
+
+  const handleOpenSelectedProviderDocs = async () => {
+    if (!selectedProviderDocsUrl) return;
+    await Linking.openURL(selectedProviderDocsUrl);
+  };
+
   const isDemo = provider === "demo";
 
   if (!isUnlocked) {
@@ -107,6 +120,28 @@ export default function ERPSettingsScreen() {
           style={[
             styles.hintCard,
             {
+              backgroundColor: theme.warning + "10",
+              borderColor: theme.warning + "40",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+            ⚠️ {t("secretsWarningTitle")}
+          </ThemedText>
+          <ThemedText
+            style={[
+              styles.hintText,
+              { color: theme.textSecondary, marginTop: Spacing.xs },
+            ]}
+          >
+            {t("secretsWarningBody")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.hintCard,
+            {
               backgroundColor: theme.primary + "10",
               borderColor: theme.primary + "30",
             },
@@ -116,6 +151,17 @@ export default function ERPSettingsScreen() {
             💡 {t("erpHint")}
           </ThemedText>
         </View>
+
+        {selectedProviderDocsUrl ? (
+          <Pressable
+            onPress={handleOpenSelectedProviderDocs}
+            style={styles.docsLinkRow}
+          >
+            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+              {t("apiKeyDocs")}: {selectedProviderLabel}
+            </ThemedText>
+          </Pressable>
+        ) : null}
 
         <View style={styles.inputGroup}>
           <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
@@ -331,6 +377,14 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  docsLinkRow: {
+    marginBottom: Spacing.lg,
+  },
+  docsLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   inputLabel: {
     fontSize: 14,

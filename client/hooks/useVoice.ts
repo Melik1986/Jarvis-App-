@@ -7,10 +7,12 @@ import {
   useAudioRecorderState,
   useAudioPlayer,
 } from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform, Alert } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
 
 interface VoiceResponse {
@@ -35,6 +37,7 @@ export function useVoice() {
 
   const { currentConversationId } = useChatStore();
   const { session } = useAuthStore();
+  const { llm, erp, rag } = useSettingsStore();
 
   /**
    * Request microphone permissions
@@ -131,9 +134,9 @@ export function useVoice() {
       }
 
       // Read audio file and convert to base64
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const base64 = await blobToBase64(blob);
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: "base64",
+      });
 
       // Send to server
       if (!currentConversationId) {
@@ -154,15 +157,42 @@ export function useVoice() {
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ audio: base64 }),
+          body: JSON.stringify({
+            audio: base64,
+            transcriptionModel: "gpt-4o-mini-transcribe",
+            llmSettings: {
+              provider: llm.provider,
+              baseUrl: llm.baseUrl,
+              apiKey: llm.apiKey,
+              modelName: llm.modelName,
+            },
+            erpSettings: {
+              provider: erp.provider,
+              baseUrl: erp.url,
+              username: erp.username,
+              password: erp.password,
+              apiKey: erp.apiKey,
+              apiType: erp.apiType,
+            },
+            ragSettings: {
+              provider: rag.provider,
+              qdrant: rag.qdrant,
+            },
+          }),
         },
       );
+
+      if (!serverResponse.ok) {
+        const errorText = await serverResponse.text().catch(() => "");
+        throw new Error(errorText || "Voice request failed");
+      }
 
       // Process SSE response
       const reader = serverResponse.body?.getReader();
       if (!reader) throw new Error("No response body");
 
       const decoder = new TextDecoder();
+      let buffer = "";
       let userTranscript = "";
       let assistantTranscript = "";
       const audioChunks: string[] = [];
@@ -171,8 +201,10 @@ export function useVoice() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        let doneReceived = false;
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
@@ -181,15 +213,22 @@ export function useVoice() {
 
             if (data.type === "user_transcript") {
               userTranscript = data.data;
-            } else if (data.type === "transcript") {
-              assistantTranscript += data.data;
+            } else if (data.type === "transcript" || data.content) {
+              assistantTranscript += data.data ?? data.content ?? "";
             } else if (data.type === "audio") {
               audioChunks.push(data.data);
+            } else if (data.type === "error" || data.error) {
+              throw new Error(data.error || "Voice request failed");
+            } else if (data.type === "done" || data.done) {
+              doneReceived = true;
             }
-          } catch {
-            // Ignore parse errors
+          } catch (err) {
+            if (!(err instanceof SyntaxError)) {
+              throw err;
+            }
           }
         }
+        if (doneReceived) break;
       }
 
       const result: VoiceResponse = {
@@ -220,6 +259,9 @@ export function useVoice() {
     recorderState.isRecording,
     currentConversationId,
     session,
+    llm,
+    erp,
+    rag,
     playAudio,
   ]);
 
@@ -265,19 +307,6 @@ export function useVoice() {
     requestPermissions: async () =>
       (await AudioModule.requestRecordingPermissionsAsync()).granted,
   };
-}
-
-// Helper functions
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {

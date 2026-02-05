@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req } from "@nestjs/common";
+import { Controller, Post, Body, UseGuards, Req, Inject } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from "@nestjs/swagger";
 import { ChatService } from "../chat/chat.service";
 import { ConductorParseDto } from "./conductor.dto";
@@ -9,7 +9,7 @@ import { AuthenticatedRequest } from "../auth/auth.types";
 @ApiTags("conversations")
 @Controller("conductor")
 export class ConductorController {
-  constructor(private chatService: ChatService) {}
+  constructor(@Inject(ChatService) private chatService: ChatService) {}
 
   @Post("parse")
   @UseGuards(AuthGuard, RateLimitGuard)

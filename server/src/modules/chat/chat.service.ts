@@ -8,6 +8,7 @@ import {
   type ImagePart,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { toFile } from "openai/uploads";
 import pdfParse from "pdf-parse";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
@@ -107,9 +108,11 @@ export class ChatService {
   }
 
   getConversation(id: number): Conversation | undefined {
-    // Stateless: always return undefined
-    // Client should store conversations locally
-    return undefined;
+    return {
+      id,
+      title: "Chat",
+      createdAt: new Date().toISOString(),
+    };
   }
 
   getAllConversations(): Conversation[] {
@@ -272,6 +275,58 @@ export class ChatService {
     return (
       process.env.NODE_ENV === "development" ||
       process.env.CONDUCTOR_VERBOSE_LOG === "1"
+    );
+  }
+
+  private getTranscriptionModel(model?: string): string {
+    return model || "gpt-4o-mini-transcribe";
+  }
+
+  private getPoolCredentialsForProvider(llmSettings?: LlmSettings): {
+    llmKey: string;
+    llmProvider: string;
+    llmBaseUrl?: string;
+  } {
+    const provider = llmSettings?.provider ?? "replit";
+    const baseURL = this.getBaseUrlForLog(llmSettings);
+    const fallbackKey =
+      provider === "replit"
+        ? process.env.AI_INTEGRATIONS_OPENAI_API_KEY || ""
+        : "";
+
+    return {
+      llmKey: llmSettings?.apiKey || fallbackKey,
+      llmProvider: provider,
+      llmBaseUrl: baseURL,
+    };
+  }
+
+  private async transcribeAudio(
+    audioBase64: string,
+    llmSettings?: LlmSettings,
+    transcriptionModel?: string,
+  ): Promise<string> {
+    const poolCredentials = this.getPoolCredentialsForProvider(llmSettings);
+    if (poolCredentials.llmProvider !== "replit" && !poolCredentials.llmKey) {
+      throw new Error(
+        `API key is required for provider: ${poolCredentials.llmProvider}`,
+      );
+    }
+
+    const audioBuffer = Buffer.from(audioBase64, "base64");
+    const file = await toFile(audioBuffer, "voice-input.wav");
+    const model = this.getTranscriptionModel(transcriptionModel);
+
+    return await this.ephemeralClientPool.useClient(
+      poolCredentials,
+      async (client) => {
+        const response = await client.audio.transcriptions.create({
+          file,
+          model,
+        });
+        return response.text || "";
+      },
+      false,
     );
   }
 
@@ -524,6 +579,197 @@ export class ChatService {
           ? getLlmProviderErrorBody(error).message
           : "Failed to process message";
         res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
+        res.end();
+      }
+    }
+  }
+
+  async streamVoiceResponse(
+    userId: string,
+    conversationId: number,
+    audioBase64: string,
+    res: Response,
+    llmSettings?: LlmSettings,
+    erpSettings?: Partial<ErpConfig>,
+    ragSettings?: RagSettingsRequest,
+    transcriptionModel?: string,
+  ) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    try {
+      const conversation = this.getConversation(conversationId);
+      if (!conversation) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "error",
+            error: "Conversation not found",
+          })}\n\n`,
+        );
+        res.end();
+        return;
+      }
+
+      const userTranscript = await this.transcribeAudio(
+        audioBase64,
+        llmSettings,
+        transcriptionModel,
+      );
+
+      res.write(
+        `data: ${JSON.stringify({
+          type: "user_transcript",
+          data: userTranscript,
+        })}\n\n`,
+      );
+
+      if (!userTranscript.trim()) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "error",
+            error: "Empty transcription",
+          })}\n\n`,
+        );
+        res.end();
+        return;
+      }
+
+      const injectionCheck =
+        this.promptInjectionGuard.detectInjection(userTranscript);
+      if (injectionCheck.requireManualReview) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "error",
+            error: "Prompt injection detected",
+          })}\n\n`,
+        );
+        res.end();
+        return;
+      }
+
+      let ragContext = "";
+      try {
+        const ragResults = await this.ragService.search(
+          userTranscript,
+          2,
+          ragSettings,
+        );
+        ragContext = this.ragService.buildContext(ragResults);
+      } catch (ragError) {
+        AppLogger.warn("RAG search failed:", ragError);
+      }
+
+      const systemMessage = ragContext
+        ? `${SYSTEM_PROMPT}\n\n${ragContext}`
+        : SYSTEM_PROMPT;
+
+      const messages: ModelMessage[] = [
+        { role: "user", content: userTranscript },
+      ];
+
+      const provider = llmSettings?.provider ?? "replit";
+      const baseURL = this.getBaseUrlForLog(llmSettings);
+      const modelName = this.llmService.getModel(llmSettings);
+      const verbose = this.isVerboseLogEnabled();
+
+      const poolCredentials = this.getPoolCredentialsForProvider(llmSettings);
+      if (provider !== "replit" && !poolCredentials.llmKey) {
+        throw new Error(`API key is required for provider: ${provider}`);
+      }
+
+      await this.ephemeralClientPool.useClient(
+        poolCredentials,
+        async () => {
+          const aiProvider = this.createAiProvider(llmSettings);
+          const tools: Record<
+            string,
+            Tool<unknown, unknown>
+          > = await this.toolRegistry.getTools(userId, erpSettings);
+
+          if (verbose) {
+            AppLogger.info(
+              `[Voice] LLM request started | provider=${provider} baseURL=${this.maskBaseUrl(baseURL)} model=${modelName}`,
+              undefined,
+              "Voice",
+            );
+          }
+
+          const result = streamText({
+            model: aiProvider(modelName),
+            system: systemMessage,
+            messages,
+            tools,
+            maxOutputTokens: 2048,
+          });
+
+          const toolCallsArgs = new Map<string, Record<string, unknown>>();
+
+          for await (const part of result.fullStream) {
+            const partData = part as StreamPart;
+            const textDelta = partData.text ?? partData.delta;
+            if (partData.type === "text-delta" && textDelta) {
+              res.write(
+                `data: ${JSON.stringify({
+                  type: "transcript",
+                  data: textDelta,
+                })}\n\n`,
+              );
+            }
+
+            if (partData.type === "tool-call") {
+              const args = (partData.args ?? partData.input ?? {}) as Record<
+                string,
+                unknown
+              >;
+              const toolCallId =
+                (partData as { toolCallId?: string }).toolCallId || "default";
+              toolCallsArgs.set(toolCallId, args);
+            }
+
+            if (partData.type === "tool-result") {
+              const toolCallId =
+                (partData as { toolCallId?: string }).toolCallId || "default";
+              const args = toolCallsArgs.get(toolCallId) || {};
+              const toolName = partData.toolName ?? "unknown";
+              const resultOutput = partData.result ?? partData.output;
+              const resultSummary =
+                typeof resultOutput === "string"
+                  ? resultOutput
+                  : JSON.stringify(resultOutput);
+
+              await this.guardian.check(userId, toolName, args);
+
+              if (verbose) {
+                AppLogger.info(
+                  `[Voice] tool-result | toolName=${toolName} resultSummary=${resultSummary.slice(0, 100)}`,
+                  undefined,
+                  "Voice",
+                );
+              }
+            }
+          }
+
+          res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+        },
+        true,
+      );
+
+      res.end();
+    } catch (error) {
+      AppLogger.error("Error in voice stream:", error);
+      if (!res.headersSent) {
+        if (isLlmProviderError(error)) {
+          const body = getLlmProviderErrorBody(error);
+          res.status(body.statusCode).json(body);
+        } else {
+          res.status(500).json({ error: "Failed to process voice message" });
+        }
+      } else {
+        const msg = isLlmProviderError(error)
+          ? getLlmProviderErrorBody(error).message
+          : "Failed to process voice message";
+        res.write(`data: ${JSON.stringify({ type: "error", error: msg })}\n\n`);
         res.end();
       }
     }

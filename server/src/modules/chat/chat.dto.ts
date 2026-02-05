@@ -117,3 +117,27 @@ export class CreateConversationDto {
   @IsString()
   title?: string;
 }
+
+export class VoiceMessageDto {
+  @IsString()
+  audio!: string;
+
+  @IsOptional()
+  @IsString()
+  transcriptionModel?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LlmSettingsDto)
+  llmSettings?: LlmSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ErpSettingsDto)
+  erpSettings?: ErpSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RagSettingsDto)
+  ragSettings?: RagSettingsDto;
+}

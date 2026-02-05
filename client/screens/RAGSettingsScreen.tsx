@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -95,6 +96,23 @@ export default function RAGSettingsScreen() {
 
   const [saving, setSaving] = useState(false);
 
+  const providerDocsUrlByProvider: Partial<Record<RagProvider, string>> = {
+    supabase: "https://supabase.com/docs/guides/api/api-keys",
+    qdrant: "https://qdrant.tech/documentation/cloud/authentication/",
+    replit:
+      "https://docs.replit.com/cloud-services/storage-and-databases/sql-database",
+  };
+
+  const selectedProviderDocsUrl =
+    provider === null ? undefined : providerDocsUrlByProvider[provider];
+  const selectedProviderLabel =
+    providers.find((p) => p.id === provider)?.name ?? provider ?? "";
+
+  const handleOpenSelectedProviderDocs = async () => {
+    if (!selectedProviderDocsUrl) return;
+    await Linking.openURL(selectedProviderDocsUrl);
+  };
+
   const handleSave = async () => {
     if (!provider) return;
 
@@ -170,6 +188,28 @@ export default function RAGSettingsScreen() {
           style={[
             styles.hintCard,
             {
+              backgroundColor: theme.warning + "10",
+              borderColor: theme.warning + "40",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+            ⚠️ {t("secretsWarningTitle")}
+          </ThemedText>
+          <ThemedText
+            style={[
+              styles.hintText,
+              { color: theme.textSecondary, marginTop: Spacing.xs },
+            ]}
+          >
+            {t("secretsWarningBody")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.hintCard,
+            {
               backgroundColor: theme.primary + "10",
               borderColor: theme.primary + "30",
             },
@@ -232,6 +272,17 @@ export default function RAGSettingsScreen() {
             </Pressable>
           ))}
         </View>
+
+        {selectedProviderDocsUrl ? (
+          <Pressable
+            onPress={handleOpenSelectedProviderDocs}
+            style={styles.docsLinkRow}
+          >
+            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+              {t("apiKeyDocs")}: {selectedProviderLabel}
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
 
       {provider === "qdrant" && (
@@ -507,6 +558,14 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  docsLinkRow: {
+    marginTop: Spacing.md,
+  },
+  docsLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   inputLabel: {
     fontSize: 14,

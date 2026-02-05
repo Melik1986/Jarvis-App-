@@ -10,6 +10,7 @@ import {
   UseGuards,
   NotFoundException,
   ParseIntPipe,
+  Inject,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -20,7 +21,11 @@ import {
 } from "@nestjs/swagger";
 import { Response } from "express";
 import { ChatService } from "./chat.service";
-import { SendMessageDto, CreateConversationDto } from "./chat.dto";
+import {
+  SendMessageDto,
+  CreateConversationDto,
+  VoiceMessageDto,
+} from "./chat.dto";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { AuthenticatedRequest } from "../auth/auth.types";
@@ -28,7 +33,7 @@ import { AuthenticatedRequest } from "../auth/auth.types";
 @ApiTags("conversations")
 @Controller("conversations")
 export class ChatController {
-  constructor(private chatService: ChatService) {}
+  constructor(@Inject(ChatService) private chatService: ChatService) {}
 
   @Get()
   @ApiOperation({ summary: "List all conversations" })
@@ -117,6 +122,55 @@ export class ChatController {
       body.erpSettings,
       body.ragSettings,
       body.attachments,
+    );
+  }
+}
+
+@ApiTags("conversations")
+@Controller("voice")
+export class VoiceController {
+  constructor(@Inject(ChatService) private chatService: ChatService) {}
+
+  @Post(":id/message")
+  @UseGuards(AuthGuard, RateLimitGuard)
+  @ApiOperation({ summary: "Send voice message (SSE stream)" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiBody({ type: VoiceMessageDto })
+  @ApiResponse({ status: 200, description: "SSE stream of response" })
+  @ApiResponse({ status: 400, description: "Invalid audio" })
+  @ApiResponse({ status: 404, description: "Conversation not found" })
+  @ApiResponse({ status: 429, description: "Rate limit exceeded" })
+  @ApiResponse({ status: 502, description: "LLM provider error" })
+  async sendVoiceMessage(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: VoiceMessageDto,
+    @Res() res: Response,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const credentials = req.ephemeralCredentials;
+    const llmSettings = {
+      ...body.llmSettings,
+      ...(credentials?.llmKey && { apiKey: credentials.llmKey }),
+      ...(credentials?.llmProvider && {
+        provider: credentials.llmProvider as
+          | "openai"
+          | "groq"
+          | "ollama"
+          | "replit"
+          | "custom",
+      }),
+      ...(credentials?.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
+    } as typeof body.llmSettings;
+
+    await this.chatService.streamVoiceResponse(
+      req.user.id,
+      id,
+      body.audio,
+      res,
+      llmSettings,
+      body.erpSettings,
+      body.ragSettings,
+      body.transcriptionModel,
     );
   }
 }
