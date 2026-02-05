@@ -54,7 +54,7 @@ export class AuthController {
       state,
     );
 
-    if (!result.success || !result.session) {
+    if (!result.success || !result.session || !result.user) {
       return res.redirect("/login?error=auth_failed");
     }
 
@@ -64,25 +64,62 @@ export class AuthController {
       // State parsing failed, use default redirect
     }
 
+    // Generate temporary code for secure token exchange
+    // This avoids passing tokens directly in URL (security best practice)
+    const tempCode = this.authService.generateTempAuthCode(
+      result.user,
+      result.session,
+    );
+
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : "";
 
+    // Redirect with temporary code only - tokens exchanged via POST
     const appRedirectUrl = new URL("/auth/success", baseUrl);
-    appRedirectUrl.searchParams.set("accessToken", result.session.accessToken);
-    appRedirectUrl.searchParams.set(
-      "refreshToken",
-      result.session.refreshToken,
-    );
-    appRedirectUrl.searchParams.set(
-      "expiresIn",
-      result.session.expiresIn.toString(),
-    );
-    if (result.user) {
-      appRedirectUrl.searchParams.set("user", JSON.stringify(result.user));
-    }
+    appRedirectUrl.searchParams.set("code", tempCode);
 
     res.redirect(appRedirectUrl.toString());
+  }
+
+  @Post("exchange")
+  @ApiOperation({
+    summary: "Exchange temporary auth code for tokens",
+    description:
+      "Exchange a one-time temporary code (from OAuth callback) for access and refresh tokens. " +
+      "Code expires in 60 seconds and can only be used once.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Tokens returned successfully",
+    schema: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        user: { type: "object" },
+        session: {
+          type: "object",
+          properties: {
+            accessToken: { type: "string" },
+            refreshToken: { type: "string" },
+            expiresIn: { type: "number" },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: "Invalid or expired code" })
+  exchangeCode(@Body() body: { code: string }) {
+    if (!body.code) {
+      throw new UnauthorizedException("Code is required");
+    }
+
+    const result = this.authService.exchangeTempAuthCode(body.code);
+    if (!result.success) {
+      throw new UnauthorizedException(result.error);
+    }
+
+    return result;
   }
 
   @Get("session")
@@ -168,20 +205,10 @@ export class AuthController {
 
   @Post("dev-login")
   async devLogin(@Body() body: { email?: string; name?: string }) {
-    // #region agent log
-    fetch("http://127.0.0.1:7244/ingest/681008b1-b8ba-4a62-9a48-e4a81c73b15d", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "auth.controller.ts:devLogin:entry",
-        message: "dev-login request reached server",
-        data: {},
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
-    // #endregion
+    if (process.env.NODE_ENV === "production") {
+      throw new UnauthorizedException("Dev login is disabled in production");
+    }
+
     const email = body.email || "dev@axon.local";
     const name = body.name || "Dev User";
 
@@ -210,8 +237,16 @@ export class AuthController {
     user: AuthUser;
     session: AuthSession;
   } {
-    const jwtSecret =
-      process.env.SESSION_SECRET || "axon-secret-key-change-in-production";
+    const jwtSecret = process.env.SESSION_SECRET;
+    if (!jwtSecret && process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SESSION_SECRET must be set in production. " +
+          "Generate a secure random string and set it as SESSION_SECRET env var.",
+      );
+    }
+    // Dev-only fallback - never used in production due to check above
+    const secret = jwtSecret || "axon-dev-secret-not-for-production";
+
     const accessToken = jwt.sign(
       {
         sub: user.id,
@@ -220,7 +255,7 @@ export class AuthController {
         picture: user.picture,
         replitId: user.replitId,
       },
-      jwtSecret,
+      secret,
       { expiresIn: "24h" },
     );
     const refreshToken = jwt.sign(
@@ -232,7 +267,7 @@ export class AuthController {
         replitId: user.replitId,
         type: "refresh",
       },
-      jwtSecret,
+      secret,
       { expiresIn: "30d" },
     );
 

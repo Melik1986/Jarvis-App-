@@ -48,7 +48,14 @@ export class ErpService {
   ): Promise<StockItem[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (config.provider === "demo" || !config.baseUrl) {
+    if (config.provider === "demo") {
+      return this.getMockStock(productName);
+    }
+
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
+      }
       return this.getMockStock(productName);
     }
 
@@ -86,6 +93,10 @@ export class ErpService {
     try {
       return (await breaker.fire()) as StockItem[];
     } catch (error) {
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP getStock failed:", error);
+        throw error;
+      }
       AppLogger.warn("ERP getStock failed, using mock fallback:", error);
       if (breaker.opened) {
         AppLogger.warn("Circuit breaker is OPEN for erp-get-stock");
@@ -100,7 +111,14 @@ export class ErpService {
   ): Promise<Product[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (config.provider === "demo" || !config.baseUrl) {
+    if (config.provider === "demo") {
+      return this.getMockProducts(filter);
+    }
+
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
+      }
       return this.getMockProducts(filter);
     }
 
@@ -145,6 +163,10 @@ export class ErpService {
     try {
       return (await breaker.fire()) as Product[];
     } catch (error) {
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP getProducts failed:", error);
+        throw error;
+      }
       AppLogger.warn("ERP getProducts failed, using mock fallback:", error);
       if (breaker.opened) {
         AppLogger.warn("Circuit breaker is OPEN for erp-get-products");
@@ -159,7 +181,14 @@ export class ErpService {
   ): Promise<Invoice> {
     const config = { ...this.config, ...customConfig };
 
-    if (config.provider === "demo" || !config.baseUrl) {
+    if (config.provider === "demo") {
+      return this.createMockInvoice(request);
+    }
+
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
+      }
       return this.createMockInvoice(request);
     }
 
@@ -223,6 +252,10 @@ export class ErpService {
     try {
       return (await breaker.fire()) as Invoice;
     } catch (error) {
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP createInvoice failed:", error);
+        throw error;
+      }
       AppLogger.warn("ERP createInvoice failed, using mock fallback:", error);
       if (breaker.opened) {
         AppLogger.warn("Circuit breaker is OPEN for erp-create-invoice");

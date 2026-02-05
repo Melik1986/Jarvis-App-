@@ -32,12 +32,14 @@ import { AuthenticatedRequest } from "../auth/auth.types";
 
 @ApiTags("conversations")
 @Controller("conversations")
+@UseGuards(AuthGuard)
 export class ChatController {
   constructor(@Inject(ChatService) private chatService: ChatService) {}
 
   @Get()
   @ApiOperation({ summary: "List all conversations" })
   @ApiResponse({ status: 200, description: "List of conversations" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   getAllConversations() {
     return this.chatService.getAllConversations();
   }
@@ -46,6 +48,7 @@ export class ChatController {
   @ApiOperation({ summary: "Get conversation with messages" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Conversation and messages" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   @ApiResponse({ status: 404, description: "Conversation not found" })
   getConversation(@Param("id", ParseIntPipe) id: number) {
     const conversation = this.chatService.getConversation(id);
@@ -60,6 +63,7 @@ export class ChatController {
   @ApiOperation({ summary: "Create new conversation" })
   @ApiBody({ type: CreateConversationDto })
   @ApiResponse({ status: 201, description: "Created conversation" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   createConversation(@Body() body: CreateConversationDto) {
     return this.chatService.createConversation(body.title || "New Chat");
   }
@@ -68,6 +72,7 @@ export class ChatController {
   @ApiOperation({ summary: "Delete conversation" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Deleted" })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
   @ApiResponse({ status: 404, description: "Conversation not found" })
   deleteConversation(@Param("id", ParseIntPipe) id: number) {
     const deleted = this.chatService.deleteConversation(id);

@@ -37,12 +37,40 @@ export class McpHostService implements OnModuleDestroy {
         "MCP",
       );
 
+      // Only pass safe env vars to MCP servers - never pass secrets
+      const SAFE_ENV_KEYS = [
+        "PATH",
+        "HOME",
+        "USER",
+        "SHELL",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+        "NODE_ENV",
+        "TZ",
+        // Windows-specific
+        "SYSTEMROOT",
+        "COMSPEC",
+        "PATHEXT",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PROGRAMFILES",
+        "PROGRAMFILES(X86)",
+      ];
+
       const env: Record<string, string> = {};
-      for (const [key, value] of Object.entries(process.env)) {
+      for (const key of SAFE_ENV_KEYS) {
+        // Server-side code: dynamic env access is intentional for safe key filtering
+        // eslint-disable-next-line expo/no-dynamic-env-var
+        const value = process.env[key];
         if (value !== undefined) {
           env[key] = value;
         }
       }
+      // Merge user-provided env (explicit config takes precedence)
       if (config.env) {
         Object.assign(env, config.env);
       }

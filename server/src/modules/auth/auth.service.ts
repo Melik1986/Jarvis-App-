@@ -1,6 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
+import * as crypto from "crypto";
 import { AuthUser, AuthSession } from "./auth.types";
 import { AppLogger } from "../../utils/logger";
 
@@ -12,16 +13,93 @@ interface ReplitUserInfo {
   email_verified?: boolean;
 }
 
+/**
+ * Temporary auth code for secure token exchange.
+ * Used to avoid passing tokens in URL query parameters.
+ */
+interface TempAuthCode {
+  session: AuthSession;
+  user: AuthUser;
+  expiresAt: number;
+}
+
 @Injectable()
 export class AuthService {
   private readonly jwtSecret: string;
   private readonly accessTokenExpiry = "24h";
   private readonly refreshTokenExpiry = "30d";
 
+  /**
+   * In-memory store for temporary auth codes.
+   * TTL: 60 seconds. Used for secure token exchange after OAuth callback.
+   */
+  private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
+  private readonly TEMP_CODE_TTL_MS = 60 * 1000; // 60 seconds
+
   constructor(@Inject(ConfigService) private configService: ConfigService) {
-    this.jwtSecret =
-      this.configService.get("SESSION_SECRET") ||
-      "axon-secret-key-change-in-production";
+    const secret = this.configService.get("SESSION_SECRET");
+    if (!secret && process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SESSION_SECRET must be set in production environment. " +
+          "Generate a secure random string and set it as SESSION_SECRET env var.",
+      );
+    }
+    this.jwtSecret = secret || "axon-dev-secret-not-for-production";
+
+    // Cleanup expired codes every 30 seconds
+    setInterval(() => this.cleanupExpiredCodes(), 30 * 1000);
+  }
+
+  /**
+   * Generate a temporary auth code for secure token exchange.
+   * Code expires in 60 seconds and can only be used once.
+   */
+  generateTempAuthCode(user: AuthUser, session: AuthSession): string {
+    const code = crypto.randomUUID();
+    this.tempAuthCodes.set(code, {
+      session,
+      user,
+      expiresAt: Date.now() + this.TEMP_CODE_TTL_MS,
+    });
+    return code;
+  }
+
+  /**
+   * Exchange a temporary auth code for tokens.
+   * Code is invalidated after use (one-time use).
+   */
+  exchangeTempAuthCode(
+    code: string,
+  ):
+    | { success: true; user: AuthUser; session: AuthSession }
+    | { success: false; error: string } {
+    const stored = this.tempAuthCodes.get(code);
+
+    if (!stored) {
+      return { success: false, error: "Invalid or expired code" };
+    }
+
+    // One-time use - delete immediately
+    this.tempAuthCodes.delete(code);
+
+    if (Date.now() > stored.expiresAt) {
+      return { success: false, error: "Code expired" };
+    }
+
+    return {
+      success: true,
+      user: stored.user,
+      session: stored.session,
+    };
+  }
+
+  private cleanupExpiredCodes(): void {
+    const now = Date.now();
+    for (const [code, data] of this.tempAuthCodes.entries()) {
+      if (now > data.expiresAt) {
+        this.tempAuthCodes.delete(code);
+      }
+    }
   }
 
   getAuthUrl(redirectUri: string, state: string): string {

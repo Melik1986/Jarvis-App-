@@ -110,23 +110,7 @@ export default function LoginScreen() {
     try {
       const baseUrl = getApiUrl();
       const fullUrl = `${baseUrl}api/auth/dev-login`;
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7244/ingest/681008b1-b8ba-4a62-9a48-e4a81c73b15d",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "LoginScreen.tsx:handleDevLogin:beforeFetch",
-            message: "dev-login request",
-            data: { baseUrl, fullUrl },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            hypothesisId: "H1-H4",
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
+
       const response = await fetch(fullUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,24 +131,6 @@ export default function LoginScreen() {
         Alert.alert(t("error"), data.error || t("authFailed"));
       }
     } catch (error) {
-      // #region agent log
-      const err = error as Error & { message?: string; code?: string };
-      fetch(
-        "http://127.0.0.1:7244/ingest/681008b1-b8ba-4a62-9a48-e4a81c73b15d",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "LoginScreen.tsx:handleDevLogin:catch",
-            message: "dev-login failed",
-            data: { message: err?.message, code: err?.code, name: err?.name },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            hypothesisId: "H4-H5",
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
       AppLogger.error("Dev login error:", error);
       Alert.alert(t("error"), t("authFailed"));
     }

@@ -12,29 +12,8 @@ import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
 import { LlmProviderExceptionFilter } from "./filters/llm-provider-exception.filter";
 
-const DEBUG_LOG_PATH = path.join(process.cwd(), ".cursor", "debug.log");
-function debugLog(payload: Record<string, unknown>): void {
-  try {
-    const dir = path.dirname(DEBUG_LOG_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.appendFileSync(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
-  } catch {
-    // ignore
-  }
-}
-
-// #region agent log — very first line of execution
-debugLog({
-  location: "main.ts:top",
-  message: "main.ts loaded",
-  data: { cwd: process.cwd() },
-  timestamp: Date.now(),
-  sessionId: "debug-session",
-  hypothesisId: "H0",
-});
-// #endregion
+// Debug log path - available for future debugging needs
+// const DEBUG_LOG_PATH = path.join(process.cwd(), ".cursor", "debug.log");
 
 function getAppName(): string {
   try {
@@ -83,27 +62,7 @@ function serveExpoManifest(platform: string, res: express.Response) {
 }
 
 async function bootstrap() {
-  // #region agent log
-  debugLog({
-    location: "main.ts:bootstrap:entry",
-    message: "bootstrap entry",
-    data: { cwd: process.cwd() },
-    timestamp: Date.now(),
-    sessionId: "debug-session",
-    hypothesisId: "H1",
-  });
-  // #endregion
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  // #region agent log
-  debugLog({
-    location: "main.ts:bootstrap:afterCreate",
-    message: "NestFactory.create done",
-    data: {},
-    timestamp: Date.now(),
-    sessionId: "debug-session",
-    hypothesisId: "H2",
-  });
-  // #endregion
   const expressApp = app.getHttpAdapter().getInstance();
 
   // Enable CORS with dynamic origins
@@ -140,9 +99,14 @@ async function bootstrap() {
   });
 
   // Session middleware for Replit Auth
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET must be set in production");
+  }
+
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "axon-session-secret",
+      secret: sessionSecret || "axon-session-secret-dev-only",
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -266,21 +230,7 @@ async function bootstrap() {
   }
 }
 
-// #region agent log
 bootstrap().catch((err: unknown) => {
-  debugLog({
-    location: "main.ts:bootstrap:catch",
-    message: "bootstrap rejected",
-    data: {
-      errMessage: err instanceof Error ? err.message : String(err),
-      errName: err instanceof Error ? err.name : undefined,
-      stack: err instanceof Error ? err.stack : undefined,
-    },
-    timestamp: Date.now(),
-    sessionId: "debug-session",
-    hypothesisId: "H1",
-  });
   AppLogger.error("Bootstrap failed", err);
   process.exit(1);
 });
-// #endregion

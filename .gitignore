@@ -43,6 +43,8 @@ yarn-error.*
 credentials*.json
 *-credentials*.json
 .api-keys
+.keys/
+ key/
 
 # typescript
 *.tsbuildinfo
@@ -86,7 +88,7 @@ server/dist/
 server_dist
 project/
 static-build/
-.keys/
+
 
 # Dependency-check (OWASP) — binaries and reports, regeneratable
 dependency-check-bin/

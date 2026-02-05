@@ -29,6 +29,7 @@ interface ExtendedRequest extends Request {
 
 @ApiTags("rag")
 @Controller("documents")
+@UseGuards(AuthGuard)
 export class RagController {
   constructor(private readonly ragService: RagService) {}
 

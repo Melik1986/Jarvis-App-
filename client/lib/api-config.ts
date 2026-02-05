@@ -80,20 +80,5 @@ export function getApiUrl(): string {
   const url = new URL(withProtocol);
   const href = url.href;
 
-  // #region agent log
-  fetch("http://127.0.0.1:7244/ingest/681008b1-b8ba-4a62-9a48-e4a81c73b15d", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "api-config.ts:getApiUrl",
-      message: "getApiUrl result",
-      data: { host, withProtocol, href },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "H1-H3",
-    }),
-  }).catch(() => {});
-  // #endregion
-
   return href;
 }
