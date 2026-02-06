@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Runtime**: `tsx` for development, compiled with `tsc` for production
 - **Key modules** (under `server/src/`):
   - AI/LLM integration (Vercel AI SDK + OpenAI)
-  - Auth (Supabase-based, JWT/session)
+  - Auth (Replit OIDC + JWT session)
   - ERP connector (1C OData, universal OpenAPI/Swagger adapter)
   - RAG (Qdrant vector search for document retrieval)
   - MCP (Model Context Protocol) support
@@ -70,12 +70,22 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication
 
-- **Provider**: Replit Auth (OAuth2 via `expo-auth-session`)
-- **Flow**: OAuth2 Authorization Code with `makeRedirectUri({ scheme: "axon", path: "auth/callback" })`
+- **Provider**: Replit Auth via OpenID Connect (OIDC)
+- **OIDC Endpoints**: `https://replit.com/auth/authorize` (authorize), `https://replit.com/auth/token` (token exchange), `https://replit.com/auth/userinfo`
+- **Client ID**: Uses `REPLIT_AUTH_CLIENT_ID` env var, falls back to `REPL_ID`
+- **Flow**: Server-driven OAuth2 Authorization Code flow
+  1. Client opens WebBrowser to `GET /api/auth/login?redirect=axon://auth/callback`
+  2. Server redirects to `replit.com/auth/authorize` with OIDC params
+  3. User authenticates on Replit
+  4. Replit redirects to `GET /api/auth/callback?code=...&state=...`
+  5. Server exchanges code for tokens at `replit.com/auth/token`
+  6. Server generates temp auth code, redirects to app deep link `axon://auth/callback?code=tempCode`
+  7. Client exchanges temp code via `POST /api/auth/exchange` for JWT session
 - **Deep link scheme**: `axon://` (configured in `app.json`)
+- **Dev login**: `POST /api/auth/dev-login` available in development mode
 - **Client-side**: Auth state managed in `client/store/authStore.ts`, login in `client/screens/LoginScreen.tsx`
-- **Server-side**: OAuth callback in `server/src/modules/auth/auth.controller.ts` issues temp auth codes, exchanged via `/api/auth/exchange` endpoint
-- **Token exchange**: Client receives temp code via deep link redirect, exchanges it for JWT session token
+- **Server-side**: `server/src/modules/auth/auth.service.ts` (OIDC logic), `server/src/modules/auth/auth.controller.ts` (routes)
+- **Port architecture**: External domain routes to Expo (port 8081), API accessible at `DOMAIN:5000`
 
 ### SSE / Streaming Architecture
 
