@@ -129,7 +129,7 @@ async function startMetro(expoPublicDomain) {
   metroProcess = spawn(npmCmd, ["run", "expo:start:static:build"], {
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,
-    shell: true,
+    shell: false,
     env,
   });
 
