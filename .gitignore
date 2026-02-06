@@ -114,6 +114,7 @@ logs/
 .idea/
 .vscode/
 .cursor/
+.agents/
 .trae/
 *.swp
 *.swo
