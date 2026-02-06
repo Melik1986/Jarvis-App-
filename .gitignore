@@ -30,7 +30,7 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env and secrets (never commit)
+# local env and secrets (NEVER commit)
 .env
 .env.local
 .env*.local
@@ -38,13 +38,48 @@ yarn-error.*
 .env.production
 .env.test
 !.env.example
+
+# Secrets and credentials
 *.secret
+*.secrets
 .secrets/
+secrets/
 credentials*.json
 *-credentials*.json
+*credentials.json
 .api-keys
 .keys/
- key/
+keys/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+*.keystore
+keystore.properties
+
+# Cloud provider credentials
+.aws/
+aws-exports.js
+.gcp/
+gcloud/
+firebase-*.json
+firebaseServiceAccount*.json
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+
+# Auth tokens and sessions
+.npmrc
+.yarnrc
+.netrc
+.docker/config.json
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+.supabase/
 
 # typescript
 *.tsbuildinfo
@@ -98,7 +133,37 @@ dependency-list.txt
 # Database
 *.db
 *.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db-journal
+data/*.json
 
+# Shell history (may contain secrets)
+.bash_history
+.zsh_history
+.node_repl_history
+
+# Backup files
+*.bak
+*.backup
+*.old
+*~
+
+# OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Added by ggshield
 .cache_ggshield
+
+# Vercel
+.vercel/
+
+# Sentry
+.sentryclirc
+
+# Debug/profiling
+*.heapsnapshot
+*.cpuprofile
+v8.log
