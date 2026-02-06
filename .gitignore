@@ -129,6 +129,7 @@ static-build/
 dependency-check-bin/
 dependency-check-report.json
 dependency-list.txt
+design_guidelines.md
 
 # Database
 *.db
