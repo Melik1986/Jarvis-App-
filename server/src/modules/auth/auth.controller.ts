@@ -18,6 +18,7 @@ import { RefreshRequest, AuthUser, AuthSession } from "./auth.types";
 import { AuthGuard } from "./auth.guard";
 import { SERVER_PUBLIC_KEY } from "../../config/jwk.config";
 import * as jwt from "jsonwebtoken";
+import { AppLogger } from "../../utils/logger";
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -32,40 +33,76 @@ export class AuthController {
   async login(@Query("redirect") redirect: string, @Res() res: Response) {
     const state = Buffer.from(
       JSON.stringify({ redirect: redirect || "/" }),
-    ).toString("base64");
-    const callbackUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/api/auth/callback`;
-    const authUrl = this.authService.getAuthUrl(callbackUrl, state);
-    res.redirect(authUrl);
+    ).toString("base64url");
+    const callbackUrl = this.authService.getCallbackUrl();
+
+    try {
+      const authUrl = this.authService.getAuthUrl(callbackUrl, state);
+      AppLogger.info(`Auth: Redirecting to Replit OIDC: ${authUrl.substring(0, 80)}...`);
+      res.redirect(authUrl);
+    } catch (error) {
+      AppLogger.error("Auth login error:", error);
+      const errorRedirect = redirect || "/";
+      if (errorRedirect.startsWith("exp://") || errorRedirect.startsWith("axon://")) {
+        const sep = errorRedirect.includes("?") ? "&" : "?";
+        return res.redirect(`${errorRedirect}${sep}error=auth_not_configured`);
+      }
+      return res.status(500).json({
+        error: "Auth not configured",
+        message: "Replit Auth credentials are not set. Enable Replit Auth in the workspace Auth pane.",
+      });
+    }
   }
 
   @Get("callback")
   async callback(
     @Query("code") code: string,
     @Query("state") state: string,
+    @Query("error") error: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    if (error) {
+      AppLogger.error(`OIDC callback error: ${error}`);
+      return res.redirect("/login?error=auth_denied");
+    }
+
     if (!code) {
       return res.redirect("/login?error=no_code");
     }
 
+    const callbackUrl = this.authService.getCallbackUrl();
+
     const result = await this.authService.authenticateWithReplitCallback(
       code,
       state,
+      callbackUrl,
     );
 
     if (!result.success || !result.session || !result.user) {
+      AppLogger.error(`Auth callback failed: ${result.error}`);
       return res.redirect("/login?error=auth_failed");
     }
 
     let clientRedirect: string | null = null;
     try {
-      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+      const stateData = JSON.parse(
+        Buffer.from(state, "base64url").toString(),
+      );
       if (stateData.redirect) {
         clientRedirect = stateData.redirect;
       }
     } catch {
-      // State parsing failed, use default redirect
+      try {
+        const stateData = JSON.parse(
+          Buffer.from(state, "base64").toString(),
+        );
+        if (stateData.redirect) {
+          clientRedirect = stateData.redirect;
+        }
+      } catch {
+        // State parsing failed
+      }
     }
 
     const tempCode = this.authService.generateTempAuthCode(
@@ -73,7 +110,11 @@ export class AuthController {
       result.session,
     );
 
-    if (clientRedirect && (clientRedirect.startsWith("exp://") || clientRedirect.startsWith("axon://"))) {
+    if (
+      clientRedirect &&
+      (clientRedirect.startsWith("exp://") ||
+        clientRedirect.startsWith("axon://"))
+    ) {
       const separator = clientRedirect.includes("?") ? "&" : "?";
       return res.redirect(`${clientRedirect}${separator}code=${tempCode}`);
     }
@@ -98,21 +139,6 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: "Tokens returned successfully",
-    schema: {
-      type: "object",
-      properties: {
-        success: { type: "boolean" },
-        user: { type: "object" },
-        session: {
-          type: "object",
-          properties: {
-            accessToken: { type: "string" },
-            refreshToken: { type: "string" },
-            expiresIn: { type: "number" },
-          },
-        },
-      },
-    },
   })
   @ApiResponse({ status: 400, description: "Invalid or expired code" })
   exchangeCode(@Body() body: { code: string }) {
@@ -149,7 +175,10 @@ export class AuthController {
   }
 
   @Post("logout")
-  async logout(@Body() body: RefreshRequest, @Req() req: AuthenticatedRequest) {
+  async logout(
+    @Body() body: RefreshRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
     if (body.refreshToken) {
       await this.authService.logout(body.refreshToken);
     }
@@ -160,7 +189,6 @@ export class AuthController {
   @Get("me")
   @UseGuards(AuthGuard)
   async me(@Req() req: AuthenticatedRequest) {
-    // Stateless: req.user contains the user data from token
     if (!req.user) {
       throw new UnauthorizedException("User not found");
     }
@@ -188,19 +216,6 @@ export class AuthController {
   @Get("public-key")
   @ApiOperation({
     summary: "Get server public key for JWE encryption",
-    description:
-      "Returns the public key that clients should use to encrypt credentials before sending them to the server.",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "Public key in PEM format",
-    schema: {
-      type: "object",
-      properties: {
-        publicKey: { type: "string" },
-        algorithm: { type: "string", example: "ECDH-ES+HKDF-256" },
-      },
-    },
   })
   getPublicKey() {
     return {
@@ -245,12 +260,8 @@ export class AuthController {
   } {
     const jwtSecret = process.env.SESSION_SECRET;
     if (!jwtSecret && process.env.NODE_ENV === "production") {
-      throw new Error(
-        "SESSION_SECRET must be set in production. " +
-          "Generate a secure random string and set it as SESSION_SECRET env var.",
-      );
+      throw new Error("SESSION_SECRET must be set in production.");
     }
-    // Dev-only fallback - never used in production due to check above
     const secret = jwtSecret || "axon-dev-secret-not-for-production";
 
     const accessToken = jwt.sign(
