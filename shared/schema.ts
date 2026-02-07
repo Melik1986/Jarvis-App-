@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name"),
   picture: text("picture"),
+  passwordHash: text("password_hash"),
   replitId: text("replit_id").unique(),
   createdAt: timestamp("created_at")
     .default(sql`CURRENT_TIMESTAMP`)

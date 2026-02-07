@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -35,40 +38,55 @@ export default function LoginScreen() {
   const { t } = useTranslation();
   const { setUser, setSession, isLoading } = useAuthStore();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleAuthSuccess = useCallback(
+    (data: {
+      success: boolean;
+      session?: {
+        accessToken: string;
+        refreshToken: string;
+        expiresIn: number;
+      };
+      user?: { id: string; email: string; name?: string; picture?: string };
+      error?: string;
+    }) => {
+      if (data.success && data.session && data.user) {
+        setSession({
+          accessToken: data.session.accessToken,
+          refreshToken: data.session.refreshToken,
+          expiresIn: data.session.expiresIn,
+          expiresAt: Date.now() + data.session.expiresIn * 1000,
+        });
+        setUser(data.user);
+        return true;
+      }
+      return false;
+    },
+    [setSession, setUser],
+  );
 
   const exchangeCodeForSession = useCallback(
     async (code: string) => {
       try {
         const baseUrl = getApiUrl();
-        const exchangeResponse = await fetch(
-          `${baseUrl}api/auth/exchange`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code }),
-          },
-        );
-
-        const data = await exchangeResponse.json();
-
-        if (data.success && data.session && data.user) {
-          setSession({
-            accessToken: data.session.accessToken,
-            refreshToken: data.session.refreshToken,
-            expiresIn: data.session.expiresIn,
-            expiresAt: Date.now() + data.session.expiresIn * 1000,
-          });
-          setUser(data.user);
-          return true;
-        }
-        AppLogger.error("Code exchange failed:", data.error);
-        return false;
+        const response = await fetch(`${baseUrl}api/auth/exchange`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        const data = await response.json();
+        return handleAuthSuccess(data);
       } catch (error) {
         AppLogger.error("Error exchanging auth code:", error);
         return false;
       }
     },
-    [setSession, setUser],
+    [handleAuthSuccess],
   );
 
   const extractCodeFromUrl = useCallback((url: string): string | null => {
@@ -103,14 +121,54 @@ export default function LoginScreen() {
     };
   }, [exchangeCodeForSession, extractCodeFromUrl]);
 
-  const handleLogin = async () => {
+  const handleEmailAuth = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert(t("error"), "Email and password are required");
+      return;
+    }
+
+    if (isRegisterMode && password.length < 6) {
+      Alert.alert(t("error"), "Password must be at least 6 characters");
+      return;
+    }
+
+    setIsSigningIn(true);
+
+    try {
+      const baseUrl = getApiUrl();
+      const endpoint = isRegisterMode ? "register" : "login";
+      const body: Record<string, string> = { email: email.trim(), password };
+
+      if (isRegisterMode && name.trim()) {
+        body.name = name.trim();
+      }
+
+      const response = await fetch(`${baseUrl}api/auth/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!handleAuthSuccess(data)) {
+        const errorMsg = data.message || data.error || t("authFailed");
+        Alert.alert(t("error"), errorMsg);
+      }
+    } catch (error) {
+      AppLogger.error("Email auth error:", error);
+      Alert.alert(t("error"), t("authFailed"));
+    }
+
+    setIsSigningIn(false);
+  };
+
+  const handleReplitLogin = async () => {
     setIsSigningIn(true);
 
     try {
       const baseUrl = getApiUrl();
       const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
-
-      AppLogger.info(`Auth: redirectUri=${redirectUri}`);
 
       const result = await WebBrowser.openAuthSessionAsync(
         loginUrl,
@@ -122,41 +180,27 @@ export default function LoginScreen() {
         const code = extractCodeFromUrl(result.url);
         if (code) {
           await exchangeCodeForSession(code);
-        } else {
-          AppLogger.error("No auth code in callback URL:", result.url);
         }
       }
-      setIsSigningIn(false);
     } catch (error) {
-      AppLogger.error("Login error:", error);
-      Alert.alert(t("error"), t("authFailed"));
-      setIsSigningIn(false);
+      AppLogger.error("Replit login error:", error);
     }
+
+    setIsSigningIn(false);
   };
 
   const handleDevLogin = async () => {
     setIsSigningIn(true);
     try {
       const baseUrl = getApiUrl();
-      const fullUrl = `${baseUrl}api/auth/dev-login`;
-
-      const response = await fetch(fullUrl, {
+      const response = await fetch(`${baseUrl}api/auth/dev-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "dev@axon.local", name: "Dev User" }),
       });
 
       const data = await response.json();
-
-      if (data.success && data.session && data.user) {
-        setSession({
-          accessToken: data.session.accessToken,
-          refreshToken: data.session.refreshToken,
-          expiresIn: data.session.expiresIn,
-          expiresAt: Date.now() + data.session.expiresIn * 1000,
-        });
-        setUser(data.user);
-      } else {
+      if (!handleAuthSuccess(data)) {
         Alert.alert(t("error"), data.error || t("authFailed"));
       }
     } catch (error) {
@@ -169,6 +213,15 @@ export default function LoginScreen() {
   const loading = isLoading || isSigningIn;
   const isDev = __DEV__;
 
+  const inputStyle = [
+    styles.input,
+    {
+      color: colors.text,
+      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+      borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)",
+    },
+  ];
+
   return (
     <LinearGradient
       colors={
@@ -178,129 +231,182 @@ export default function LoginScreen() {
       }
       style={styles.container}
     >
-      <View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top + Spacing["3xl"],
-            paddingBottom: insets.bottom + Spacing.xl,
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.logoContainer,
-              { backgroundColor: colors.primary + "20" },
-            ]}
-          >
-            <Feather name="cpu" size={48} color={colors.primary} />
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + Spacing.xl,
+              paddingBottom: insets.bottom + Spacing.xl,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <View
+              style={[
+                styles.logoContainer,
+                { backgroundColor: colors.primary + "20" },
+              ]}
+            >
+              <Feather name="cpu" size={48} color={colors.primary} />
+            </View>
+            <Text style={[styles.title, { color: colors.text }]}>AXON</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              {t("appTagline")}
+            </Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>AXON</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {t("appTagline")}
-          </Text>
-        </View>
 
-        <View style={styles.features}>
-          <FeatureItem
-            icon="message-circle"
-            title={t("smartAssistant")}
-            description={t("smartAssistantDesc")}
-            colors={colors}
-          />
-          <FeatureItem
-            icon="mic"
-            title={t("voiceCommands")}
-            description={t("voiceCommandsDesc")}
-            colors={colors}
-          />
-          <FeatureItem
-            icon="database"
-            title={t("erpIntegration")}
-            description={t("erpIntegrationDesc")}
-            colors={colors}
-          />
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.loginButton,
-              { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
-              loading && styles.buttonDisabled,
-            ]}
-            onPress={handleLogin}
-            disabled={loading}
-            testID="button-login"
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <>
-                <Feather name="log-in" size={20} color="#FFF" />
-                <Text style={styles.buttonText}>{t("signIn")}</Text>
-              </>
+          <View style={styles.form}>
+            {isRegisterMode && (
+              <TextInput
+                style={inputStyle}
+                placeholder={t("namePlaceholder")}
+                placeholderTextColor={colors.textSecondary}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
             )}
-          </Pressable>
 
-          {isDev ? (
+            <TextInput
+              style={inputStyle}
+              placeholder={t("emailPlaceholder")}
+              placeholderTextColor={colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+            />
+
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[inputStyle, styles.passwordInput]}
+                placeholder={t("passwordPlaceholder")}
+                placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete={isRegisterMode ? "new-password" : "password"}
+              />
+              <Pressable
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Feather
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+
             <Pressable
               style={({ pressed }) => [
-                styles.devButton,
-                { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
+                styles.loginButton,
+                { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
+                loading && styles.buttonDisabled,
               ]}
-              onPress={handleDevLogin}
+              onPress={handleEmailAuth}
               disabled={loading}
-              testID="button-dev-signin"
+              testID="button-email-auth"
             >
-              <Feather name="code" size={18} color={colors.textSecondary} />
-              <Text
-                style={[styles.devButtonText, { color: colors.textSecondary }]}
-              >
-                Continue as Dev User
+              {loading ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <>
+                  <Feather
+                    name={isRegisterMode ? "user-plus" : "log-in"}
+                    size={20}
+                    color="#FFF"
+                  />
+                  <Text style={styles.buttonText}>
+                    {isRegisterMode ? t("signUp") : t("signIn")}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => setIsRegisterMode(!isRegisterMode)}
+              style={styles.toggleMode}
+            >
+              <Text style={[styles.toggleText, { color: colors.primary }]}>
+                {isRegisterMode ? t("haveAccount") : t("noAccount")}{" "}
+                <Text style={styles.toggleTextBold}>
+                  {isRegisterMode ? t("signIn") : t("signUp")}
+                </Text>
               </Text>
             </Pressable>
-          ) : null}
+          </View>
 
-          <Text style={[styles.termsText, { color: colors.textSecondary }]}>
-            {t("termsAgreement")}
-          </Text>
-        </View>
-      </View>
+          <View style={styles.divider}>
+            <View
+              style={[styles.dividerLine, { backgroundColor: colors.border }]}
+            />
+            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
+              or
+            </Text>
+            <View
+              style={[styles.dividerLine, { backgroundColor: colors.border }]}
+            />
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.altButton,
+                { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
+                loading && styles.buttonDisabled,
+              ]}
+              onPress={handleReplitLogin}
+              disabled={loading}
+              testID="button-replit-login"
+            >
+              <Feather name="box" size={18} color={colors.textSecondary} />
+              <Text
+                style={[styles.altButtonText, { color: colors.textSecondary }]}
+              >
+                Sign in with Replit
+              </Text>
+            </Pressable>
+
+            {isDev ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.altButton,
+                  { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
+                ]}
+                onPress={handleDevLogin}
+                disabled={loading}
+                testID="button-dev-signin"
+              >
+                <Feather name="code" size={18} color={colors.textSecondary} />
+                <Text
+                  style={[
+                    styles.altButtonText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  Continue as Dev User
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <Text style={[styles.termsText, { color: colors.textSecondary }]}>
+              {t("termsAgreement")}
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
-  );
-}
-
-function FeatureItem({
-  icon,
-  title,
-  description,
-  colors,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  title: string;
-  description: string;
-  colors: ThemeColors;
-}) {
-  return (
-    <View style={styles.featureItem}>
-      <View
-        style={[styles.featureIcon, { backgroundColor: colors.primary + "15" }]}
-      >
-        <Feather name={icon} size={20} color={colors.primary} />
-      </View>
-      <View style={styles.featureText}>
-        <Text style={[styles.featureTitle, { color: colors.text }]}>
-          {title}
-        </Text>
-        <Text
-          style={[styles.featureDescription, { color: colors.textSecondary }]}
-        >
-          {description}
-        </Text>
-      </View>
-    </View>
   );
 }
 
@@ -308,14 +414,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  flex: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.xl,
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: Spacing.xl,
   },
   header: {
     alignItems: "center",
-    marginTop: Spacing["3xl"],
   },
   logoContainer: {
     width: 100,
@@ -336,34 +445,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 280,
   },
-  features: {
-    gap: Spacing.lg,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
+  form: {
     gap: Spacing.md,
   },
-  featureIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
+  input: {
+    height: 52,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
     fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 2,
   },
-  featureDescription: {
-    fontSize: 14,
+  passwordContainer: {
+    position: "relative",
   },
-  buttonContainer: {
-    gap: Spacing.md,
+  passwordInput: {
+    paddingRight: 52,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 16,
+    top: 16,
   },
   loginButton: {
     flexDirection: "row",
@@ -373,16 +474,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
-  },
-  devButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -392,7 +484,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  devButtonText: {
+  toggleMode: {
+    alignItems: "center",
+    paddingVertical: Spacing.xs,
+  },
+  toggleText: {
+    fontSize: 14,
+  },
+  toggleTextBold: {
+    fontWeight: "700",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 13,
+  },
+  buttonContainer: {
+    gap: Spacing.md,
+  },
+  altButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  altButtonText: {
     fontSize: 16,
     fontWeight: "500",
   },

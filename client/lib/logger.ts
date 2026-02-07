@@ -1,7 +1,7 @@
 /**
- * Interface for Supabase errors
+ * Structured error details for rich error logging
  */
-interface SupabaseError {
+interface StructuredError {
   message?: string;
   details?: string;
   hint?: string;
@@ -97,28 +97,22 @@ export class AppLogger {
     });
 
     if (error) {
-      // Special handling for Supabase errors
       if (typeof error === "object" && error !== null) {
-        const supabaseError = error as SupabaseError;
-        if (
-          supabaseError.message ||
-          supabaseError.details ||
-          supabaseError.hint
-        ) {
+        const structured = error as StructuredError;
+        if (structured.message || structured.details || structured.hint) {
           // eslint-disable-next-line no-console
           console.error(formatted, {
-            message: supabaseError.message,
-            details: supabaseError.details,
-            hint: supabaseError.hint,
-            code: supabaseError.code,
-            originalError: error,
+            message: structured.message,
+            details: structured.details,
+            hint: structured.hint,
+            code: structured.code,
           });
         } else if (Object.keys(error).length > 0) {
           // eslint-disable-next-line no-console
           console.error(formatted, error);
         } else {
           // eslint-disable-next-line no-console
-          console.error(formatted, "Empty error object:", error);
+          console.error(formatted);
         }
       } else {
         // eslint-disable-next-line no-console

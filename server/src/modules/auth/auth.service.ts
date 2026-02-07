@@ -1,9 +1,13 @@
-import { Injectable, Inject, OnModuleInit } from "@nestjs/common";
+import { Injectable, Inject, OnModuleInit, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import * as crypto from "crypto";
+import * as bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 import { AuthUser, AuthSession } from "./auth.types";
 import { AppLogger } from "../../utils/logger";
+import { DATABASE_CONNECTION, Database } from "../../db/db.module";
+import { users } from "../../../../shared/schema";
 
 interface ReplitOIDCTokenResponse {
   access_token: string;
@@ -41,20 +45,21 @@ export class AuthService implements OnModuleInit {
   private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
   private readonly TEMP_CODE_TTL_MS = 60 * 1000;
 
-  private readonly REPLIT_AUTH_AUTHORIZE =
-    "https://replit.com/auth/authorize";
+  private readonly REPLIT_AUTH_AUTHORIZE = "https://replit.com/auth/authorize";
   private readonly REPLIT_AUTH_TOKEN = "https://replit.com/auth/token";
-  private readonly REPLIT_AUTH_USERINFO =
-    "https://replit.com/auth/userinfo";
+  private readonly REPLIT_AUTH_USERINFO = "https://replit.com/auth/userinfo";
 
-  constructor(@Inject(ConfigService) private configService: ConfigService) {}
+  constructor(
+    @Inject(ConfigService) private configService: ConfigService,
+    @Optional()
+    @Inject(DATABASE_CONNECTION)
+    private db: Database,
+  ) {}
 
   onModuleInit() {
     const secret = this.configService.get("SESSION_SECRET");
     if (!secret && process.env.NODE_ENV === "production") {
-      throw new Error(
-        "SESSION_SECRET must be set in production environment.",
-      );
+      throw new Error("SESSION_SECRET must be set in production environment.");
     }
     this.jwtSecret = secret || "axon-dev-secret-not-for-production";
 
@@ -115,7 +120,10 @@ export class AuthService implements OnModuleInit {
       const clientSecret = this.getClientSecret();
 
       if (!clientId) {
-        return { success: false, error: "Auth not configured: missing client ID" };
+        return {
+          success: false,
+          error: "Auth not configured: missing client ID",
+        };
       }
 
       const tokenBody: Record<string, string> = {
@@ -145,19 +153,22 @@ export class AuthService implements OnModuleInit {
         return { success: false, error: "Token exchange failed" };
       }
 
-      const tokenData =
-        (await tokenResponse.json()) as ReplitOIDCTokenResponse;
+      const tokenData = (await tokenResponse.json()) as ReplitOIDCTokenResponse;
 
       let userInfo: Partial<ReplitIDTokenPayload> = {};
 
       if (tokenData.id_token) {
         try {
-          const decoded = jwt.decode(tokenData.id_token) as ReplitIDTokenPayload | null;
+          const decoded = jwt.decode(
+            tokenData.id_token,
+          ) as ReplitIDTokenPayload | null;
           if (decoded) {
             userInfo = decoded;
           }
         } catch (e) {
-          AppLogger.warn("Failed to decode id_token, falling back to userinfo endpoint");
+          AppLogger.warn(
+            "Failed to decode id_token, falling back to userinfo endpoint",
+          );
         }
       }
 
@@ -204,8 +215,7 @@ export class AuthService implements OnModuleInit {
       AppLogger.error("Replit OIDC auth error:", error);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Authentication failed",
+        error: error instanceof Error ? error.message : "Authentication failed",
       };
     }
   }
@@ -253,6 +263,115 @@ export class AuthService implements OnModuleInit {
     }
   }
 
+  async register(
+    email: string,
+    password: string,
+    name?: string,
+  ): Promise<{
+    success: boolean;
+    user?: AuthUser;
+    session?: AuthSession;
+    error?: string;
+  }> {
+    if (!this.db) {
+      return { success: false, error: "Database not available" };
+    }
+
+    try {
+      const existing = await this.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email.toLowerCase().trim()))
+        .limit(1);
+
+      if (existing.length > 0) {
+        return { success: false, error: "Email already registered" };
+      }
+
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      const [newUser] = await this.db
+        .insert(users)
+        .values({
+          email: email.toLowerCase().trim(),
+          name: name || email.split("@")[0],
+          passwordHash,
+        })
+        .returning();
+
+      const user: AuthUser = {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        picture: newUser.picture,
+        replitId: newUser.replitId,
+      };
+
+      const session = this.createSession(user);
+
+      AppLogger.info(`User registered: ${user.email} (${user.id})`);
+
+      return { success: true, user, session };
+    } catch (error) {
+      AppLogger.error("Registration error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Registration failed",
+      };
+    }
+  }
+
+  async loginWithPassword(
+    email: string,
+    password: string,
+  ): Promise<{
+    success: boolean;
+    user?: AuthUser;
+    session?: AuthSession;
+    error?: string;
+  }> {
+    if (!this.db) {
+      return { success: false, error: "Database not available" };
+    }
+
+    try {
+      const [found] = await this.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email.toLowerCase().trim()))
+        .limit(1);
+
+      if (!found || !found.passwordHash) {
+        return { success: false, error: "Invalid email or password" };
+      }
+
+      const valid = await bcrypt.compare(password, found.passwordHash);
+      if (!valid) {
+        return { success: false, error: "Invalid email or password" };
+      }
+
+      const user: AuthUser = {
+        id: found.id,
+        email: found.email,
+        name: found.name,
+        picture: found.picture,
+        replitId: found.replitId,
+      };
+
+      const session = this.createSession(user);
+
+      AppLogger.info(`User logged in: ${user.email} (${user.id})`);
+
+      return { success: true, user, session };
+    } catch (error) {
+      AppLogger.error("Login error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Login failed",
+      };
+    }
+  }
+
   async authenticateFromSession(
     sessionUser: Partial<AuthUser> | null | undefined,
   ): Promise<{
@@ -281,8 +400,7 @@ export class AuthService implements OnModuleInit {
       AppLogger.error("Session auth error:", error);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Authentication failed",
+        error: error instanceof Error ? error.message : "Authentication failed",
       };
     }
   }

@@ -61,15 +61,15 @@ describe("AppLogger (Client)", () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
-  it("should handle Supabase error objects", () => {
-    const supabaseError = {
+  it("should handle structured error objects", () => {
+    const structuredError = {
       message: "DB Error",
       details: "Connection failed",
       code: "500",
       hint: "Check network",
     };
 
-    AppLogger.error("Database failure", supabaseError);
+    AppLogger.error("Database failure", structuredError);
 
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(

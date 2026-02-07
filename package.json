@@ -143,6 +143,7 @@
     "@nestjs/testing": "^11.1.12",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.6",
     "@types/fast-redact": "^3.0.4",
     "@types/jest": "30.0.0",

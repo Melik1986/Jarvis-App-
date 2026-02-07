@@ -12,6 +12,8 @@ describe("LlmService (Orchestrator)", () => {
     // Direct instantiation bypasses NestJS DI (which doesn't work with Babel transform)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     service = new LlmService(mockConfigService as any);
+    // onModuleInit is not auto-called outside NestJS DI — call manually
+    service.onModuleInit();
   });
 
   describe("getProviderConfig / getModel", () => {

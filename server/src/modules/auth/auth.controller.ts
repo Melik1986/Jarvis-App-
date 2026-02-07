@@ -38,18 +38,24 @@ export class AuthController {
 
     try {
       const authUrl = this.authService.getAuthUrl(callbackUrl, state);
-      AppLogger.info(`Auth: Redirecting to Replit OIDC: ${authUrl.substring(0, 80)}...`);
+      AppLogger.info(
+        `Auth: Redirecting to Replit OIDC: ${authUrl.substring(0, 80)}...`,
+      );
       res.redirect(authUrl);
     } catch (error) {
       AppLogger.error("Auth login error:", error);
       const errorRedirect = redirect || "/";
-      if (errorRedirect.startsWith("exp://") || errorRedirect.startsWith("axon://")) {
+      if (
+        errorRedirect.startsWith("exp://") ||
+        errorRedirect.startsWith("axon://")
+      ) {
         const sep = errorRedirect.includes("?") ? "&" : "?";
         return res.redirect(`${errorRedirect}${sep}error=auth_not_configured`);
       }
       return res.status(500).json({
         error: "Auth not configured",
-        message: "Replit Auth credentials are not set. Enable Replit Auth in the workspace Auth pane.",
+        message:
+          "Replit Auth credentials are not set. Enable Replit Auth in the workspace Auth pane.",
       });
     }
   }
@@ -86,17 +92,13 @@ export class AuthController {
 
     let clientRedirect: string | null = null;
     try {
-      const stateData = JSON.parse(
-        Buffer.from(state, "base64url").toString(),
-      );
+      const stateData = JSON.parse(Buffer.from(state, "base64url").toString());
       if (stateData.redirect) {
         clientRedirect = stateData.redirect;
       }
     } catch {
       try {
-        const stateData = JSON.parse(
-          Buffer.from(state, "base64").toString(),
-        );
+        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
         if (stateData.redirect) {
           clientRedirect = stateData.redirect;
         }
@@ -127,6 +129,59 @@ export class AuthController {
     appRedirectUrl.searchParams.set("code", tempCode);
 
     res.redirect(appRedirectUrl.toString());
+  }
+
+  @Post("register")
+  @ApiOperation({
+    summary: "Register a new user with email and password",
+  })
+  @ApiResponse({ status: 201, description: "User registered successfully" })
+  @ApiResponse({ status: 400, description: "Invalid input or email taken" })
+  async register(
+    @Body() body: { email: string; password: string; name?: string },
+  ) {
+    if (!body.email || !body.password) {
+      throw new UnauthorizedException("Email and password are required");
+    }
+
+    if (body.password.length < 6) {
+      throw new UnauthorizedException("Password must be at least 6 characters");
+    }
+
+    const result = await this.authService.register(
+      body.email,
+      body.password,
+      body.name,
+    );
+
+    if (!result.success) {
+      throw new UnauthorizedException(result.error);
+    }
+
+    return result;
+  }
+
+  @Post("login")
+  @ApiOperation({
+    summary: "Login with email and password",
+  })
+  @ApiResponse({ status: 200, description: "Login successful" })
+  @ApiResponse({ status: 401, description: "Invalid credentials" })
+  async loginWithPassword(@Body() body: { email: string; password: string }) {
+    if (!body.email || !body.password) {
+      throw new UnauthorizedException("Email and password are required");
+    }
+
+    const result = await this.authService.loginWithPassword(
+      body.email,
+      body.password,
+    );
+
+    if (!result.success) {
+      throw new UnauthorizedException(result.error);
+    }
+
+    return result;
   }
 
   @Post("exchange")
@@ -175,10 +230,7 @@ export class AuthController {
   }
 
   @Post("logout")
-  async logout(
-    @Body() body: RefreshRequest,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  async logout(@Body() body: RefreshRequest, @Req() req: AuthenticatedRequest) {
     if (body.refreshToken) {
       await this.authService.logout(body.refreshToken);
     }
