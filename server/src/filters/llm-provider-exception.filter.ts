@@ -44,6 +44,11 @@ export function isLlmProviderError(exception: unknown): boolean {
     "authentication",
     "unauthorized",
     "rate limit",
+    "insufficient_quota",
+    "quota",
+    "billing",
+    "context_length",
+    "maximum context",
     "econnrefused",
     "enotfound",
     "fetch failed",
@@ -69,11 +74,28 @@ export function getSafeDetails(exception: unknown): string | undefined {
   if (!exception || typeof exception !== "object") return undefined;
   const err = exception as Record<string, unknown>;
   const status = err.status as number | undefined;
+  const msg = String(err.message ?? "")
+    .trim()
+    .toLowerCase();
+
+  // Context length exceeded
+  if (msg.includes("context_length") || msg.includes("maximum context")) {
+    return "Input too long — try a shorter message or remove attachments";
+  }
+
+  // Quota / billing exhaustion (OpenAI, Groq, etc.)
+  if (
+    msg.includes("insufficient_quota") ||
+    msg.includes("quota") ||
+    msg.includes("billing")
+  ) {
+    return "Quota exceeded — check your billing at provider dashboard";
+  }
+
   if (status === 401) return "Invalid API key";
-  if (status === 429) return "Rate limit exceeded";
+  if (status === 429) return "Rate limit exceeded — try again later";
   if (status === 502 || status === 503)
     return "Provider temporarily unavailable";
-  const msg = String(err.message ?? "").trim();
   if (msg.length > 0 && msg.length < 120 && !/sk-[a-zA-Z0-9]/i.test(msg))
     return msg;
   return undefined;

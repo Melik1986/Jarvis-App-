@@ -86,6 +86,7 @@ module.exports = defineConfig([
   // Ignores
   {
     ignores: [
+      "node_modules/*",
       "dist/*",
       "server_dist/*",
       "server/dist/*",

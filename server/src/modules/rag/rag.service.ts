@@ -281,10 +281,16 @@ export class RagService {
         chunkCount: chunks.length,
       };
 
-      // Extract LLM settings for embeddings
+      // Extract LLM settings for embeddings (BYO-LLM: prefer ragSettings from client)
       const llmSettings = {
-        apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
-        baseUrl: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+        apiKey:
+          ragSettings.openaiApiKey ||
+          this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") ||
+          "",
+        baseUrl:
+          ragSettings.openaiBaseUrl ||
+          this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL") ||
+          "https://api.openai.com/v1",
         provider: "openai",
       };
 

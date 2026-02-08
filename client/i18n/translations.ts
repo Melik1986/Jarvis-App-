@@ -211,6 +211,8 @@ export const translations = {
     processing: "Processing",
     error: "Error",
     success: "Success",
+    sendFailed: "Failed to send message",
+    uploadFailed: "Failed to upload document",
     documentReindexed: "Document reindexed successfully",
     deleteDocument: "Delete Document",
     name: "Name",
@@ -312,6 +314,8 @@ export const translations = {
     accessBlocked: "Access blocked. Identity confirmation required.",
     usePasscode: "Use device passcode",
     promptInjection: "Prompt injection detected",
+    contextTooLong:
+      "Message too long — try removing attachments or shortening the conversation",
   },
   ru: {
     appName: "AXON",
@@ -463,6 +467,8 @@ export const translations = {
     processing: "Обработка",
     error: "Ошибка",
     success: "Успешно",
+    sendFailed: "Не удалось отправить сообщение",
+    uploadFailed: "Не удалось загрузить документ",
     documentReindexed: "Документ переиндексирован",
     deleteDocument: "Удалить документ",
     name: "Название",
@@ -564,6 +570,8 @@ export const translations = {
     accessBlocked: "Доступ заблокирован. Требуется подтверждение личности.",
     usePasscode: "Использовать пароль устройства",
     promptInjection: "Обнаружена инъекция промпта",
+    contextTooLong:
+      "Сообщение слишком длинное — попробуйте удалить вложения или сократить переписку",
   },
   de: {
     // ... existing ...
@@ -711,6 +719,8 @@ export const translations = {
     processing: "Verarbeitung",
     error: "Fehler",
     success: "Erfolg",
+    sendFailed: "Nachricht konnte nicht gesendet werden",
+    uploadFailed: "Dokument konnte nicht hochgeladen werden",
     documentReindexed: "Dokument erfolgreich neu indexiert",
     deleteDocument: "Dokument löschen",
     name: "Name",
@@ -788,6 +798,8 @@ export const translations = {
     connecting: "Connecting...",
     noMcpServers: "No MCP servers connected",
     tools: "tools",
+    contextTooLong:
+      "Nachricht zu lang — entfernen Sie Anhänge oder kürzen Sie das Gespräch",
   },
   // ... fr, es, zh same strategy ...
 };

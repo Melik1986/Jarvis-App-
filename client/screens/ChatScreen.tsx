@@ -17,6 +17,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
@@ -166,6 +167,22 @@ export default function ChatScreen() {
         },
       );
 
+      if (!response.ok) {
+        const errorBody = await response.text();
+        let errorMsg = t("sendFailed");
+        try {
+          const parsed = JSON.parse(errorBody);
+          errorMsg = parsed.details
+            ? `${parsed.message}: ${parsed.details}`
+            : parsed.message || errorMsg;
+        } catch {
+          /* non-JSON error */
+        }
+        AppLogger.error("Chat API error:", errorBody);
+        Alert.alert(t("error"), errorMsg);
+        return;
+      }
+
       const responseText = await response.text();
       const allLines = responseText.split("\n");
       let fullContent = "";
@@ -175,6 +192,13 @@ export default function ChatScreen() {
         if (!line.startsWith("data: ")) continue;
         try {
           const data = JSON.parse(line.slice(6));
+
+          if (data.error) {
+            AppLogger.error("Stream error:", data.error);
+            Alert.alert(t("error"), data.error);
+            break;
+          }
+
           if (data.content) {
             fullContent += data.content;
             setStreamingContent(fullContent);
@@ -214,10 +238,14 @@ export default function ChatScreen() {
               );
             }
           }
-        } catch {}
+        } catch (parseErr) {
+          if (parseErr instanceof SyntaxError) continue;
+          AppLogger.warn("SSE parse error:", parseErr);
+        }
       }
     } catch (error) {
       AppLogger.error("Failed to send message:", error);
+      Alert.alert(t("error"), t("sendFailed"));
     } finally {
       setStreaming(false);
     }
@@ -256,17 +284,27 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
-        quality: 0.8,
-        base64: true,
+        quality: 0.5,
+        base64: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        if (!asset) return;
+        const compressed = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 512 } }],
+          {
+            compress: 0.6,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          },
+        );
         const attachment: Attachment = {
           name: `Photo ${new Date().toLocaleTimeString()}`,
           type: "image",
-          mimeType: asset.mimeType || "image/jpeg",
-          uri: asset.uri,
-          base64: asset.base64 || undefined,
+          mimeType: "image/jpeg",
+          uri: compressed.uri,
+          base64: compressed.base64 || undefined,
         };
         setAttachments((prev) => [...prev, attachment]);
       }
@@ -280,17 +318,27 @@ export default function ChatScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
-        quality: 0.8,
-        base64: true,
+        quality: 0.5,
+        base64: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        if (!asset) return;
+        const compressed = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 512 } }],
+          {
+            compress: 0.6,
+            format: ImageManipulator.SaveFormat.JPEG,
+            base64: true,
+          },
+        );
         const attachment: Attachment = {
           name: asset.fileName || "Image",
           type: "image",
-          mimeType: asset.mimeType || "image/jpeg",
-          uri: asset.uri,
-          base64: asset.base64 || undefined,
+          mimeType: "image/jpeg",
+          uri: compressed.uri,
+          base64: compressed.base64 || undefined,
         };
         setAttachments((prev) => [...prev, attachment]);
       }

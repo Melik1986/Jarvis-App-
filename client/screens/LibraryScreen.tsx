@@ -24,6 +24,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
+import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
 
 interface Document {
@@ -113,6 +115,9 @@ export default function LibraryScreen() {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const getAccessToken = useAuthStore((state) => state.getAccessToken);
+  const llmSettings = useSettingsStore((state) => state.llm);
+  const ragSettings = useSettingsStore((state) => state.rag);
 
   const { data: documents = [] } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
@@ -136,10 +141,26 @@ export default function LibraryScreen() {
       }
       formData.append("name", file.name);
 
+      // Pass RAG + LLM settings for embedding generation (BYO-LLM)
+      const ragUploadSettings: Record<string, unknown> = {
+        provider: ragSettings.provider,
+        qdrant: ragSettings.qdrant,
+        openaiApiKey: llmSettings.apiKey,
+        openaiBaseUrl: llmSettings.baseUrl,
+      };
+      formData.append("ragSettings", JSON.stringify(ragUploadSettings));
+
+      const headers: Record<string, string> = {};
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(
         new URL("/api/documents/upload", getApiUrl()).toString(),
         {
           method: "POST",
+          headers,
           body: formData,
         },
       );
@@ -147,17 +168,26 @@ export default function LibraryScreen() {
       if (!response.ok) {
         const errorText = await response.text();
         AppLogger.error("Upload error:", errorText);
-        throw new Error("Upload failed");
+        let userMsg = t("uploadFailed");
+        try {
+          const parsed = JSON.parse(errorText);
+          userMsg = parsed.details
+            ? `${parsed.message}: ${parsed.details}`
+            : parsed.message || userMsg;
+        } catch {
+          /* non-JSON */
+        }
+        throw new Error(userMsg);
       }
 
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      Alert.alert("Success", "Document uploaded successfully");
+      Alert.alert(t("success"), t("documentReindexed"));
     },
-    onError: (error) => {
-      Alert.alert("Error", "Failed to upload document. Please try again.");
+    onError: (error: Error) => {
+      Alert.alert(t("error"), error.message || t("uploadFailed"));
       AppLogger.error("Upload mutation error:", error);
     },
   });

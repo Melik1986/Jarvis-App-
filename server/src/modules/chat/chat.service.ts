@@ -373,13 +373,23 @@ export class ChatService {
       ? `${SYSTEM_PROMPT}\n\n${ragContext}`
       : SYSTEM_PROMPT;
 
-    // Build messages array for Vercel AI SDK
-    const messages: ModelMessage[] = [
-      ...history.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
-    ];
+    // Build messages array for Vercel AI SDK (cap history + strip old images)
+    const MAX_HISTORY_MESSAGES = 20;
+    const messages: ModelMessage[] = history
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map((m) => {
+        // Strip non-text parts (images/files) from multimodal history to save tokens
+        const content =
+          typeof m.content === "string"
+            ? m.content
+            : Array.isArray(m.content)
+              ? (m.content as Array<{ type: string; text?: string }>)
+                  .filter((p) => p.type === "text")
+                  .map((p) => p.text ?? "")
+                  .join("\n")
+              : String(m.content);
+        return { role: m.role as "user" | "assistant", content };
+      }) as ModelMessage[];
 
     // Handle multimodal content
     if (attachments && attachments.length > 0) {
@@ -390,6 +400,7 @@ export class ChatService {
           contentParts.push({
             type: "image",
             image: att.base64,
+            providerOptions: { openai: { imageDetail: "low" } },
           });
         } else if (att.type === "file") {
           // Process documents
@@ -479,6 +490,9 @@ export class ChatService {
             messages,
             tools,
             maxOutputTokens: 2048,
+            providerOptions: {
+              openai: { truncation: "auto" },
+            },
           });
 
           const toolCallsArgs = new Map<string, Record<string, unknown>>();
