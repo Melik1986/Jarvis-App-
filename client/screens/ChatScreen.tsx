@@ -102,226 +102,229 @@ export default function ChatScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingConvId]);
 
-  const sendMessage = useCallback(async () => {
-    if (
-      (!inputText.trim() && attachments.length === 0) ||
-      !currentConversationId ||
-      isStreaming
-    )
-      return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: "user",
-      content: inputText.trim(),
-      createdAt: new Date().toISOString(),
-      attachments: attachments,
-    };
-
-    addMessage(userMessage);
-    setInputText("");
-    setAttachments([]);
-    setStreaming(true);
-    clearStreamingContent();
-
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    try {
-      const baseUrl = getApiUrl();
-
-      // Read context from local SQLite for zero-storage payload
-      const convId = currentConversationId as string;
-      const RECENT_WINDOW = 6;
-      const [history, activeRules, enabledSkills, memoryFacts, convSummary] =
-        await Promise.all([
-          localStore.getRecentHistory(convId, RECENT_WINDOW),
-          localStore.getActiveRules(),
-          localStore.getEnabledSkills(),
-          localStore.getMemoryFacts(),
-          localStore.getConversationSummary(convId),
-        ]);
-
-      const response = await authenticatedFetch(`${baseUrl}api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: userMessage.content,
-          attachments: userMessage.attachments,
-          history,
-          rules: activeRules.map((r) => ({
-            id: r.id,
-            name: r.name,
-            condition: r.condition,
-            action: r.action,
-            message: r.message,
-            content: r.content,
-            priority: r.priority,
-          })),
-          skills: enabledSkills.map((s) => ({
-            id: s.id,
-            name: s.name,
-            description: s.description,
-            code: s.code,
-            content: s.content,
-            inputSchema: s.inputSchema,
-            outputSchema: s.outputSchema,
-          })),
-          llmSettings: {
-            provider: llmSettings.provider,
-            baseUrl: llmSettings.baseUrl,
-            apiKey: llmSettings.apiKey,
-            modelName: llmSettings.modelName,
-          },
-          erpSettings: {
-            provider: erpSettings.provider,
-            baseUrl: erpSettings.url,
-            username: erpSettings.username,
-            password: erpSettings.password,
-            apiKey: erpSettings.apiKey,
-            apiType: erpSettings.apiType,
-          },
-          ragSettings: {
-            provider: ragSettings.provider,
-            qdrant: ragSettings.qdrant,
-          },
-          conversationSummary: convSummary ?? undefined,
-          memoryFacts: memoryFacts.map((f) => ({
-            key: f.key,
-            value: f.value,
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        let errorMsg = t("sendFailed");
-        try {
-          const parsed = JSON.parse(errorBody);
-          errorMsg = parsed.details
-            ? `${parsed.message}: ${parsed.details}`
-            : parsed.message || errorMsg;
-        } catch {
-          /* non-JSON error */
-        }
-        AppLogger.error("Chat API error:", errorBody);
-        Alert.alert(t("error"), errorMsg);
+  const sendMessage = useCallback(
+    async (overrideText?: string) => {
+      const text = overrideText ?? inputText;
+      if (
+        (!text.trim() && attachments.length === 0) ||
+        !currentConversationId ||
+        isStreaming
+      )
         return;
+
+      const userMessage: ChatMessage = {
+        id: Date.now(),
+        role: "user",
+        content: text.trim(),
+        createdAt: new Date().toISOString(),
+        attachments: attachments,
+      };
+
+      addMessage(userMessage);
+      setInputText("");
+      setAttachments([]);
+      setStreaming(true);
+      clearStreamingContent();
+
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
-      const responseText = await response.text();
-      const allLines = responseText.split("\n");
-      let fullContent = "";
-      const toolCalls: ToolCall[] = [];
+      try {
+        const baseUrl = getApiUrl();
 
-      for (const line of allLines) {
-        if (!line.startsWith("data: ")) continue;
-        try {
-          const data = JSON.parse(line.slice(6));
+        // Read context from local SQLite for zero-storage payload
+        const convId = currentConversationId as string;
+        const RECENT_WINDOW = 6;
+        const [history, activeRules, enabledSkills, memoryFacts, convSummary] =
+          await Promise.all([
+            localStore.getRecentHistory(convId, RECENT_WINDOW),
+            localStore.getActiveRules(),
+            localStore.getEnabledSkills(),
+            localStore.getMemoryFacts(),
+            localStore.getConversationSummary(convId),
+          ]);
 
-          if (data.error) {
-            AppLogger.error("Stream error:", data.error);
-            Alert.alert(t("error"), data.error);
-            break;
-          }
+        const response = await authenticatedFetch(`${baseUrl}api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: userMessage.content,
+            attachments: userMessage.attachments,
+            history,
+            rules: activeRules.map((r) => ({
+              id: r.id,
+              name: r.name,
+              condition: r.condition,
+              action: r.action,
+              message: r.message,
+              content: r.content,
+              priority: r.priority,
+            })),
+            skills: enabledSkills.map((s) => ({
+              id: s.id,
+              name: s.name,
+              description: s.description,
+              code: s.code,
+              content: s.content,
+              inputSchema: s.inputSchema,
+              outputSchema: s.outputSchema,
+            })),
+            llmSettings: {
+              provider: llmSettings.provider,
+              baseUrl: llmSettings.baseUrl,
+              apiKey: llmSettings.apiKey,
+              modelName: llmSettings.modelName,
+            },
+            erpSettings: {
+              provider: erpSettings.provider,
+              baseUrl: erpSettings.url,
+              username: erpSettings.username,
+              password: erpSettings.password,
+              apiKey: erpSettings.apiKey,
+              apiType: erpSettings.apiType,
+            },
+            ragSettings: {
+              provider: ragSettings.provider,
+              qdrant: ragSettings.qdrant,
+            },
+            conversationSummary: convSummary ?? undefined,
+            memoryFacts: memoryFacts.map((f) => ({
+              key: f.key,
+              value: f.value,
+            })),
+          }),
+        });
 
-          if (data.content) {
-            fullContent += data.content;
-            setStreamingContent(fullContent);
+        if (!response.ok) {
+          const errorBody = await response.text();
+          let errorMsg = t("sendFailed");
+          try {
+            const parsed = JSON.parse(errorBody);
+            errorMsg = parsed.details
+              ? `${parsed.message}: ${parsed.details}`
+              : parsed.message || errorMsg;
+          } catch {
+            /* non-JSON error */
           }
-          if (data.toolCall) {
-            toolCalls.push({ ...data.toolCall, status: "calling" });
-          }
-          if (data.toolResult) {
-            const idx = toolCalls.findIndex(
-              (t) =>
-                t.toolName === data.toolResult.toolName &&
-                t.status === "calling",
-            );
-            if (idx !== -1) {
-              toolCalls[idx] = {
-                ...toolCalls[idx],
-                ...data.toolResult,
-                status: "done",
-              };
-            } else {
-              toolCalls.push({ ...data.toolResult, status: "done" });
+          AppLogger.error("Chat API error:", errorBody);
+          Alert.alert(t("error"), errorMsg);
+          return;
+        }
+
+        const responseText = await response.text();
+        const allLines = responseText.split("\n");
+        let fullContent = "";
+        const toolCalls: ToolCall[] = [];
+
+        for (const line of allLines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.error) {
+              AppLogger.error("Stream error:", data.error);
+              Alert.alert(t("error"), data.error);
+              break;
             }
 
-            // Handle save_memory tool: persist fact to local SQLite
-            if (data.toolResult.toolName === "save_memory") {
-              try {
-                const result =
-                  typeof data.toolResult.result === "string"
-                    ? JSON.parse(data.toolResult.result)
-                    : data.toolResult.result;
-                if (result?._action === "save_memory") {
-                  localStore
-                    .saveMemoryFact(
-                      result.key,
-                      result.value,
-                      currentConversationId ?? undefined,
-                    )
-                    .catch((e) =>
-                      AppLogger.error("Failed to save memory fact", e),
-                    );
+            if (data.content) {
+              fullContent += data.content;
+              setStreamingContent(fullContent);
+            }
+            if (data.toolCall) {
+              toolCalls.push({ ...data.toolCall, status: "calling" });
+            }
+            if (data.toolResult) {
+              const idx = toolCalls.findIndex(
+                (t) =>
+                  t.toolName === data.toolResult.toolName &&
+                  t.status === "calling",
+              );
+              if (idx !== -1) {
+                toolCalls[idx] = {
+                  ...toolCalls[idx],
+                  ...data.toolResult,
+                  status: "done",
+                };
+              } else {
+                toolCalls.push({ ...data.toolResult, status: "done" });
+              }
+
+              // Handle save_memory tool: persist fact to local SQLite
+              if (data.toolResult.toolName === "save_memory") {
+                try {
+                  const result =
+                    typeof data.toolResult.result === "string"
+                      ? JSON.parse(data.toolResult.result)
+                      : data.toolResult.result;
+                  if (result?._action === "save_memory") {
+                    localStore
+                      .saveMemoryFact(
+                        result.key,
+                        result.value,
+                        currentConversationId ?? undefined,
+                      )
+                      .catch((e) =>
+                        AppLogger.error("Failed to save memory fact", e),
+                      );
+                  }
+                } catch {
+                  /* non-JSON result, skip */
                 }
-              } catch {
-                /* non-JSON result, skip */
               }
             }
+            if (data.done) {
+              const assistantMessage: ChatMessage = {
+                id: Date.now() + 1,
+                role: "assistant",
+                content: fullContent,
+                createdAt: new Date().toISOString(),
+                toolCalls: toolCalls,
+              };
+              addMessage(assistantMessage);
+              clearStreamingContent();
+
+              // Auto-title: update from "New Chat" after first exchange
+              if (messages.length <= 1 && currentConversationId) {
+                const title =
+                  userMessage.content.slice(0, 40) +
+                  (userMessage.content.length > 40 ? "..." : "");
+                localStore
+                  .updateConversationTitle(currentConversationId, title)
+                  .catch(() => {});
+              }
+
+              // Auto-summarize: update summary every 4 new messages after 8 total
+              const totalMsgs = messages.length + 2; // +user +assistant just added
+              if (
+                currentConversationId &&
+                totalMsgs >= 8 &&
+                totalMsgs % 4 < 2 // trigger roughly every 4 messages
+              ) {
+                generateSummary(currentConversationId).catch(() => {});
+              }
+
+              if (Platform.OS !== "web") {
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Success,
+                );
+              }
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) continue;
+            AppLogger.warn("SSE parse error:", parseErr);
           }
-          if (data.done) {
-            const assistantMessage: ChatMessage = {
-              id: Date.now() + 1,
-              role: "assistant",
-              content: fullContent,
-              createdAt: new Date().toISOString(),
-              toolCalls: toolCalls,
-            };
-            addMessage(assistantMessage);
-            clearStreamingContent();
-
-            // Auto-title: update from "New Chat" after first exchange
-            if (messages.length <= 1 && currentConversationId) {
-              const title =
-                userMessage.content.slice(0, 40) +
-                (userMessage.content.length > 40 ? "..." : "");
-              localStore
-                .updateConversationTitle(currentConversationId, title)
-                .catch(() => {});
-            }
-
-            // Auto-summarize: update summary every 4 new messages after 8 total
-            const totalMsgs = messages.length + 2; // +user +assistant just added
-            if (
-              currentConversationId &&
-              totalMsgs >= 8 &&
-              totalMsgs % 4 < 2 // trigger roughly every 4 messages
-            ) {
-              generateSummary(currentConversationId).catch(() => {});
-            }
-
-            if (Platform.OS !== "web") {
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success,
-              );
-            }
-          }
-        } catch (parseErr) {
-          if (parseErr instanceof SyntaxError) continue;
-          AppLogger.warn("SSE parse error:", parseErr);
         }
+      } catch (error) {
+        AppLogger.error("Failed to send message:", error);
+        Alert.alert(t("error"), t("sendFailed"));
+      } finally {
+        setStreaming(false);
       }
-    } catch (error) {
-      AppLogger.error("Failed to send message:", error);
-      Alert.alert(t("error"), t("sendFailed"));
-    } finally {
-      setStreaming(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputText, attachments, currentConversationId, isStreaming]);
+    },
+    [inputText, attachments, currentConversationId, isStreaming],
+  );
 
   /** Generate a compressed summary of older messages via LLM */
   const generateSummary = useCallback(
@@ -580,13 +583,14 @@ export default function ChatScreen() {
     }
     if (!lastUserMsg) return;
     await removeLastAssistantMessage();
-    setInputText(lastUserMsg.content);
-  }, [isStreaming, messages, removeLastAssistantMessage]);
+    // Auto-send the last user message to regenerate the response
+    await sendMessage(lastUserMsg.content);
+  }, [isStreaming, messages, removeLastAssistantMessage, sendMessage]);
 
   const handleFork = useCallback(
-    async (messageId: string | number) => {
+    async (localId: string) => {
       try {
-        const newConvId = await forkConversation(String(messageId));
+        const newConvId = await forkConversation(localId);
         AppLogger.info(`Forked conversation: ${newConvId}`);
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -600,6 +604,7 @@ export default function ChatScreen() {
 
   const handleMessageLongPress = useCallback(
     (item: ChatMessage) => {
+      const localId = item._localId ?? String(item.id);
       if (Platform.OS === "ios") {
         ActionSheetIOS.showActionSheetWithOptions(
           {
@@ -607,7 +612,7 @@ export default function ChatScreen() {
             cancelButtonIndex: 0,
           },
           (idx) => {
-            if (idx === 1) void handleFork(item.id);
+            if (idx === 1) void handleFork(localId);
           },
         );
       } else {
@@ -618,7 +623,7 @@ export default function ChatScreen() {
             { text: t("cancel"), style: "cancel" },
             {
               text: t("fork") || "Fork",
-              onPress: () => void handleFork(item.id),
+              onPress: () => void handleFork(localId),
             },
           ],
         );
@@ -867,7 +872,7 @@ export default function ChatScreen() {
               placeholderTextColor={theme.textTertiary}
               value={inputText}
               onChangeText={setInputText}
-              onSubmitEditing={sendMessage}
+              onSubmitEditing={() => sendMessage()}
               returnKeyType="send"
               multiline
               maxLength={2000}
@@ -875,7 +880,7 @@ export default function ChatScreen() {
             {inputText.trim() || attachments.length > 0 ? (
               <Pressable
                 style={styles.sendButton}
-                onPress={sendMessage}
+                onPress={() => sendMessage()}
                 disabled={isStreaming}
               >
                 <Ionicons name="send" size={20} color={theme.primary} />

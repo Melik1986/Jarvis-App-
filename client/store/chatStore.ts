@@ -83,8 +83,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const rows = await localStore.getMessages(conversationId);
       set({
-        messages: rows.map((r) => ({
-          id: Number(r.id) || Date.now(),
+        messages: rows.map((r, idx) => ({
+          id: idx + 1,
+          _localId: r.id,
           role: r.role,
           content: r.content,
           createdAt: new Date(r.createdAt).toISOString(),
@@ -103,7 +104,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addMessage: (message) => {
     set((state) => ({ messages: [...state.messages, message] }));
-    // Persist to SQLite (fire-and-forget)
+    // Persist to SQLite and update _localId
     const convId = get().currentConversationId;
     if (convId) {
       localStore
@@ -114,6 +115,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           message.attachments,
           message.metadata,
         )
+        .then((saved) => {
+          // Patch _localId so fork can find the message by SQLite UUID
+          set((state) => ({
+            messages: state.messages.map((m) =>
+              m.id === message.id && m.role === message.role
+                ? { ...m, _localId: saved.id }
+                : m,
+            ),
+          }));
+        })
         .catch((e) => AppLogger.error("addMessage persist failed", e));
     }
   },
@@ -126,8 +137,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Reload messages for the forked conversation
     const rows = await localStore.getMessages(forked.id);
     set({
-      messages: rows.map((r) => ({
-        id: Number(r.id) || Date.now(),
+      messages: rows.map((r, idx) => ({
+        id: idx + 1,
+        _localId: r.id,
         role: r.role,
         content: r.content,
         createdAt: new Date(r.createdAt).toISOString(),

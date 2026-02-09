@@ -22,6 +22,8 @@ export type Attachment = {
 
 export type ChatMessage = {
   id: number;
+  /** SQLite UUID — used for fork/regenerate operations on local DB */
+  _localId?: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;

@@ -150,13 +150,18 @@ class LocalStore {
 
       AppLogger.info("LocalStore initialized", undefined, "LocalStore");
     } catch (error) {
+      this.db = null;
       AppLogger.error("Failed to init LocalStore", error, "LocalStore");
+      throw error;
     }
   }
 
   private async ensureDb(): Promise<SQLite.SQLiteDatabase> {
     if (!this.db) await this.init();
-    return this.db!;
+    if (!this.db) {
+      throw new Error("LocalStore database failed to initialize");
+    }
+    return this.db;
   }
 
   // ─── Conversations ──────────────────────────────────────────
