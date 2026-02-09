@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
   TextInput,
   Pressable,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import * as Linking from "expo-linking";
@@ -16,14 +15,16 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
-import { useSettingsStore, RagProvider } from "@/store/settingsStore";
+import {
+  useSettingsStore,
+  RagProvider,
+  RagSettings,
+} from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest, getApiUrl, authenticatedFetch } from "@/lib/query-client";
-import { AppLogger } from "@/lib/logger";
 
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -36,8 +37,9 @@ export default function RAGSettingsScreen() {
 
   const { rag, setRagSettings } = useSettingsStore();
 
-  const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState<RagProvider | null>(null);
+  // Zero-storage: provider selection lives entirely in the client store.
+  // No server round-trip needed — getCurrentProvider() is always "none".
+  const [provider, setProvider] = useState<RagProvider>(rag.provider);
   const [qdrantUrl, setQdrantUrl] = useState(rag.qdrant.url);
   const [qdrantApiKey, setQdrantApiKey] = useState(rag.qdrant.apiKey);
   const [collectionName, setCollectionName] = useState(
@@ -47,30 +49,6 @@ export default function RAGSettingsScreen() {
   const [supabaseApiKey, setSupabaseApiKey] = useState(rag.supabase.apiKey);
   const [supabaseTable, setSupabaseTable] = useState(rag.supabase.tableName);
   const [replitTable, setReplitTable] = useState(rag.replit.tableName);
-
-  useEffect(() => {
-    const fetchProviderSettings = async () => {
-      try {
-        const url = new URL("/api/documents/providers", getApiUrl());
-        const response = await authenticatedFetch(url.toString());
-        if (response.ok) {
-          const data = await response.json();
-          const currentProvider = (data.current || "none") as RagProvider;
-          setProvider(currentProvider);
-          setRagSettings({ ...rag, provider: currentProvider });
-        } else {
-          setProvider(rag.provider);
-        }
-      } catch (error) {
-        AppLogger.error("Failed to fetch provider settings:", error);
-        setProvider(rag.provider);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void fetchProviderSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
@@ -95,6 +73,7 @@ export default function RAGSettingsScreen() {
     },
   ];
 
+  const loading = false; // Data comes from local store, no server fetch needed
   const [saving, setSaving] = useState(false);
 
   const providerDocsUrlByProvider: Partial<Record<RagProvider, string>> = {
@@ -114,12 +93,12 @@ export default function RAGSettingsScreen() {
     await Linking.openURL(selectedProviderDocsUrl);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!provider) return;
 
     setSaving(true);
-    const settings = {
-      provider: provider as RagProvider,
+    const settings: RagSettings = {
+      provider,
       qdrant: {
         url: qdrantUrl,
         apiKey: qdrantApiKey,
@@ -135,19 +114,14 @@ export default function RAGSettingsScreen() {
       },
     };
 
-    try {
-      await apiRequest("PUT", "/api/documents/providers", settings);
-      setRagSettings(settings);
-      navigation.goBack();
-    } catch (error) {
-      AppLogger.error("Failed to save settings:", error);
-      Alert.alert("Error", "Failed to save settings. Please try again.");
-    } finally {
-      setSaving(false);
-    }
+    // Zero-storage: save only to local Zustand store (persisted via SecureStore).
+    // Server setProvider() is a noop — no server round-trip needed.
+    setRagSettings(settings);
+    setSaving(false);
+    navigation.goBack();
   };
 
-  if (loading || provider === null || !isUnlocked) {
+  if (loading || !isUnlocked) {
     return (
       <View
         style={[

@@ -116,6 +116,8 @@ export const useSettingsStore = create<SettingsState>()(
             ...state.rag,
             ...settings,
             qdrant: { ...state.rag.qdrant, ...settings.qdrant },
+            supabase: { ...state.rag.supabase, ...settings.supabase },
+            replit: { ...state.rag.replit, ...settings.replit },
           },
         })),
       setVoice: (voice) => set({ voice }),

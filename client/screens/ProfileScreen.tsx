@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   StyleSheet,
   View,
@@ -28,8 +28,6 @@ import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
-import { AppLogger } from "@/lib/logger";
 
 const languageNames: Record<string, string> = {
   ru: "Русский",
@@ -48,26 +46,8 @@ export default function ProfileScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
-  const { llm, erp, rag, voice, language, setRagSettings } = useSettingsStore();
+  const { llm, erp, rag, voice, language } = useSettingsStore();
   const { user, signOut } = useAuthStore();
-
-  useEffect(() => {
-    const fetchProviderSettings = async () => {
-      try {
-        const response = await apiRequest("GET", "/api/documents/providers");
-        if (response.ok) {
-          const data = await response.json();
-          const currentProvider = (data.current || "none") as RagProvider;
-          if (currentProvider !== rag.provider) {
-            setRagSettings({ ...rag, provider: currentProvider });
-          }
-        }
-      } catch (error) {
-        AppLogger.error("Failed to fetch provider settings:", error);
-      }
-    };
-    fetchProviderSettings();
-  }, [rag, setRagSettings]);
 
   const getRagProviderLabel = () => {
     switch (rag.provider) {
