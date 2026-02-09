@@ -10,7 +10,7 @@ import { ErpConfig } from "../erp/erp.types";
 import { AppLogger } from "../../utils/logger";
 import { GuardianGuard } from "../../guards/guardian.guard";
 import { SandboxExecutorService } from "../skills/sandbox-executor.service";
-import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
+import type { ClientRuleDto, ClientSkillDto, MemoryFactDto } from "./chat.dto";
 
 @Injectable()
 export class ToolRegistryService {
@@ -38,6 +38,7 @@ export class ToolRegistryService {
     mcpServers: McpServerConfig[] = [],
     clientRules?: ClientRuleDto[],
     clientSkills?: ClientSkillDto[],
+    memoryFacts?: MemoryFactDto[],
   ): Promise<Record<string, Tool<unknown, unknown>>> {
     const tools: Record<string, Tool<unknown, unknown>> = {};
     const rules = clientRules ?? [];
@@ -135,6 +136,68 @@ export class ToolRegistryService {
         }),
       });
     }
+
+    // 5. Memory tools (client persists results)
+    const facts = memoryFacts ?? [];
+
+    tools["save_memory"] = dynamicTool({
+      description:
+        "Save an important fact about the user, their business, or preferences to long-term memory. Use when the user shares persistent info (name, company, preferences, key decisions). The client will persist this locally.",
+      inputSchema: jsonSchema({
+        type: "object",
+        properties: {
+          key: {
+            type: "string",
+            description:
+              "Short label for the fact (e.g. 'user_name', 'company', 'preferred_language')",
+          },
+          value: {
+            type: "string",
+            description: "The fact value to remember",
+          },
+        },
+        required: ["key", "value"],
+        additionalProperties: false,
+      }),
+      execute: async (args) => {
+        const { key, value } = args as { key: string; value: string };
+        return JSON.stringify({
+          _action: "save_memory",
+          key,
+          value,
+          status: "saved",
+        });
+      },
+    });
+
+    tools["recall_memory"] = dynamicTool({
+      description:
+        "Search long-term memory for facts about the user. Use when you need context from previous conversations (e.g. user's name, company, past decisions).",
+      inputSchema: jsonSchema({
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query to find relevant memory facts",
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      }),
+      execute: async (args) => {
+        const { query } = args as { query: string };
+        const q = query.toLowerCase();
+        const matched = facts.filter(
+          (f) =>
+            f.key.toLowerCase().includes(q) ||
+            f.value.toLowerCase().includes(q),
+        );
+        if (matched.length === 0) {
+          return "No matching facts found in memory.";
+        }
+        return matched.map((f) => `${f.key}: ${f.value}`).join("\n");
+      },
+    });
 
     return tools;
   }

@@ -212,6 +212,14 @@ export class ClientSkillDto {
   outputSchema?: string;
 }
 
+export class MemoryFactDto {
+  @IsString()
+  key!: string;
+
+  @IsString()
+  value!: string;
+}
+
 /**
  * Stateless chat request: client sends everything the server needs.
  */
@@ -256,4 +264,14 @@ export class ChatRequestDto {
   @ValidateNested()
   @Type(() => RagSettingsDto)
   ragSettings?: RagSettingsDto;
+
+  @IsOptional()
+  @IsString()
+  conversationSummary?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MemoryFactDto)
+  memoryFacts?: MemoryFactDto[];
 }

@@ -283,6 +283,8 @@ export class ChatService {
     clientHistory?: { role: "user" | "assistant"; content: string }[],
     clientRules?: ClientRuleDto[],
     clientSkills?: ClientSkillDto[],
+    conversationSummary?: string,
+    memoryFacts?: { key: string; value: string }[],
   ) {
     // Check for prompt injection
     const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
@@ -328,23 +330,37 @@ export class ChatService {
       systemMessage += `\n\n## User Skills Context:\n${skillInstructions}`;
     }
 
-    // Build messages array for Vercel AI SDK (cap history + strip old images)
-    const MAX_HISTORY_MESSAGES = 20;
-    const messages: ModelMessage[] = history
-      .slice(-MAX_HISTORY_MESSAGES)
-      .map((m) => {
-        // Strip non-text parts (images/files) from multimodal history to save tokens
-        const content =
-          typeof m.content === "string"
-            ? m.content
-            : Array.isArray(m.content)
-              ? (m.content as { type: string; text?: string }[])
-                  .filter((p) => p.type === "text")
-                  .map((p) => p.text ?? "")
-                  .join("\n")
-              : String(m.content);
-        return { role: m.role as "user" | "assistant", content };
-      }) as ModelMessage[];
+    // Inject long-term memory facts
+    if (memoryFacts && memoryFacts.length > 0) {
+      const factLines = memoryFacts
+        .map((f) => `- ${f.key}: ${f.value}`)
+        .join("\n");
+      systemMessage += `\n\n## Long-term Memory:\n${factLines}`;
+      systemMessage +=
+        "\n\nYou have access to long-term memory. Use save_memory to remember important facts about the user, their business, preferences, and context that should persist across conversations. Use recall_memory to search past facts.";
+    }
+
+    // Inject conversation summary (compressed older context)
+    if (conversationSummary) {
+      systemMessage += `\n\n## Previous Conversation Context:\n${conversationSummary}`;
+    }
+
+    // Build messages array for Vercel AI SDK
+    // Client now sends only recent window (6 msgs) + summary for older context
+    const RECENT_WINDOW = 6;
+    const messages: ModelMessage[] = history.slice(-RECENT_WINDOW).map((m) => {
+      // Strip non-text parts (images/files) from multimodal history to save tokens
+      const content =
+        typeof m.content === "string"
+          ? m.content
+          : Array.isArray(m.content)
+            ? (m.content as { type: string; text?: string }[])
+                .filter((p) => p.type === "text")
+                .map((p) => p.text ?? "")
+                .join("\n")
+            : String(m.content);
+      return { role: m.role as "user" | "assistant", content };
+    }) as ModelMessage[];
 
     // Handle multimodal content
     if (attachments && attachments.length > 0) {
@@ -434,6 +450,7 @@ export class ChatService {
             [],
             clientRules,
             clientSkills,
+            memoryFacts,
           );
 
           if (verbose) {

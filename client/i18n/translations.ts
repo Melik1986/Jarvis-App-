@@ -321,6 +321,15 @@ export const translations = {
       "Voice transcription failed. Check Settings → LLM Provider → Transcription Model.",
     transcriptionNotSupported:
       "Your provider may not support audio transcription. Try OpenAI or Groq.",
+    forkFromHere: "Fork from here",
+    forkDescription: "Create a new conversation from this point?",
+    fork: "Fork",
+    regenerate: "Regenerate",
+    searchConversations: "Search conversations...",
+    today: "Today",
+    yesterday: "Yesterday",
+    thisWeek: "This Week",
+    earlier: "Earlier",
   },
   ru: {
     appName: "AXON",
@@ -582,6 +591,15 @@ export const translations = {
       "Не удалось распознать голос. Проверьте Настройки → Провайдер LLM → Модель транскрипции.",
     transcriptionNotSupported:
       "Ваш провайдер может не поддерживать распознавание голоса. Попробуйте OpenAI или Groq.",
+    forkFromHere: "Ответвить отсюда",
+    forkDescription: "Создать новый разговор с этого места?",
+    fork: "Ответвить",
+    regenerate: "Повторить",
+    searchConversations: "Поиск разговоров...",
+    today: "Сегодня",
+    yesterday: "Вчера",
+    thisWeek: "На этой неделе",
+    earlier: "Ранее",
   },
   de: {
     // ... existing ...
@@ -815,6 +833,15 @@ export const translations = {
       "Spracherkennung fehlgeschlagen. Überprüfen Sie Einstellungen → LLM-Anbieter → Transkriptionsmodell.",
     transcriptionNotSupported:
       "Ihr Anbieter unterstützt möglicherweise keine Audiotranskription. Versuchen Sie OpenAI oder Groq.",
+    forkFromHere: "Von hier abzweigen",
+    forkDescription: "Eine neue Unterhaltung ab diesem Punkt erstellen?",
+    fork: "Abzweigen",
+    regenerate: "Neu generieren",
+    searchConversations: "Unterhaltungen suchen...",
+    today: "Heute",
+    yesterday: "Gestern",
+    thisWeek: "Diese Woche",
+    earlier: "Früher",
   },
   // ... fr, es, zh same strategy ...
 };

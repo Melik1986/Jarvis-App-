@@ -1,44 +1,101 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import {
   StyleSheet,
   View,
-  FlatList,
+  SectionList,
   Pressable,
   Platform,
-  Alert,
+  TextInput,
+  Animated as RNAnimated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import {
+  useNavigation,
+  useFocusEffect,
+  CompositeNavigationProp,
+} from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { MainTabParamList } from "@/navigation/MainTabNavigator";
+import type { HistoryStackParamList } from "@/navigation/HistoryStackNavigator";
+import { Swipeable } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
-
-import { AnimatedTrashIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Spacing } from "@/constants/theme";
+import { Spacing, BorderRadius } from "@/constants/theme";
 import { localStore, type LocalConversation } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
+
+type HistoryNavProp = CompositeNavigationProp<
+  NativeStackNavigationProp<HistoryStackParamList, "History">,
+  BottomTabNavigationProp<MainTabParamList>
+>;
+
+interface Section {
+  title: string;
+  data: LocalConversation[];
+}
+
+/** Group conversations into date-based sections */
+function groupByDate(
+  items: LocalConversation[],
+  t: (k: "today" | "yesterday" | "thisWeek" | "earlier") => string,
+): Section[] {
+  const now = new Date();
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const yesterdayStart = todayStart - 86400000;
+  const weekStart = todayStart - 86400000 * 6;
+
+  const today: LocalConversation[] = [];
+  const yesterday: LocalConversation[] = [];
+  const thisWeek: LocalConversation[] = [];
+  const earlier: LocalConversation[] = [];
+
+  for (const item of items) {
+    const ts = item.createdAt;
+    if (ts >= todayStart) today.push(item);
+    else if (ts >= yesterdayStart) yesterday.push(item);
+    else if (ts >= weekStart) thisWeek.push(item);
+    else earlier.push(item);
+  }
+
+  const sections: Section[] = [];
+  if (today.length > 0)
+    sections.push({ title: t("today") || "Today", data: today });
+  if (yesterday.length > 0)
+    sections.push({ title: t("yesterday") || "Yesterday", data: yesterday });
+  if (thisWeek.length > 0)
+    sections.push({ title: t("thisWeek") || "This Week", data: thisWeek });
+  if (earlier.length > 0)
+    sections.push({ title: t("earlier") || "Earlier", data: earlier });
+
+  return sections;
+}
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
+  const navigation = useNavigation<HistoryNavProp>();
   const { theme } = useTheme();
   const { t } = useTranslation();
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [conversations, setConversations] = useState<LocalConversation[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadConversations();
-  }, []);
+  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await localStore.listConversations();
@@ -48,9 +105,27 @@ export default function HistoryScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const deleteConversation = async (id: string) => {
+  // Reload when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      void loadConversations();
+    }, [loadConversations]),
+  );
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase();
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
+
+  const sections = useMemo(
+    () => groupByDate(filteredConversations, t),
+    [filteredConversations, t],
+  );
+
+  const deleteConversation = useCallback(async (id: string) => {
     try {
       await localStore.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -60,104 +135,151 @@ export default function HistoryScreen() {
     } catch (error) {
       AppLogger.error("Failed to delete conversation:", error);
     }
-  };
+  }, []);
 
-  const confirmDelete = (item: LocalConversation) => {
+  const handleItemPress = useCallback(
+    (item: LocalConversation) => {
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      navigation.navigate("ChatTab", {
+        screen: "Chat",
+        params: { conversationId: item.id },
+      } as never);
+    },
+    [navigation],
+  );
+
+  const handleNewChat = useCallback(() => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    if (Platform.OS === "web") {
-      if (confirm(t("confirmDelete"))) {
-        deleteConversation(item.id);
-      }
-    } else {
-      Alert.alert(t("delete"), t("confirmDelete"), [
-        { text: t("cancel"), style: "cancel" },
-        {
-          text: t("delete"),
-          style: "destructive",
-          onPress: () => deleteConversation(item.id),
-        },
-      ]);
-    }
-  };
+    navigation.navigate("ChatTab", {
+      screen: "Chat",
+      params: {},
+    } as never);
+  }, [navigation]);
 
-  const formatDate = (ts: number | string) => {
-    const date = new Date(ts);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const formatDate = useCallback(
+    (ts: number | string) => {
+      const date = new Date(ts);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
-    if (diffHours < 1) return t("justNow");
-    if (diffHours < 24) return `${diffHours}${t("hoursAgo")}`;
-    if (diffDays < 7) return `${diffDays}${t("daysAgo")}`;
-    return date.toLocaleDateString();
-  };
+      if (diffHours < 1) return t("justNow") || "Just now";
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return date.toLocaleDateString();
+    },
+    [t],
+  );
 
-  const handleItemPress = (item: LocalConversation) => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
+  const renderRightActions = useCallback(
+    (
+      _progress: RNAnimated.AnimatedInterpolation<number>,
+      _dragX: RNAnimated.AnimatedInterpolation<number>,
+      item: LocalConversation,
+    ) => (
+      <Pressable
+        style={[styles.swipeDelete, { backgroundColor: theme.error }]}
+        onPress={() => {
+          swipeableRefs.current.get(item.id)?.close();
+          deleteConversation(item.id);
+        }}
+      >
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </Pressable>
+    ),
+    [theme.error, deleteConversation],
+  );
 
   const renderItem = useCallback(
-    ({ item }: { item: LocalConversation }) => (
-      <View
-        style={[
-          styles.historyItem,
-          {
-            backgroundColor: theme.backgroundDefault,
-            borderColor: theme.border,
-          },
-        ]}
-      >
-        <View style={styles.itemIcon}>
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={22}
-            color={theme.primary}
-          />
-        </View>
-        <Pressable
-          style={styles.itemContent}
-          onPress={() => handleItemPress(item)}
+    ({ item }: { item: LocalConversation }) => {
+      const isFork = !!item.forkedFrom;
+
+      return (
+        <Swipeable
+          ref={(ref) => {
+            if (ref) swipeableRefs.current.set(item.id, ref);
+            else swipeableRefs.current.delete(item.id);
+          }}
+          renderRightActions={(progress, dragX) =>
+            renderRightActions(progress, dragX, item)
+          }
+          rightThreshold={80}
+          overshootRight={false}
         >
-          <ThemedText
-            style={[styles.itemTitle, { color: theme.text }]}
-            numberOfLines={1}
+          <Pressable
+            style={[
+              styles.historyItem,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+              },
+            ]}
+            onPress={() => handleItemPress(item)}
           >
-            {item.title}
-          </ThemedText>
-          <ThemedText
-            style={[styles.itemTimestamp, { color: theme.textTertiary }]}
-          >
-            {formatDate(item.createdAt)}
-          </ThemedText>
-        </Pressable>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: theme.success + "20" },
-          ]}
+            <View style={styles.itemIcon}>
+              <Ionicons
+                name={
+                  isFork ? "git-branch-outline" : "chatbubble-ellipses-outline"
+                }
+                size={22}
+                color={isFork ? theme.warning : theme.primary}
+              />
+            </View>
+            <View style={styles.itemContent}>
+              <View style={styles.titleRow}>
+                <ThemedText
+                  style={[styles.itemTitle, { color: theme.text }]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </ThemedText>
+                {isFork && (
+                  <View
+                    style={[
+                      styles.forkBadge,
+                      { backgroundColor: theme.warning + "20" },
+                    ]}
+                  >
+                    <ThemedText
+                      style={[styles.forkBadgeText, { color: theme.warning }]}
+                    >
+                      Fork
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+              <ThemedText
+                style={[styles.itemTimestamp, { color: theme.textTertiary }]}
+              >
+                {formatDate(item.createdAt)}
+              </ThemedText>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={theme.textTertiary}
+            />
+          </Pressable>
+        </Swipeable>
+      );
+    },
+    [theme, handleItemPress, formatDate, renderRightActions],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: Section }) => (
+      <View style={styles.sectionHeader}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textSecondary }]}
         >
-          <View
-            style={[styles.statusDot, { backgroundColor: theme.success }]}
-          />
-          <ThemedText style={[styles.statusText, { color: theme.success }]}>
-            {t("completed")}
-          </ThemedText>
-        </View>
-        <Pressable
-          style={styles.deleteButton}
-          onPress={() => confirmDelete(item)}
-        >
-          <AnimatedTrashIcon size={18} color={theme.error} />
-        </Pressable>
+          {section.title}
+        </ThemedText>
       </View>
     ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [theme, t],
+    [theme.textSecondary],
   );
 
   const renderEmpty = () => (
@@ -169,52 +291,91 @@ export default function HistoryScreen() {
         style={{ marginBottom: Spacing.lg, opacity: 0.5 }}
       />
       <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
-        {t("noActivityYet")}
+        {t("noActivityYet") || "No activity yet"}
       </ThemedText>
       <ThemedText style={{ color: theme.textSecondary }}>
-        {t("historyAppearHere")}
+        {t("historyAppearHere") || "Your conversations will appear here"}
       </ThemedText>
     </View>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+      {/* Search bar */}
       <View
         style={[
-          styles.segmentContainer,
-          { marginTop: headerHeight + Spacing.lg },
+          styles.searchContainer,
+          { marginTop: headerHeight + Spacing.sm },
         ]}
       >
-        <SegmentedControl
-          values={[t("commands"), t("analytics")]}
-          selectedIndex={selectedIndex}
-          onChange={(event) =>
-            setSelectedIndex(event.nativeEvent.selectedSegmentIndex)
-          }
-          style={styles.segmentedControl}
-          backgroundColor={theme.backgroundDefault}
-          tintColor={theme.primary}
-          fontStyle={{ color: theme.textSecondary }}
-          activeFontStyle={{ color: theme.buttonText }}
-        />
+        <View
+          style={[
+            styles.searchBar,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name="search"
+            size={18}
+            color={theme.textTertiary}
+            style={{ marginRight: Spacing.sm }}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: theme.text }]}
+            placeholder={t("searchConversations") || "Search conversations..."}
+            placeholderTextColor={theme.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery("")}>
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={theme.textTertiary}
+              />
+            </Pressable>
+          )}
+        </View>
       </View>
 
-      <FlatList
+      <SectionList
         style={styles.list}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: tabBarHeight + Spacing.xl },
-          conversations.length === 0 && styles.emptyListContent,
+          { paddingBottom: tabBarHeight + Spacing.xl + 80 },
+          sections.length === 0 && styles.emptyListContent,
         ]}
-        data={conversations}
+        sections={sections}
         renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={renderEmpty}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        stickySectionHeadersEnabled={false}
         refreshing={isLoading}
         onRefresh={loadConversations}
       />
+
+      {/* New Chat FAB */}
+      <Pressable
+        style={[
+          styles.fab,
+          {
+            backgroundColor: theme.primary,
+            bottom: tabBarHeight + Spacing.lg,
+          },
+        ]}
+        onPress={handleNewChat}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </Pressable>
     </View>
   );
 }
@@ -223,12 +384,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  segmentContainer: {
+  searchContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: Spacing.sm,
   },
-  segmentedControl: {
-    height: 40,
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Platform.OS === "ios" ? Spacing.sm : 2,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
   },
   list: {
     flex: 1,
@@ -247,13 +418,23 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl * 2,
     marginTop: Spacing.xl,
   },
+  sectionHeader: {
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
   itemIcon: {
     width: 36,
@@ -266,36 +447,51 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   itemTitle: {
     fontSize: 15,
     fontWeight: "500",
+    flexShrink: 1,
+  },
+  forkBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  forkBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
   itemTimestamp: {
     fontSize: 12,
     marginTop: 2,
   },
-  statusBadge: {
-    flexDirection: "row",
+  swipeDelete: {
+    width: 80,
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    justifyContent: "center",
     borderRadius: 12,
-    marginRight: 8,
-  },
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginRight: 4,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  deleteButton: {
-    padding: 8,
+    marginLeft: 8,
   },
   separator: {
     height: 8,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
 });

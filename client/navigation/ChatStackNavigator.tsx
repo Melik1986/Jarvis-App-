@@ -5,7 +5,7 @@ import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type ChatStackParamList = {
-  Chat: undefined;
+  Chat: { conversationId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<ChatStackParamList>();

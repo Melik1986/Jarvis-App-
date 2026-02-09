@@ -14,6 +14,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useRoute, RouteProp } from "@react-navigation/native";
+import type { ChatStackParamList } from "@/navigation/ChatStackNavigator";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -77,20 +79,28 @@ export default function ChatScreen() {
     clearStreamingContent,
   } = useChatStore();
 
-  const { createConversation } = useChatStore();
+  const { createConversation, loadMessages } = useChatStore();
+  const route = useRoute<RouteProp<ChatStackParamList, "Chat">>();
+  const incomingConvId = route.params?.conversationId;
 
-  const createOrLoadConversation = React.useCallback(async () => {
-    try {
-      const id = await createConversation(t("newChat"));
-      setCurrentConversation(id);
-    } catch (error) {
-      AppLogger.error("Failed to create conversation:", error);
-    }
-  }, [t, setCurrentConversation, createConversation]);
-
+  // Load existing conversation or create new one
   useEffect(() => {
-    createOrLoadConversation();
-  }, [createOrLoadConversation]);
+    const init = async () => {
+      try {
+        if (incomingConvId) {
+          setCurrentConversation(incomingConvId);
+          await loadMessages(incomingConvId);
+        } else if (!currentConversationId) {
+          const id = await createConversation(t("newChat"));
+          setCurrentConversation(id);
+        }
+      } catch (error) {
+        AppLogger.error("Failed to init conversation:", error);
+      }
+    };
+    void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingConvId]);
 
   const sendMessage = useCallback(async () => {
     if (
@@ -123,11 +133,15 @@ export default function ChatScreen() {
 
       // Read context from local SQLite for zero-storage payload
       const convId = currentConversationId as string;
-      const [history, activeRules, enabledSkills] = await Promise.all([
-        localStore.getRecentHistory(convId, 20),
-        localStore.getActiveRules(),
-        localStore.getEnabledSkills(),
-      ]);
+      const RECENT_WINDOW = 6;
+      const [history, activeRules, enabledSkills, memoryFacts, convSummary] =
+        await Promise.all([
+          localStore.getRecentHistory(convId, RECENT_WINDOW),
+          localStore.getActiveRules(),
+          localStore.getEnabledSkills(),
+          localStore.getMemoryFacts(),
+          localStore.getConversationSummary(convId),
+        ]);
 
       const response = await authenticatedFetch(`${baseUrl}api/chat`, {
         method: "POST",
@@ -172,6 +186,11 @@ export default function ChatScreen() {
             provider: ragSettings.provider,
             qdrant: ragSettings.qdrant,
           },
+          conversationSummary: convSummary ?? undefined,
+          memoryFacts: memoryFacts.map((f) => ({
+            key: f.key,
+            value: f.value,
+          })),
         }),
       });
 
@@ -229,6 +248,29 @@ export default function ChatScreen() {
             } else {
               toolCalls.push({ ...data.toolResult, status: "done" });
             }
+
+            // Handle save_memory tool: persist fact to local SQLite
+            if (data.toolResult.toolName === "save_memory") {
+              try {
+                const result =
+                  typeof data.toolResult.result === "string"
+                    ? JSON.parse(data.toolResult.result)
+                    : data.toolResult.result;
+                if (result?._action === "save_memory") {
+                  localStore
+                    .saveMemoryFact(
+                      result.key,
+                      result.value,
+                      currentConversationId ?? undefined,
+                    )
+                    .catch((e) =>
+                      AppLogger.error("Failed to save memory fact", e),
+                    );
+                }
+              } catch {
+                /* non-JSON result, skip */
+              }
+            }
           }
           if (data.done) {
             const assistantMessage: ChatMessage = {
@@ -240,6 +282,27 @@ export default function ChatScreen() {
             };
             addMessage(assistantMessage);
             clearStreamingContent();
+
+            // Auto-title: update from "New Chat" after first exchange
+            if (messages.length <= 1 && currentConversationId) {
+              const title =
+                userMessage.content.slice(0, 40) +
+                (userMessage.content.length > 40 ? "..." : "");
+              localStore
+                .updateConversationTitle(currentConversationId, title)
+                .catch(() => {});
+            }
+
+            // Auto-summarize: update summary every 4 new messages after 8 total
+            const totalMsgs = messages.length + 2; // +user +assistant just added
+            if (
+              currentConversationId &&
+              totalMsgs >= 8 &&
+              totalMsgs % 4 < 2 // trigger roughly every 4 messages
+            ) {
+              generateSummary(currentConversationId).catch(() => {});
+            }
+
             if (Platform.OS !== "web") {
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,
@@ -259,6 +322,67 @@ export default function ChatScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputText, attachments, currentConversationId, isStreaming]);
+
+  /** Generate a compressed summary of older messages via LLM */
+  const generateSummary = useCallback(
+    async (convId: string) => {
+      try {
+        const RECENT_KEEP = 6;
+        const allMsgs = await localStore.getMessages(convId);
+        if (allMsgs.length <= RECENT_KEEP) return;
+
+        const olderMsgs = allMsgs.slice(0, -RECENT_KEEP);
+        const existingSummary = await localStore.getConversationSummary(convId);
+
+        const textToSummarize = olderMsgs
+          .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
+          .join("\n");
+
+        const prompt = existingSummary
+          ? `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`
+          : `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
+
+        const baseUrl = getApiUrl();
+        const resp = await authenticatedFetch(`${baseUrl}api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: prompt,
+            history: [],
+            llmSettings: {
+              provider: llmSettings.provider,
+              baseUrl: llmSettings.baseUrl,
+              apiKey: llmSettings.apiKey,
+              modelName: llmSettings.modelName,
+            },
+          }),
+        });
+
+        if (!resp.ok) return;
+        const respText = await resp.text();
+        let summaryText = "";
+        for (const line of respText.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const d = JSON.parse(line.slice(6));
+            if (d.content) summaryText += d.content;
+          } catch {
+            /* skip */
+          }
+        }
+
+        if (summaryText.trim()) {
+          await localStore.updateConversationSummary(
+            convId,
+            summaryText.trim(),
+          );
+        }
+      } catch (e) {
+        AppLogger.error("Summary generation failed", e);
+      }
+    },
+    [llmSettings],
+  );
 
   const handleVoicePress = async () => {
     if (isRecording) {
@@ -428,17 +552,112 @@ export default function ChatScreen() {
     }
   };
 
+  const { forkConversation, removeLastAssistantMessage } = useChatStore();
+
+  const allMessages =
+    isStreaming && streamingContent
+      ? [
+          ...messages,
+          {
+            id: -1,
+            role: "assistant" as const,
+            content: streamingContent,
+            createdAt: "",
+          },
+        ]
+      : messages;
+
+  const handleRegenerate = useCallback(async () => {
+    if (isStreaming || messages.length < 2) return;
+    // Find last user message
+    let lastUserMsg: ChatMessage | undefined;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg && msg.role === "user") {
+        lastUserMsg = msg;
+        break;
+      }
+    }
+    if (!lastUserMsg) return;
+    await removeLastAssistantMessage();
+    setInputText(lastUserMsg.content);
+  }, [isStreaming, messages, removeLastAssistantMessage]);
+
+  const handleFork = useCallback(
+    async (messageId: string | number) => {
+      try {
+        const newConvId = await forkConversation(String(messageId));
+        AppLogger.info(`Forked conversation: ${newConvId}`);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch (e) {
+        AppLogger.error("Fork failed", e);
+      }
+    },
+    [forkConversation],
+  );
+
+  const handleMessageLongPress = useCallback(
+    (item: ChatMessage) => {
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: [t("cancel"), t("forkFromHere") || "Fork from here"],
+            cancelButtonIndex: 0,
+          },
+          (idx) => {
+            if (idx === 1) void handleFork(item.id);
+          },
+        );
+      } else {
+        Alert.alert(
+          t("forkFromHere") || "Fork from here",
+          t("forkDescription") || "Create a new conversation from this point?",
+          [
+            { text: t("cancel"), style: "cancel" },
+            {
+              text: t("fork") || "Fork",
+              onPress: () => void handleFork(item.id),
+            },
+          ],
+        );
+      }
+    },
+    [handleFork, t],
+  );
+
   const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => (
-      <ChatBubble
-        content={item.content}
-        isUser={item.role === "user"}
-        toolCalls={item.toolCalls}
-        onConfirm={handleConfirmAction}
-        onReject={handleRejectAction}
-      />
-    ),
-    [],
+    ({ item, index }: { item: ChatMessage; index: number }) => {
+      const isLastAssistant =
+        item.role === "assistant" &&
+        index === allMessages.length - 1 &&
+        !isStreaming;
+
+      return (
+        <Pressable onLongPress={() => handleMessageLongPress(item)}>
+          <ChatBubble
+            content={item.content}
+            isUser={item.role === "user"}
+            toolCalls={item.toolCalls}
+            onConfirm={handleConfirmAction}
+            onReject={handleRejectAction}
+          />
+          {isLastAssistant && (
+            <Pressable style={styles.regenerateBtn} onPress={handleRegenerate}>
+              <Ionicons name="refresh" size={14} color={theme.textTertiary} />
+              <ThemedText
+                style={[styles.regenerateText, { color: theme.textTertiary }]}
+              >
+                {t("regenerate") || "Regenerate"}
+              </ThemedText>
+            </Pressable>
+          )}
+        </Pressable>
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allMessages.length, isStreaming, theme, t],
   );
 
   const handleSuggestionPress = (suggestion: string) => {
@@ -524,19 +743,6 @@ export default function ChatScreen() {
       </View>
     );
   };
-
-  const allMessages =
-    isStreaming && streamingContent
-      ? [
-          ...messages,
-          {
-            id: -1,
-            role: "assistant" as const,
-            content: streamingContent,
-            createdAt: "",
-          },
-        ]
-      : messages;
 
   const images = attachments
     .filter((att) => att.type === "image")
@@ -834,5 +1040,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.1)",
+  },
+  regenerateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginLeft: Spacing.md,
+    marginTop: 4,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+    opacity: 0.7,
+  },
+  regenerateText: {
+    fontSize: 12,
+    marginLeft: 4,
   },
 });

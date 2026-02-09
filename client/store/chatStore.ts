@@ -27,6 +27,10 @@ interface ChatState {
   setMessages: (messages: ChatMessage[]) => void;
   /** Add message to in-memory + persist to SQLite */
   addMessage: (message: ChatMessage) => void;
+  /** Fork conversation up to a specific message */
+  forkConversation: (messageId: string) => Promise<string>;
+  /** Remove last assistant message (for regenerate) */
+  removeLastAssistantMessage: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setStreaming: (streaming: boolean) => void;
   setStreamingContent: (content: string) => void;
@@ -112,6 +116,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
         )
         .catch((e) => AppLogger.error("addMessage persist failed", e));
     }
+  },
+
+  forkConversation: async (messageId: string) => {
+    const convId = get().currentConversationId;
+    if (!convId) throw new Error("No current conversation");
+    const forked = await localStore.forkConversation(convId, messageId);
+    set({ currentConversationId: forked.id });
+    // Reload messages for the forked conversation
+    const rows = await localStore.getMessages(forked.id);
+    set({
+      messages: rows.map((r) => ({
+        id: Number(r.id) || Date.now(),
+        role: r.role,
+        content: r.content,
+        createdAt: new Date(r.createdAt).toISOString(),
+        attachments: r.attachments ? JSON.parse(r.attachments) : undefined,
+        metadata: r.metadata ? JSON.parse(r.metadata) : undefined,
+      })) as ChatMessage[],
+    });
+    return forked.id;
+  },
+
+  removeLastAssistantMessage: async () => {
+    const convId = get().currentConversationId;
+    if (!convId) return;
+    await localStore.deleteLastAssistantMessage(convId);
+    // Remove from in-memory state
+    set((s) => {
+      const msgs = [...s.messages];
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const msg = msgs[i];
+        if (msg && msg.role === "assistant") {
+          msgs.splice(i, 1);
+          break;
+        }
+      }
+      return { messages: msgs };
+    });
   },
 
   setLoading: (loading) => set({ isLoading: loading }),

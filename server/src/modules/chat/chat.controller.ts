@@ -65,6 +65,8 @@ export class ChatController {
       body.history,
       body.rules,
       body.skills,
+      body.conversationSummary,
+      body.memoryFacts,
     );
   }
 }

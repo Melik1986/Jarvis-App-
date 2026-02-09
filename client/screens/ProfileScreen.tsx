@@ -23,7 +23,7 @@ import {
   AnimatedSunIcon,
   AnimatedMoonIcon,
 } from "@/components/AnimatedIcons";
-import { useSettingsStore, RagProvider } from "@/store/settingsStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
