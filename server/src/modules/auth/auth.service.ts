@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { eq } from "drizzle-orm";
 import { AuthUser, AuthSession } from "./auth.types";
 import { AppLogger } from "../../utils/logger";
@@ -45,9 +46,13 @@ export class AuthService implements OnModuleInit {
   private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
   private readonly TEMP_CODE_TTL_MS = 60 * 1000;
 
-  private readonly REPLIT_AUTH_AUTHORIZE = "https://replit.com/auth/authorize";
-  private readonly REPLIT_AUTH_TOKEN = "https://replit.com/auth/token";
-  private readonly REPLIT_AUTH_USERINFO = "https://replit.com/auth/userinfo";
+  private readonly REPLIT_AUTH_AUTHORIZE = "https://replit.com/oidc/auth";
+  private readonly REPLIT_AUTH_TOKEN = "https://replit.com/oidc/token";
+  private readonly REPLIT_AUTH_USERINFO = "https://replit.com/oidc/me";
+  private readonly REPLIT_OIDC_ISSUER = "https://replit.com/oidc";
+  private readonly replitJWKS = createRemoteJWKSet(
+    new URL("https://replit.com/oidc/jwks"),
+  );
 
   constructor(
     @Inject(ConfigService) private configService: ConfigService,
@@ -157,21 +162,28 @@ export class AuthService implements OnModuleInit {
 
       let userInfo: Partial<ReplitIDTokenPayload> = {};
 
+      // Verify id_token signature + issuer + audience via Replit JWKS
       if (tokenData.id_token) {
         try {
-          const decoded = jwt.decode(
+          const { payload } = await jwtVerify(
             tokenData.id_token,
-          ) as ReplitIDTokenPayload | null;
-          if (decoded) {
-            userInfo = decoded;
-          }
-        } catch {
+            this.replitJWKS,
+            {
+              issuer: this.REPLIT_OIDC_ISSUER,
+              audience: clientId,
+            },
+          );
+          userInfo = payload as unknown as Partial<ReplitIDTokenPayload>;
+          AppLogger.info("id_token signature verified via JWKS");
+        } catch (verifyErr) {
           AppLogger.warn(
-            "Failed to decode id_token, falling back to userinfo endpoint",
+            "id_token JWKS verification failed, falling back to userinfo endpoint",
+            verifyErr,
           );
         }
       }
 
+      // Fallback: authenticated userinfo endpoint (access_token from code exchange)
       if (!userInfo.sub && tokenData.access_token) {
         try {
           const userinfoRes = await fetch(this.REPLIT_AUTH_USERINFO, {
