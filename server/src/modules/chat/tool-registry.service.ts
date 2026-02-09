@@ -14,7 +14,10 @@ import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
 
 @Injectable()
 export class ToolRegistryService {
-  private readonly emptySchema = jsonSchema({ type: "object" });
+  private readonly emptySchema = jsonSchema({
+    type: "object",
+    properties: {},
+  });
   constructor(
     @Inject(McpHostService) private mcpHost: McpHostService,
     @Inject(OpenApiToolGeneratorService)
