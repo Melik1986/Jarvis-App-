@@ -13,6 +13,11 @@ import { getApiUrl, authenticatedFetch } from "@/lib/query-client";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
+import {
+  getUserFriendlyMessage,
+  logError,
+  extractErrorFromResponse,
+} from "@/lib/error-handler";
 
 interface VoiceResponse {
   userTranscript: string;
@@ -192,8 +197,8 @@ export function useVoice() {
       );
 
       if (!serverResponse.ok) {
-        const errorText = await serverResponse.text().catch(() => "");
-        throw new Error(errorText || "Voice request failed");
+        const apiError = await extractErrorFromResponse(serverResponse);
+        throw apiError;
       }
 
       const responseText = await serverResponse.text();
@@ -240,24 +245,36 @@ export function useVoice() {
 
       return result;
     } catch (err) {
-      AppLogger.error("Error processing recording:", err);
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      // Log error with context
+      logError(err, "useVoice.stopRecording", {
+        conversationId: currentConversationId,
+        provider: llm.provider,
+      });
+
+      // Get user-friendly error message
+      const friendlyMessage = getUserFriendlyMessage(err);
+
+      // Check if it's a transcription-specific error
+      const errorMsg = err instanceof Error ? err.message : friendlyMessage;
       const isTranscriptionError =
         errorMsg.includes("transcri") ||
         errorMsg.includes("audio") ||
         errorMsg.includes("model") ||
-        errorMsg.includes("404");
+        errorMsg.includes("404") ||
+        errorMsg.includes("whisper");
+
       if (isTranscriptionError) {
         // Graceful warning in chat instead of generic error
         const { addMessage } = useChatStore.getState();
         addMessage({
           id: Date.now(),
           role: "assistant",
-          content: `⚠️ Voice transcription failed: ${errorMsg}\n\nCheck Settings → LLM Provider → Transcription Model. Providers like Ollama may not support audio transcription API.`,
+          content: `⚠️ Voice transcription failed: ${friendlyMessage}\n\nCheck Settings → LLM Provider → Transcription Model. Providers like Ollama may not support audio transcription API.`,
           createdAt: new Date().toISOString(),
         });
       }
-      setError(isTranscriptionError ? "" : "Failed to process voice message");
+
+      setError(isTranscriptionError ? "" : friendlyMessage);
       return null;
     } finally {
       setIsProcessing(false);

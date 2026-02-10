@@ -4,6 +4,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "./authStore";
 import { AppLogger } from "@/lib/logger";
+import {
+  getUserFriendlyMessage,
+  logError,
+  extractErrorFromResponse,
+} from "@/lib/error-handler";
 
 export interface StockItem {
   id: string;
@@ -72,7 +77,8 @@ export const useInventoryStore = create<InventoryState>()(
           });
 
           if (!response.ok) {
-            throw new Error("Failed to fetch stock");
+            const apiError = await extractErrorFromResponse(response);
+            throw apiError;
           }
 
           const data = await response.json();
@@ -87,11 +93,28 @@ export const useInventoryStore = create<InventoryState>()(
 
           return items;
         } catch (error) {
-          AppLogger.error("Error fetching stock:", error);
+          // Log error with context
+          logError(error, "inventoryStore.fetchStock", {
+            productName,
+            hasCachedData: get().stockItems.length > 0,
+          });
+
           set({ isLoadingStock: false });
 
           // Return cached data on error (offline-first)
-          return get().stockItems;
+          const cachedItems = get().stockItems;
+
+          // If we have cached data, log warning and return it
+          if (cachedItems.length > 0) {
+            AppLogger.warn(
+              "Returning cached stock data due to error:",
+              getUserFriendlyMessage(error),
+            );
+            return cachedItems;
+          }
+
+          // If no cached data, throw user-friendly error
+          throw new Error(getUserFriendlyMessage(error));
         }
       },
 
@@ -115,7 +138,8 @@ export const useInventoryStore = create<InventoryState>()(
           });
 
           if (!response.ok) {
-            throw new Error("Failed to fetch products");
+            const apiError = await extractErrorFromResponse(response);
+            throw apiError;
           }
 
           const data = await response.json();
@@ -130,11 +154,28 @@ export const useInventoryStore = create<InventoryState>()(
 
           return items;
         } catch (error) {
-          AppLogger.error("Error fetching products:", error);
+          // Log error with context
+          logError(error, "inventoryStore.fetchProducts", {
+            filter,
+            hasCachedData: get().products.length > 0,
+          });
+
           set({ isLoadingProducts: false });
 
           // Return cached data on error (offline-first)
-          return get().products;
+          const cachedItems = get().products;
+
+          // If we have cached data, log warning and return it
+          if (cachedItems.length > 0) {
+            AppLogger.warn(
+              "Returning cached products data due to error:",
+              getUserFriendlyMessage(error),
+            );
+            return cachedItems;
+          }
+
+          // If no cached data, throw user-friendly error
+          throw new Error(getUserFriendlyMessage(error));
         }
       },
 

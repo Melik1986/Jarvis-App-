@@ -1,6 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 import { useAuthStore } from "@/store/authStore";
+import { extractErrorFromResponse } from "@/lib/error-handler";
 
 export { getApiUrl };
 
@@ -64,11 +65,15 @@ export async function authenticatedFetch(
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const apiError = await extractErrorFromResponse(res);
+    throw apiError;
   }
 }
 
+/**
+ * Make an API request with automatic auth token injection and retry on 401.
+ * Throws typed ApiErrorResponse on error.
+ */
 export async function apiRequest(
   method: string,
   route: string,

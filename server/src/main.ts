@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
+import { GlobalExceptionFilter } from "./filters/global-exception.filter";
 import { LlmProviderExceptionFilter } from "./filters/llm-provider-exception.filter";
 
 // Debug log path - available for future debugging needs
@@ -126,8 +127,11 @@ async function bootstrap() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-  // Global exception filter for LLM provider errors (user-friendly messages)
-  app.useGlobalFilters(new LlmProviderExceptionFilter());
+  // Global exception filters (order matters: GlobalExceptionFilter first, then specialized)
+  app.useGlobalFilters(
+    new GlobalExceptionFilter(),
+    new LlmProviderExceptionFilter(),
+  );
 
   // Global validation pipe
   app.useGlobalPipes(

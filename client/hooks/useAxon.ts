@@ -3,6 +3,11 @@ import { useChatStore, ChatMessage } from "@/store/chatStore";
 import { apiRequest } from "@/lib/query-client";
 import { localStore } from "@/lib/local-store";
 import { useSettingsStore } from "@/store/settingsStore";
+import {
+  getUserFriendlyMessage,
+  logError,
+  parseApiError,
+} from "@/lib/error-handler";
 
 /**
  * Hook for interacting with Axon AI assistant.
@@ -104,6 +109,19 @@ export function useAxon() {
         }
 
         return fullResponse;
+      } catch (error) {
+        // Log error with context
+        logError(error, "useAxon.ask", {
+          conversationId: currentConversationId,
+          questionLength: question.length,
+        });
+
+        // Parse error and get user-friendly message
+        const apiError = parseApiError(error);
+        const friendlyMessage = getUserFriendlyMessage(apiError);
+
+        // Throw user-friendly error
+        throw new Error(friendlyMessage);
       } finally {
         setStreaming(false);
         clearStreamingContent();

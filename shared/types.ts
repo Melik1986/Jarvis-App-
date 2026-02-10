@@ -1,3 +1,64 @@
+/**
+ * Standardized error response format from API
+ */
+export interface ErrorResponse {
+  statusCode: number;
+  message: string;
+  error?: string;
+  code?: string;
+  details?: string;
+  timestamp: string;
+  path?: string;
+}
+
+/**
+ * Error codes for different types of errors
+ */
+export enum ErrorCode {
+  // LLM Provider errors
+  LLM_PROVIDER_ERROR = "LLM_PROVIDER_ERROR",
+  LLM_INVALID_API_KEY = "LLM_INVALID_API_KEY",
+  LLM_RATE_LIMIT = "LLM_RATE_LIMIT",
+  LLM_QUOTA_EXCEEDED = "LLM_QUOTA_EXCEEDED",
+  LLM_CONTEXT_LENGTH = "LLM_CONTEXT_LENGTH",
+
+  // ERP errors
+  ERP_CONNECTION_ERROR = "ERP_CONNECTION_ERROR",
+  ERP_AUTHENTICATION_ERROR = "ERP_AUTHENTICATION_ERROR",
+  ERP_INVALID_RESPONSE = "ERP_INVALID_RESPONSE",
+
+  // RAG errors
+  RAG_VECTOR_STORE_ERROR = "RAG_VECTOR_STORE_ERROR",
+  RAG_EMBEDDING_ERROR = "RAG_EMBEDDING_ERROR",
+
+  // Auth errors
+  AUTH_INVALID_TOKEN = "AUTH_INVALID_TOKEN",
+  AUTH_TOKEN_EXPIRED = "AUTH_TOKEN_EXPIRED",
+  AUTH_INSUFFICIENT_PERMISSIONS = "AUTH_INSUFFICIENT_PERMISSIONS",
+
+  // Validation errors
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  INVALID_INPUT = "INVALID_INPUT",
+
+  // MCP errors
+  MCP_CONNECTION_ERROR = "MCP_CONNECTION_ERROR",
+  MCP_TOOL_EXECUTION_ERROR = "MCP_TOOL_EXECUTION_ERROR",
+
+  // Guardian errors
+  GUARDIAN_RULE_VIOLATION = "GUARDIAN_RULE_VIOLATION",
+  GUARDIAN_VALIDATION_FAILED = "GUARDIAN_VALIDATION_FAILED",
+
+  // Rate limiting
+  RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
+
+  // Generic errors
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+  NOT_FOUND = "NOT_FOUND",
+  BAD_REQUEST = "BAD_REQUEST",
+  UNAUTHORIZED = "UNAUTHORIZED",
+  FORBIDDEN = "FORBIDDEN",
+}
+
 export type ToolCall = {
   toolName: string;
   args: Record<string, unknown>;
