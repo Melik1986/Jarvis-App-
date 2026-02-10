@@ -52,6 +52,9 @@ export default function ChatScreen() {
   const llmSettings = useSettingsStore((state) => state.llm);
   const erpSettings = useSettingsStore((state) => state.erp);
   const ragSettings = useSettingsStore((state) => state.rag);
+  const mcpServers = useSettingsStore((state) => state.mcpServers);
+  const mcpToolsHint =
+    mcpServers.length > 0 ? `MCP tools: ${mcpServers.length}` : null;
   // Auth handled by authenticatedFetch
 
   const [inputText, setInputText] = React.useState("");
@@ -101,6 +104,67 @@ export default function ChatScreen() {
     void init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingConvId]);
+
+  /** Generate a compressed summary of older messages via LLM */
+  const generateSummary = useCallback(
+    async (convId: string) => {
+      try {
+        const RECENT_KEEP = 6;
+        const allMsgs = await localStore.getMessages(convId);
+        if (allMsgs.length <= RECENT_KEEP) return;
+
+        const olderMsgs = allMsgs.slice(0, -RECENT_KEEP);
+        const existingSummary = await localStore.getConversationSummary(convId);
+
+        const textToSummarize = olderMsgs
+          .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
+          .join("\n");
+
+        const prompt = existingSummary
+          ? `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`
+          : `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
+
+        const baseUrl = getApiUrl();
+        const resp = await authenticatedFetch(`${baseUrl}api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: prompt,
+            history: [],
+            llmSettings: {
+              provider: llmSettings.provider,
+              baseUrl: llmSettings.baseUrl,
+              apiKey: llmSettings.apiKey,
+              modelName: llmSettings.modelName,
+            },
+          }),
+        });
+
+        if (!resp.ok) return;
+        const respText = await resp.text();
+        let summaryText = "";
+        for (const line of respText.split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const d = JSON.parse(line.slice(6));
+            if (d.content) summaryText += d.content;
+          } catch {
+            /* skip */
+          }
+        }
+
+        if (summaryText.trim()) {
+          await localStore.updateConversationSummary(
+            convId,
+            summaryText.trim(),
+          );
+        }
+      } catch (e) {
+        AppLogger.error("Summary generation failed", e);
+      }
+    },
+    [llmSettings],
+  );
 
   const sendMessage = useCallback(
     async (overrideText?: string) => {
@@ -188,6 +252,12 @@ export default function ChatScreen() {
               provider: ragSettings.provider,
               qdrant: ragSettings.qdrant,
             },
+            mcpServers: mcpServers.map((server) => ({
+              name: server.name,
+              command: server.command,
+              args: server.args,
+              env: server.env,
+            })),
             conversationSummary: convSummary ?? undefined,
             memoryFacts: memoryFacts.map((f) => ({
               key: f.key,
@@ -323,68 +393,32 @@ export default function ChatScreen() {
         setStreaming(false);
       }
     },
-    [inputText, attachments, currentConversationId, isStreaming],
-  );
-
-  /** Generate a compressed summary of older messages via LLM */
-  const generateSummary = useCallback(
-    async (convId: string) => {
-      try {
-        const RECENT_KEEP = 6;
-        const allMsgs = await localStore.getMessages(convId);
-        if (allMsgs.length <= RECENT_KEEP) return;
-
-        const olderMsgs = allMsgs.slice(0, -RECENT_KEEP);
-        const existingSummary = await localStore.getConversationSummary(convId);
-
-        const textToSummarize = olderMsgs
-          .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
-          .join("\n");
-
-        const prompt = existingSummary
-          ? `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`
-          : `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
-
-        const baseUrl = getApiUrl();
-        const resp = await authenticatedFetch(`${baseUrl}api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: prompt,
-            history: [],
-            llmSettings: {
-              provider: llmSettings.provider,
-              baseUrl: llmSettings.baseUrl,
-              apiKey: llmSettings.apiKey,
-              modelName: llmSettings.modelName,
-            },
-          }),
-        });
-
-        if (!resp.ok) return;
-        const respText = await resp.text();
-        let summaryText = "";
-        for (const line of respText.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const d = JSON.parse(line.slice(6));
-            if (d.content) summaryText += d.content;
-          } catch {
-            /* skip */
-          }
-        }
-
-        if (summaryText.trim()) {
-          await localStore.updateConversationSummary(
-            convId,
-            summaryText.trim(),
-          );
-        }
-      } catch (e) {
-        AppLogger.error("Summary generation failed", e);
-      }
-    },
-    [llmSettings],
+    [
+      inputText,
+      attachments,
+      currentConversationId,
+      isStreaming,
+      mcpServers,
+      addMessage,
+      clearStreamingContent,
+      setStreaming,
+      setStreamingContent,
+      messages.length,
+      llmSettings.provider,
+      llmSettings.baseUrl,
+      llmSettings.apiKey,
+      llmSettings.modelName,
+      erpSettings.provider,
+      erpSettings.url,
+      erpSettings.username,
+      erpSettings.password,
+      erpSettings.apiKey,
+      erpSettings.apiType,
+      ragSettings.provider,
+      ragSettings.qdrant,
+      generateSummary,
+      t,
+    ],
   );
 
   const handleVoicePress = async () => {
@@ -791,6 +825,15 @@ export default function ChatScreen() {
         scrollIndicatorInsets={{ bottom: insets.bottom }}
       />
 
+      {mcpToolsHint ? (
+        <View style={styles.mcpHint}>
+          <ThemedText
+            style={[styles.mcpHintText, { color: theme.textTertiary }]}
+          >
+            {mcpToolsHint}
+          </ThemedText>
+        </View>
+      ) : null}
       <View
         style={[
           styles.inputContainer,
@@ -959,6 +1002,15 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.05)",
+  },
+  mcpHint: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
+  },
+  mcpHintText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   inputRow: {
     flexDirection: "row",

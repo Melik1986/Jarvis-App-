@@ -63,6 +63,7 @@ export class ChatController {
       body.ragSettings,
       body.attachments,
       body.history,
+      body.mcpServers,
       body.rules,
       body.skills,
       body.conversationSummary,

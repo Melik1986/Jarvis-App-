@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { Ionicons } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -17,6 +18,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "@/store/authStore";
 import { AppLogger } from "@/lib/logger";
+import { useSettingsStore } from "@/store/settingsStore";
 
 interface McpServer {
   name: string;
@@ -32,6 +34,8 @@ export default function MCPServersScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { session } = useAuthStore();
+  const mcpServers = useSettingsStore((state) => state.mcpServers);
+  const setMcpServers = useSettingsStore((state) => state.setMcpServers);
 
   const [servers, setServers] = useState<McpServer[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -47,6 +51,12 @@ export default function MCPServersScreen() {
   const fetchServers = useCallback(async () => {
     try {
       setIsLoading(true);
+
+      const stored = mcpServers;
+      if (stored.length > 0) {
+        setServers(stored);
+      }
+
       const baseUrl = getApiUrl();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -57,19 +67,39 @@ export default function MCPServersScreen() {
 
       const response = await fetch(`${baseUrl}api/mcp/servers`, { headers });
       if (response.ok) {
-        const data = await response.json();
-        setServers(data);
+        const data = (await response.json()) as {
+          name: string;
+          toolCount?: number;
+          status?: "connected" | "disconnected" | "error";
+        }[];
+
+        const connectedByName = new Map(data.map((s) => [s.name, s]));
+
+        const merged = stored.map((s) => {
+          const server = connectedByName.get(s.name);
+          if (!server) {
+            return { ...s, status: "disconnected" as const };
+          }
+          return {
+            ...s,
+            status: server.status ?? "connected",
+            toolCount: server.toolCount,
+          };
+        });
+
+        setServers(merged);
       }
     } catch (error) {
       AppLogger.error("Failed to fetch MCP servers", error);
     } finally {
       setIsLoading(false);
     }
-  }, [session?.accessToken]);
+  }, [mcpServers, session?.accessToken]);
 
   useEffect(() => {
     fetchServers();
-  }, [fetchServers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAddServer = async () => {
     try {
@@ -101,7 +131,18 @@ export default function MCPServersScreen() {
           status: result.connected ? "connected" : "error",
           toolCount: result.toolCount,
         };
-        setServers([...servers, newServer]);
+        const nextServers = [
+          ...servers.filter((s) => s.name !== name),
+          newServer,
+        ];
+        setServers(nextServers);
+        setMcpServers(
+          nextServers.map((s) => ({
+            name: s.name,
+            command: s.command,
+            args: s.args,
+          })),
+        );
         setIsAdding(false);
         setName("");
       }
@@ -109,6 +150,35 @@ export default function MCPServersScreen() {
       AppLogger.error("Failed to connect MCP server", error);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async (serverName: string) => {
+    try {
+      const baseUrl = getApiUrl();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.accessToken) {
+        headers["Authorization"] = `Bearer ${session.accessToken}`;
+      }
+
+      await fetch(`${baseUrl}api/mcp/servers/${serverName}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      const nextServers = servers.filter((s) => s.name !== serverName);
+      setServers(nextServers);
+      setMcpServers(
+        nextServers.map((s) => ({
+          name: s.name,
+          command: s.command,
+          args: s.args,
+        })),
+      );
+    } catch (error) {
+      AppLogger.error("Failed to disconnect MCP server", error);
     }
   };
 
@@ -126,6 +196,27 @@ export default function MCPServersScreen() {
           <ThemedText style={styles.title}>{t("mcpServers")}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
             {t("mcpServersDesc")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.devBanner,
+            {
+              backgroundColor: theme.warning + "20",
+              borderColor: theme.warning,
+            },
+          ]}
+        >
+          <Ionicons
+            name="construct-outline"
+            size={20}
+            color={theme.warning}
+            style={styles.devBannerIcon}
+          />
+          <ThemedText style={[styles.devBannerText, { color: theme.warning }]}>
+            🚧 MCP integration is in development. Full HTTP-based support coming
+            in v2.0. Current implementation requires backend server.
           </ThemedText>
         </View>
 
@@ -237,15 +328,26 @@ export default function MCPServersScreen() {
                       </ThemedText>
                     )}
                   </View>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor:
-                          server.status === "connected" ? "#22c55e" : "#94a3b8",
-                      },
-                    ]}
-                  />
+                  <View style={styles.cardActions}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor:
+                            server.status === "connected"
+                              ? "#22c55e"
+                              : "#94a3b8",
+                        },
+                      ]}
+                    />
+                    <Button
+                      variant="outline"
+                      style={styles.disconnectBtn}
+                      onPress={() => handleDisconnect(server.name)}
+                    >
+                      {t("disconnect") || "Disconnect"}
+                    </Button>
+                  </View>
                 </View>
               </View>
             ))
@@ -262,6 +364,23 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: Spacing.lg,
+  },
+  devBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  devBannerIcon: {
+    marginRight: Spacing.sm,
+  },
+  devBannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   title: {
     fontSize: 24,
@@ -313,6 +432,15 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  cardActions: {
+    alignItems: "flex-end",
+    gap: Spacing.xs,
+    marginLeft: Spacing.md,
+  },
+  disconnectBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
   },
   cardName: {
     fontSize: 16,

@@ -76,6 +76,22 @@ export class RagSettingsDto implements RagSettingsRequest {
   qdrant?: QdrantSettingsDto;
 }
 
+export class McpServerDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  command!: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  args?: string[];
+
+  @IsOptional()
+  env?: Record<string, string>;
+}
+
 export class AttachmentDto {
   @IsString()
   name!: string;
@@ -264,6 +280,12 @@ export class ChatRequestDto {
   @ValidateNested()
   @Type(() => RagSettingsDto)
   ragSettings?: RagSettingsDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => McpServerDto)
+  mcpServers?: McpServerDto[];
 
   @IsOptional()
   @IsString()

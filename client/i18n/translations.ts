@@ -78,6 +78,7 @@ export const translations = {
     provider: "Provider",
     connected: "Connected",
     disconnected: "Disconnected",
+    disconnect: "Disconnect",
     system: "System",
     light: "Light",
     dark: "Dark",
@@ -301,6 +302,9 @@ export const translations = {
     connecting: "Connecting...",
     noMcpServers: "No MCP servers connected",
     tools: "tools",
+    mcpInDevelopment: "🚧 MCP integration is in development",
+    mcpInDevelopmentDesc:
+      "Full HTTP-based MCP support for mobile will be available in v2.0. Currently only server-side stdio MCP is supported.",
     camera: "Camera",
     photoLibrary: "Photo Library",
     addAttachment: "Add Attachment",
@@ -351,6 +355,7 @@ export const translations = {
     provider: "Провайдер",
     connected: "Подключено",
     disconnected: "Отключено",
+    disconnect: "Отключить",
     system: "Системная",
     light: "Светлая",
     dark: "Темная",
@@ -571,6 +576,9 @@ export const translations = {
     connecting: "Подключение...",
     noMcpServers: "Нет подключённых MCP серверов",
     tools: "инстр.",
+    mcpInDevelopment: "🚧 MCP интеграция в разработке",
+    mcpInDevelopmentDesc:
+      "Полная поддержка HTTP-based MCP для мобильных устройств будет доступна в v2.0. Сейчас поддерживается только серверный stdio MCP.",
     camera: "Камера",
     photoLibrary: "Медиатека",
     addAttachment: "Добавить вложение",
@@ -826,6 +834,9 @@ export const translations = {
     connecting: "Connecting...",
     noMcpServers: "No MCP servers connected",
     tools: "tools",
+    mcpInDevelopment: "🚧 MCP integration is in development",
+    mcpInDevelopmentDesc:
+      "Full HTTP-based MCP support for mobile will be available in v2.0. Currently only server-side stdio MCP is supported.",
     contextTooLong:
       "Nachricht zu lang — entfernen Sie Anhänge oder kürzen Sie das Gespräch",
     transcriptionModel: "Transkriptionsmodell",

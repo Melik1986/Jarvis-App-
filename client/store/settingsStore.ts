@@ -46,16 +46,25 @@ export interface RagSettings {
   };
 }
 
+export interface McpServerConfig {
+  name: string;
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
 interface SettingsState {
   llm: LLMSettings;
   erp: ERPSettings;
   rag: RagSettings;
+  mcpServers: McpServerConfig[];
   voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
   language: string;
   theme: ThemeMode;
   setLLMSettings: (settings: Partial<LLMSettings>) => void;
   setERPSettings: (settings: Partial<ERPSettings>) => void;
   setRagSettings: (settings: Partial<RagSettings>) => void;
+  setMcpServers: (servers: McpServerConfig[]) => void;
   setVoice: (voice: SettingsState["voice"]) => void;
   setLanguage: (language: string) => void;
   setTheme: (theme: ThemeMode) => void;
@@ -97,12 +106,15 @@ const defaultRag: RagSettings = {
   },
 };
 
+const defaultMcpServers: McpServerConfig[] = [];
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       llm: defaultLLM,
       erp: defaultERP,
       rag: defaultRag,
+      mcpServers: defaultMcpServers,
       voice: "alloy",
       language: "system",
       theme: "system",
@@ -120,6 +132,7 @@ export const useSettingsStore = create<SettingsState>()(
             replit: { ...state.rag.replit, ...settings.replit },
           },
         })),
+      setMcpServers: (servers) => set({ mcpServers: servers }),
       setVoice: (voice) => set({ voice }),
       setLanguage: (language: string) => set({ language }),
       setTheme: (theme: ThemeMode) => set({ theme }),
@@ -128,6 +141,7 @@ export const useSettingsStore = create<SettingsState>()(
           llm: defaultLLM,
           erp: defaultERP,
           rag: defaultRag,
+          mcpServers: defaultMcpServers,
           voice: "alloy",
           language: "ru",
           theme: "dark",

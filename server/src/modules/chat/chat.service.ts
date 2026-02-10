@@ -28,6 +28,7 @@ import { ToolRegistryService } from "./tool-registry.service";
 import { ConfidenceScorerService } from "./confidence-scorer.service";
 import { CoveWorkflowService } from "./cove-workflow.service";
 import { GuardianGuard } from "../../guards/guardian.guard";
+import type { McpServerConfig } from "../../services/mcp-host.service";
 import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
 
 export interface Attachment {
@@ -281,6 +282,7 @@ export class ChatService {
     ragSettings?: RagSettingsRequest,
     attachments?: Attachment[],
     clientHistory?: { role: "user" | "assistant"; content: string }[],
+    mcpServers?: McpServerConfig[],
     clientRules?: ClientRuleDto[],
     clientSkills?: ClientSkillDto[],
     conversationSummary?: string,
@@ -447,7 +449,7 @@ export class ChatService {
           > = await this.toolRegistry.getTools(
             userId,
             erpSettings,
-            [],
+            mcpServers ?? [],
             clientRules,
             clientSkills,
             memoryFacts,

@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
 import { apiRequest } from "@/lib/query-client";
 import { localStore } from "@/lib/local-store";
+import { useSettingsStore } from "@/store/settingsStore";
 
 /**
  * Hook for interacting with Axon AI assistant.
@@ -19,6 +20,8 @@ export function useAxon() {
     setStreamingContent,
     clearStreamingContent,
   } = useChatStore();
+
+  const mcpServers = useSettingsStore((state) => state.mcpServers);
 
   /**
    * Send a message to Axon and get streaming response.
@@ -71,6 +74,7 @@ export function useAxon() {
             inputSchema: s.inputSchema,
             outputSchema: s.outputSchema,
           })),
+          mcpServers,
         });
 
         const responseText = await response.text();
@@ -112,6 +116,7 @@ export function useAxon() {
       clearStreamingContent,
       setStreaming,
       setStreamingContent,
+      mcpServers,
     ],
   );
 
