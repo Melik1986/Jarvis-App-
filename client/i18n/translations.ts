@@ -239,8 +239,11 @@ export const translations = {
       "By signing in, you agree to our Terms of Service and Privacy Policy",
     welcome: "Welcome",
     continueAsGuest: "Continue as Guest",
-    todayUsage: "Today's Usage",
-    approachingLimit: "Approaching request limit",
+    todayUsage: "Today's usage",
+    approachingLimit: "Approaching rate limit",
+    errorOccurred: "Something went wrong",
+    pleaseReload: "Please reload the app to continue.",
+    errorDetails: "Error Details",
 
     // Help & Privacy
     helpIntro: "Axon is your intelligent assistant for business data.",
@@ -514,6 +517,9 @@ export const translations = {
     continueAsGuest: "Продолжить как гость",
     todayUsage: "Использование за сегодня",
     approachingLimit: "Приближение к лимиту запросов",
+    errorOccurred: "Что-то пошло не так",
+    pleaseReload: "Пожалуйста, перезагрузите приложение для продолжения.",
+    errorDetails: "Детали ошибки",
 
     // Help & Privacy
     helpIntro:
@@ -781,6 +787,9 @@ export const translations = {
       "Mit der Anmeldung stimmen Sie unseren Nutzungsbedingungen und Datenschutzrichtlinien zu",
     welcome: "Willkommen",
     continueAsGuest: "Als Gast fortfahren",
+    errorOccurred: "Etwas ist schief gelaufen",
+    pleaseReload: "Bitte laden Sie die App neu, um fortzufahren.",
+    errorDetails: "Fehlerdetails",
 
     // Fallbacks
     helpIntro: "Axon is your intelligent assistant for business data.",

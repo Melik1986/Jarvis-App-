@@ -12,6 +12,7 @@ import Svg, { Path, Circle } from "react-native-svg";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius, Fonts } from "@/constants/theme";
 import { AppLogger } from "@/lib/logger";
 
@@ -70,6 +71,7 @@ export type ErrorFallbackProps = {
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleRestart = async () => {
@@ -108,11 +110,11 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
       <View style={styles.content}>
         <ThemedText type="h1" style={styles.title}>
-          Something went wrong
+          {t("errorOccurred")}
         </ThemedText>
 
         <ThemedText type="body" style={styles.message}>
-          Please reload the app to continue.
+          {t("pleaseReload")}
         </ThemedText>
 
         <Pressable
@@ -130,7 +132,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             type="body"
             style={[styles.buttonText, { color: theme.buttonText }]}
           >
-            Try Again
+            {t("tryAgain")}
           </ThemedText>
         </Pressable>
       </View>
@@ -146,7 +148,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             <ThemedView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <ThemedText type="h2" style={styles.modalTitle}>
-                  Error Details
+                  {t("errorDetails")}
                 </ThemedText>
                 <Pressable
                   onPress={() => setIsModalVisible(false)}
