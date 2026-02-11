@@ -68,6 +68,7 @@ export class ChatController {
       body.skills,
       body.conversationSummary,
       body.memoryFacts,
+      body.userInstructions,
     );
   }
 }
@@ -114,6 +115,7 @@ export class VoiceController {
       body.erpSettings,
       body.ragSettings,
       body.transcriptionModel,
+      body.userInstructions,
     );
   }
 }

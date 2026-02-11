@@ -26,6 +26,7 @@ export interface VoiceStreamContext {
   llmSettings?: LlmSettings;
   erpSettings?: Partial<ErpConfig>;
   ragSettings?: RagSettingsRequest;
+  userInstructions?: string;
 }
 
 @Injectable()
@@ -53,6 +54,7 @@ export class VoiceStreamOrchestrator {
       llmSettings,
       erpSettings,
       ragSettings,
+      userInstructions,
     } = context;
 
     // Setup SSE headers
@@ -75,6 +77,7 @@ export class VoiceStreamOrchestrator {
       // Build system prompt
       const systemMessage = this.promptBuilder.buildSystemPrompt({
         ragContext,
+        userInstructions,
       });
 
       // Build messages

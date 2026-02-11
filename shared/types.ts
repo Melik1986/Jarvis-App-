@@ -119,6 +119,7 @@ export type Conversation = {
 export type ChatRequestPayload = {
   content: string;
   history?: { role: "user" | "assistant"; content: string }[];
+  userInstructions?: string;
   rules?: {
     id: string;
     name: string;

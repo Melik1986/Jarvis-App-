@@ -11,6 +11,7 @@ import { AuditService } from "./audit-logger";
 export const SETTINGS_STD_PATHS = [
   "llm.baseUrl",
   "llm.apiKey",
+  "llm.userInstructions",
   "rag.qdrant.url",
   "rag.qdrant.apiKey",
   "rag.supabase.url",

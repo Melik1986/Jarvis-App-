@@ -13,6 +13,7 @@ interface LLMSettings {
   modelName: string;
   transcriptionModel: string;
   provider: "replit" | "openai" | "ollama" | "groq" | "custom";
+  userInstructions: string;
 }
 
 export type ERPProvider = "demo" | "1c" | "sap" | "odoo" | "custom";
@@ -77,6 +78,7 @@ const defaultLLM: LLMSettings = {
   modelName: "gpt-4o",
   transcriptionModel: "",
   provider: "replit",
+  userInstructions: "",
 };
 
 const defaultERP: ERPSettings = {

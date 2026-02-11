@@ -27,6 +27,7 @@ export function useAxon() {
   } = useChatStore();
 
   const mcpServers = useSettingsStore((state) => state.mcpServers);
+  const llmSettings = useSettingsStore((state) => state.llm);
 
   /**
    * Send a message to Axon and get streaming response.
@@ -63,6 +64,7 @@ export function useAxon() {
         const response = await apiRequest("POST", "/api/chat", {
           content: question,
           history,
+          userInstructions: llmSettings.userInstructions || undefined,
           rules: activeRules.map((r) => ({
             id: r.id,
             name: r.name,
@@ -79,6 +81,12 @@ export function useAxon() {
             inputSchema: s.inputSchema,
             outputSchema: s.outputSchema,
           })),
+          llmSettings: {
+            provider: llmSettings.provider,
+            baseUrl: llmSettings.baseUrl,
+            apiKey: llmSettings.apiKey,
+            modelName: llmSettings.modelName,
+          },
           mcpServers,
         });
 
@@ -135,6 +143,7 @@ export function useAxon() {
       setStreaming,
       setStreamingContent,
       mcpServers,
+      llmSettings,
     ],
   );
 

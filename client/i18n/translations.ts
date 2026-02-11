@@ -324,6 +324,11 @@ export const translations = {
     contextTooLong:
       "Message too long — try removing attachments or shortening the conversation",
     transcriptionModel: "Transcription Model",
+    customInstructions: "Custom instructions",
+    customInstructionsDesc:
+      "Applied to all Axon responses (like ChatGPT instructions). Stored locally on your device.",
+    customInstructionsPlaceholder:
+      "Example: Always answer in Russian. Prefer bullet points. When creating ERP documents, ask for confirmation.",
     transcriptionFailed:
       "Voice transcription failed. Check Settings → LLM Provider → Transcription Model.",
     transcriptionNotSupported:
@@ -601,6 +606,11 @@ export const translations = {
     contextTooLong:
       "Сообщение слишком длинное — попробуйте удалить вложения или сократить переписку",
     transcriptionModel: "Модель транскрипции",
+    customInstructions: "Пользовательские инструкции",
+    customInstructionsDesc:
+      "Применяются ко всем ответам Axon (как инструкции в ChatGPT). Хранятся локально на устройстве.",
+    customInstructionsPlaceholder:
+      "Пример: Всегда отвечай по-русски. Предпочитай списки. Перед созданием документов в ERP проси подтверждение.",
     transcriptionFailed:
       "Не удалось распознать голос. Проверьте Настройки → Провайдер LLM → Модель транскрипции.",
     transcriptionNotSupported:

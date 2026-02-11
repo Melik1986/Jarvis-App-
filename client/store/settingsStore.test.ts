@@ -18,6 +18,8 @@ describe("settingsStore (Provider Switcher)", () => {
         baseUrl: "",
         apiKey: "",
         modelName: "gpt-4o",
+        transcriptionModel: "",
+        userInstructions: "",
       },
       erp: {
         provider: "demo",

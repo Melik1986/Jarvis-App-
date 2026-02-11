@@ -147,6 +147,10 @@ export class VoiceMessageDto {
 
   @IsOptional()
   @IsString()
+  userInstructions?: string;
+
+  @IsOptional()
+  @IsString()
   transcriptionModel?: string;
 
   @IsOptional()
@@ -242,6 +246,10 @@ export class MemoryFactDto {
 export class ChatRequestDto {
   @IsString()
   content!: string;
+
+  @IsOptional()
+  @IsString()
+  userInstructions?: string;
 
   @IsOptional()
   @IsArray()

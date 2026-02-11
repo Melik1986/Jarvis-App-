@@ -200,6 +200,9 @@ export default function LLMProviderScreen() {
   const [transcriptionModel, setTranscriptionModel] = useState(
     llm.transcriptionModel || "",
   );
+  const [userInstructions, setUserInstructions] = useState(
+    llm.userInstructions || "",
+  );
   const [showModelPicker, setShowModelPicker] = useState(false);
 
   const providers: {
@@ -242,6 +245,7 @@ export default function LLMProviderScreen() {
       apiKey,
       modelName,
       transcriptionModel,
+      userInstructions,
     });
     navigation.goBack();
   };
@@ -469,6 +473,38 @@ export default function LLMProviderScreen() {
           placeholderTextColor={theme.textTertiary}
           value={transcriptionModel}
           onChangeText={setTranscriptionModel}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("customInstructions")}
+        </ThemedText>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
+          {t("customInstructionsDesc")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+              minHeight: 120,
+              textAlignVertical: "top",
+            },
+          ]}
+          placeholder={t("customInstructionsPlaceholder")}
+          placeholderTextColor={theme.textTertiary}
+          value={userInstructions}
+          onChangeText={setUserInstructions}
+          multiline
           autoCapitalize="none"
           autoCorrect={false}
         />

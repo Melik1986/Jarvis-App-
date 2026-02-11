@@ -112,6 +112,7 @@ export class ChatService {
     clientSkills?: ClientSkillDto[],
     conversationSummary?: string,
     memoryFacts?: { key: string; value: string }[],
+    userInstructions?: string,
   ) {
     // Check for prompt injection
     const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
@@ -144,6 +145,7 @@ export class ChatService {
       clientSkills,
       memoryFacts,
       conversationSummary,
+      userInstructions,
     });
 
     // Build messages array for Vercel AI SDK
@@ -191,6 +193,7 @@ export class ChatService {
       clientSkills,
       conversationSummary,
       memoryFacts,
+      userInstructions,
     });
   }
 
@@ -202,6 +205,7 @@ export class ChatService {
     erpSettings?: Partial<ErpConfig>,
     ragSettings?: RagSettingsRequest,
     transcriptionModel?: string,
+    userInstructions?: string,
   ) {
     // Transcribe audio first
     const userTranscript = await this.transcribeAudio(
@@ -254,6 +258,7 @@ export class ChatService {
       llmSettings,
       erpSettings,
       ragSettings,
+      userInstructions,
     });
   }
 

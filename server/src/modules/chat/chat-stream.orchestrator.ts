@@ -36,6 +36,7 @@ export interface ChatStreamContext {
   clientSkills?: ClientSkillDto[];
   conversationSummary?: string;
   memoryFacts?: { key: string; value: string }[];
+  userInstructions?: string;
 }
 
 @Injectable()
@@ -72,6 +73,7 @@ export class ChatStreamOrchestrator {
       clientSkills,
       conversationSummary,
       memoryFacts,
+      userInstructions,
     } = context;
 
     // Setup SSE headers
@@ -98,6 +100,7 @@ export class ChatStreamOrchestrator {
         clientSkills,
         memoryFacts,
         conversationSummary,
+        userInstructions,
       });
 
       // Build message history (recent window)

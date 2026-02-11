@@ -216,6 +216,7 @@ export default function ChatScreen() {
             content: userMessage.content,
             attachments: userMessage.attachments,
             history,
+            userInstructions: llmSettings.userInstructions || undefined,
             rules: activeRules.map((r) => ({
               id: r.id,
               name: r.name,
@@ -408,6 +409,7 @@ export default function ChatScreen() {
       llmSettings.baseUrl,
       llmSettings.apiKey,
       llmSettings.modelName,
+      llmSettings.userInstructions,
       erpSettings.provider,
       erpSettings.url,
       erpSettings.username,
