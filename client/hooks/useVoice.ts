@@ -90,6 +90,8 @@ export function useVoice() {
    * Play audio from base64 PCM/WAV data
    */
   const playAudio = useCallback(async (base64Audio: string): Promise<void> => {
+    let tempPath: string | null = null;
+
     try {
       setIsPlaying(true);
 
@@ -105,7 +107,7 @@ export function useVoice() {
         source.start();
       } else {
         // For native (iOS/Android), write base64 to temp file and play
-        const tempPath = `${FileSystem.cacheDirectory}axon-tts-response.wav`;
+        tempPath = `${FileSystem.cacheDirectory}axon-tts-response.wav`;
 
         // Write base64 audio to temp file
         await FileSystem.writeAsStringAsync(tempPath, base64Audio, {
@@ -120,17 +122,28 @@ export function useVoice() {
           if (status.didJustFinish) {
             setIsPlaying(false);
             // Cleanup temp file
-            FileSystem.deleteAsync(tempPath, { idempotent: true }).catch(() => {
-              // Ignore cleanup errors
-            });
+            if (tempPath) {
+              FileSystem.deleteAsync(tempPath, { idempotent: true }).catch(
+                () => {
+                  // Ignore cleanup errors
+                },
+              );
+            }
           }
         });
 
-        await audioPlayer.play();
+        audioPlayer.play();
       }
     } catch (err) {
       AppLogger.error("Error playing audio:", err);
       setIsPlaying(false);
+    } finally {
+      // Guaranteed cleanup of temp file
+      if (tempPath) {
+        FileSystem.deleteAsync(tempPath, { idempotent: true }).catch(() => {
+          // Ignore cleanup errors
+        });
+      }
     }
   }, []);
 

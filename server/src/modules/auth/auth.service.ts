@@ -9,6 +9,7 @@ import { AuthUser, AuthSession } from "./auth.types";
 import { AppLogger } from "../../utils/logger";
 import { DATABASE_CONNECTION, Database } from "../../db/db.module";
 import { users } from "../../../../shared/schema";
+import { AUTH_CONFIG } from "../../config/auth.config";
 
 interface ReplitOIDCTokenResponse {
   access_token: string;
@@ -40,11 +41,11 @@ interface TempAuthCode {
 @Injectable()
 export class AuthService implements OnModuleInit {
   private jwtSecret!: string;
-  private readonly accessTokenExpiry = "24h";
-  private readonly refreshTokenExpiry = "30d";
+  private readonly accessTokenExpiry: string = AUTH_CONFIG.ACCESS_TOKEN_EXPIRY;
+  private readonly refreshTokenExpiry: string =
+    AUTH_CONFIG.REFRESH_TOKEN_EXPIRY;
 
   private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
-  private readonly TEMP_CODE_TTL_MS = 60 * 1000;
 
   private readonly REPLIT_AUTH_AUTHORIZE = "https://replit.com/oidc/auth";
   private readonly REPLIT_AUTH_TOKEN = "https://replit.com/oidc/token";
@@ -237,7 +238,7 @@ export class AuthService implements OnModuleInit {
     this.tempAuthCodes.set(code, {
       session,
       user,
-      expiresAt: Date.now() + this.TEMP_CODE_TTL_MS,
+      expiresAt: Date.now() + AUTH_CONFIG.TEMP_CODE_TTL_MS,
     });
     return code;
   }
@@ -487,11 +488,36 @@ export class AuthService implements OnModuleInit {
   }
 
   async logout(refreshToken: string): Promise<{ success: boolean }> {
+    try {
+      const decoded = jwt.decode(refreshToken) as jwt.JwtPayload | null;
+      const sub = decoded?.sub as string | undefined;
+      if (sub) {
+        AppLogger.info("User logout", { sub });
+      }
+    } catch {}
     return { success: true };
   }
 
   async getMe(userId: string): Promise<AuthUser | null> {
-    return null;
+    if (!this.db) return null;
+    try {
+      const [row] = await this.db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!row) return null;
+      return {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        picture: row.picture ?? undefined,
+        replitId: row.replitId ?? undefined,
+      };
+    } catch (e) {
+      AppLogger.error("getMe error:", e);
+      return null;
+    }
   }
 
   private createSession(user: AuthUser): AuthSession {
@@ -505,12 +531,12 @@ export class AuthService implements OnModuleInit {
 
     const accessToken = jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.accessTokenExpiry,
-    });
+    } as jwt.SignOptions);
 
     const refreshToken = jwt.sign(
       { ...payload, type: "refresh" },
       this.jwtSecret,
-      { expiresIn: this.refreshTokenExpiry },
+      { expiresIn: this.refreshTokenExpiry } as jwt.SignOptions,
     );
 
     return {

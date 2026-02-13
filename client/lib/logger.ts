@@ -147,7 +147,7 @@ export class AppLogger {
   }
 
   static debug(message: string, data?: unknown, prefix?: string): void {
-    if (!this.shouldLog(LogLevel.DEBUG)) return;
+    if (!this.isDevelopment || !this.shouldLog(LogLevel.DEBUG)) return;
 
     const formatted = this.formatMessage("DEBUG", message, {
       prefix,

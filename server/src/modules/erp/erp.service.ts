@@ -47,6 +47,9 @@ export class ErpService implements OnModuleInit {
 
     switch (config.provider) {
       case "demo":
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("Demo provider is not allowed in production");
+        }
         return new DemoAdapter();
       case "1c":
         if (!config.baseUrl) throw new Error("ERP Base URL is required for 1C");
@@ -56,11 +59,7 @@ export class ErpService implements OnModuleInit {
           throw new Error("ERP Base URL is required for Odoo");
         return new OdooAdapter(config);
       default:
-        // Fallback to demo or error? For safety, fallback to demo if dev.
-        if (process.env.NODE_ENV === "production") {
-          throw new Error(`Unsupported ERP provider: ${config.provider}`);
-        }
-        return new DemoAdapter();
+        throw new Error(`Unsupported ERP provider: ${config.provider}`);
     }
   }
 
@@ -76,9 +75,6 @@ export class ErpService implements OnModuleInit {
       return (await breaker.fire()) as StockItem[];
     } catch (error) {
       AppLogger.warn("ERP getStock failed:", error);
-      if (process.env.NODE_ENV !== "production") {
-        return new DemoAdapter().getStock(productName);
-      }
       throw error;
     }
   }
@@ -95,9 +91,6 @@ export class ErpService implements OnModuleInit {
       return (await breaker.fire()) as Product[];
     } catch (error) {
       AppLogger.warn("ERP getProducts failed:", error);
-      if (process.env.NODE_ENV !== "production") {
-        return new DemoAdapter().getProducts(filter);
-      }
       throw error;
     }
   }
@@ -114,9 +107,6 @@ export class ErpService implements OnModuleInit {
       return (await breaker.fire()) as Invoice;
     } catch (error) {
       AppLogger.warn("ERP createInvoice failed:", error);
-      if (process.env.NODE_ENV !== "production") {
-        return new DemoAdapter().createInvoice(request);
-      }
       throw error;
     }
   }

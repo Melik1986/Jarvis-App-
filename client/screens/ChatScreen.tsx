@@ -42,6 +42,7 @@ import { secureApiRequest } from "@/lib/query-client";
 import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import { localStore } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
+import { CHAT_CONFIG } from "@/config/chat.config";
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -110,11 +111,10 @@ export default function ChatScreen() {
   const generateSummary = useCallback(
     async (convId: string) => {
       try {
-        const RECENT_KEEP = 6;
         const allMsgs = await localStore.getMessages(convId);
-        if (allMsgs.length <= RECENT_KEEP) return;
+        if (allMsgs.length <= CHAT_CONFIG.RECENT_KEEP) return;
 
-        const olderMsgs = allMsgs.slice(0, -RECENT_KEEP);
+        const olderMsgs = allMsgs.slice(0, -CHAT_CONFIG.RECENT_KEEP);
         const existingSummary = await localStore.getConversationSummary(convId);
 
         const textToSummarize = olderMsgs
@@ -201,10 +201,9 @@ export default function ChatScreen() {
       try {
         // Read context from local SQLite for zero-storage payload
         const convId = currentConversationId as string;
-        const RECENT_WINDOW = 6;
         const [history, activeRules, enabledSkills, memoryFacts, convSummary] =
           await Promise.all([
-            localStore.getRecentHistory(convId, RECENT_WINDOW),
+            localStore.getRecentHistory(convId, CHAT_CONFIG.RECENT_WINDOW),
             localStore.getActiveRules(),
             localStore.getEnabledSkills(),
             localStore.getMemoryFacts(),
@@ -379,12 +378,12 @@ export default function ChatScreen() {
                   .catch(() => {});
               }
 
-              // Auto-summarize: update summary every 4 new messages after 8 total
+              // Auto-summarize: update summary every N new messages after threshold
               const totalMsgs = messages.length + 2; // +user +assistant just added
               if (
                 currentConversationId &&
-                totalMsgs >= 8 &&
-                totalMsgs % 4 < 2 // trigger roughly every 4 messages
+                totalMsgs >= CHAT_CONFIG.SUMMARY_MIN_MESSAGES &&
+                totalMsgs % CHAT_CONFIG.SUMMARY_FREQUENCY < 2 // trigger roughly every N messages
               ) {
                 generateSummary(currentConversationId).catch(() => {});
               }

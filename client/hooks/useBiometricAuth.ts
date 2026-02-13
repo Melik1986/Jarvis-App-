@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { AppLogger } from "@/lib/logger";
 import { AuditService } from "@/lib/audit-logger";
 import { useTranslation } from "@/hooks/useTranslation";
+import { CLIENT_AUTH_CONFIG } from "@/config/auth.config";
 
 interface BiometricAuthResult {
   isUnlocked: boolean;
@@ -14,7 +15,7 @@ interface BiometricAuthResult {
   authenticate: () => Promise<void>;
 }
 
-const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+// Session timeout is now configured in CLIENT_AUTH_CONFIG.SESSION_TIMEOUT_MS
 
 /**
  * Hook to require biometric authentication for a screen.
@@ -123,7 +124,7 @@ export function useBiometricAuth(promptMessage?: string): BiometricAuthResult {
           [{ text: "OK", onPress: () => navigation.goBack() }],
         );
         setIsUnlocked(false);
-      }, SESSION_TIMEOUT);
+      }, CLIENT_AUTH_CONFIG.SESSION_TIMEOUT_MS);
     }
 
     return () => {
