@@ -25,7 +25,7 @@
     "**/*.tsx",
     "**/*.d.ts",
     "**/*.js",
-    "eslint.config.js"
+    "eslint.config.mjs"
   ],
   "exclude": [
     "node_modules",

@@ -8,13 +8,10 @@ import deMorganPlugin, {
 import { configs as tseslintConfigs } from "typescript-eslint";
 
 export default defineConfig([
-  // Base configurations
   expoConfig,
   eslintPluginPrettierRecommended,
   securityPlugin.configs.recommended,
   ...tseslintConfigs.recommended,
-
-  // De Morgan Plugin (Security)
   {
     plugins: {
       "de-morgan": deMorganPlugin,
@@ -23,12 +20,9 @@ export default defineConfig([
       ...deMorganConfigs.recommended.rules,
     },
   },
-
-  // Custom Rules & Overrides
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     rules: {
-      // --- Security Rules ---
       "security/detect-object-injection": "off",
       "security/detect-new-buffer": "error",
       "security/detect-eval-with-expression": "error",
@@ -39,13 +33,9 @@ export default defineConfig([
       "security/detect-child-process": "warn",
       "security/detect-non-literal-fs-filename": "warn",
       "security/detect-no-csrf-before-method-override": "warn",
-
-      // --- Code Quality ---
       "no-console": "warn",
       "prefer-const": "error",
       "no-var": "error",
-
-      // --- TypeScript ---
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "off",
@@ -76,16 +66,12 @@ export default defineConfig([
       ],
     },
   },
-
-  // Config files overrides
   {
-    files: ["*.config.js", "scripts/**/*.js", "eslint.config.js"],
+    files: ["*.config.js", "scripts/**/*.js", "eslint.config.*"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },
   },
-
-  // Ignores
   {
     ignores: [
       "node_modules/*",
