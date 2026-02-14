@@ -15,6 +15,7 @@ import { AppLogger } from "../utils/logger";
 import { EphemeralCredentials } from "../modules/auth/auth.types";
 
 interface ExtendedRequest extends Request {
+  user?: { id?: string };
   ephemeralCredentials?: EphemeralCredentials;
   sessionToken?: string;
 }
@@ -36,8 +37,10 @@ export class JweDecryptionInterceptor implements NestInterceptor {
     // Check for session token first (for subsequent requests)
     const sessionToken = request.headers["x-session-token"] as string;
     if (sessionToken) {
-      const credentials =
-        this.tokenExchangeService.getCredentials(sessionToken);
+      const credentials = this.tokenExchangeService.getCredentials(
+        sessionToken,
+        request.user?.id,
+      );
       if (credentials) {
         request.ephemeralCredentials = credentials;
         request.sessionToken = sessionToken;
@@ -50,10 +53,7 @@ export class JweDecryptionInterceptor implements NestInterceptor {
     const jweToken = request.headers["x-encrypted-config"] as string;
     if (jweToken) {
       try {
-        const privateKey = await importPKCS8(
-          SERVER_PRIVATE_KEY,
-          "ECDH-ES+HKDF-256",
-        );
+        const privateKey = await importPKCS8(SERVER_PRIVATE_KEY, "ECDH-ES");
         const { payload } = await jwtDecrypt(jweToken, privateKey);
 
         // Extract credentials from payload
@@ -74,9 +74,7 @@ export class JweDecryptionInterceptor implements NestInterceptor {
 
         AppLogger.info("JweDecryptionInterceptor: Decrypted credentials", {
           erpProvider: credentials.erpProvider,
-          hasErpUsername: !!credentials.erpUsername,
-          hasErpPassword: !!credentials.erpPassword,
-          erpUsername: credentials.erpUsername, // Log the username to be sure
+          hasSecrets: !!(credentials.erpPassword || credentials.erpApiKey),
         });
 
         // Validate required fields
@@ -92,7 +90,9 @@ export class JweDecryptionInterceptor implements NestInterceptor {
 
         // Create session token for subsequent requests
         const newSessionToken =
-          await this.tokenExchangeService.createSessionToken(credentials);
+          await this.tokenExchangeService.createSessionToken(credentials, {
+            userId: request.user?.id,
+          });
 
         request.ephemeralCredentials = credentials;
         request.sessionToken = newSessionToken;

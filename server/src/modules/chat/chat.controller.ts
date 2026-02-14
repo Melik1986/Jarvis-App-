@@ -71,6 +71,8 @@ export class ChatController {
       }),
       ...(credentials?.erpDb && { db: credentials.erpDb }),
       ...(credentials?.erpUsername && { username: credentials.erpUsername }),
+      ...(credentials?.erpPassword && { password: credentials.erpPassword }),
+      ...(credentials?.erpApiKey && { apiKey: credentials.erpApiKey }),
     } as typeof body.erpSettings;
 
     await this.chatService.streamResponse(
@@ -126,12 +128,32 @@ export class VoiceController {
       ...(credentials?.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
     } as typeof body.llmSettings;
 
+    const erpSettings = {
+      ...body.erpSettings,
+      ...(credentials?.erpProvider && {
+        provider: credentials.erpProvider as
+          | "demo"
+          | "1c"
+          | "sap"
+          | "odoo"
+          | "custom",
+      }),
+      ...(credentials?.erpBaseUrl && { baseUrl: credentials.erpBaseUrl }),
+      ...(credentials?.erpApiType && {
+        apiType: credentials.erpApiType as "rest" | "odata" | "graphql",
+      }),
+      ...(credentials?.erpDb && { db: credentials.erpDb }),
+      ...(credentials?.erpUsername && { username: credentials.erpUsername }),
+      ...(credentials?.erpPassword && { password: credentials.erpPassword }),
+      ...(credentials?.erpApiKey && { apiKey: credentials.erpApiKey }),
+    } as typeof body.erpSettings;
+
     await this.chatService.streamVoiceResponse(
       req.user.id,
       body.audio,
       res,
       llmSettings,
-      body.erpSettings,
+      erpSettings,
       body.ragSettings,
       body.transcriptionModel,
       body.userInstructions,

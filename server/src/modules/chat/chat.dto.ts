@@ -5,6 +5,7 @@ import {
   IsIn,
   IsArray,
   IsNumber,
+  IsEmpty,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { LlmSettings } from "../llm/llm.types";
@@ -22,6 +23,7 @@ export class LlmSettingsDto implements LlmSettings {
   baseUrl?: string;
 
   @IsOptional()
+  @IsEmpty({ message: "apiKey must NOT be provided in body (use session)" })
   @IsString()
   apiKey?: string;
 

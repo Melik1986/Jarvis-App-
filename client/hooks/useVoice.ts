@@ -9,10 +9,11 @@ import {
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform, Alert } from "react-native";
-import { getApiUrl, authenticatedFetch } from "@/lib/query-client";
+import { secureApiRequest } from "@/lib/query-client";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
+import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import {
   getUserFriendlyMessage,
   logError,
@@ -177,38 +178,42 @@ export function useVoice() {
         throw new Error("No active conversation");
       }
 
-      const baseUrl = getApiUrl();
-
-      const serverResponse = await authenticatedFetch(
-        `${baseUrl}api/voice/message`,
+      const serverResponse = await secureApiRequest(
+        "POST",
+        "voice/message",
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audio: base64,
-            transcriptionModel: llm.transcriptionModel || "whisper-1",
-            llmSettings: {
-              provider: llm.provider,
-              baseUrl: llm.baseUrl,
-              apiKey: llm.apiKey,
-              modelName: llm.modelName,
-            },
-            erpSettings: {
-              provider: erp.provider,
-              baseUrl: erp.url,
-              db: erp.db,
-              username: erp.username,
-              password: erp.password,
-              apiKey: erp.apiKey,
-              apiType: erp.apiType,
-              openApiSpecUrl: erp.specUrl,
-            },
-            ragSettings: {
-              provider: rag.provider,
-              qdrant: rag.qdrant,
-            },
-          }),
+          audio: base64,
+          transcriptionModel: llm.transcriptionModel || "whisper-1",
+          llmSettings: {
+            provider: llm.provider,
+            baseUrl: llm.baseUrl,
+            modelName: llm.modelName,
+          },
+          erpSettings: {
+            provider: erp.provider,
+            baseUrl: erp.url,
+            db: erp.db,
+            username: erp.username,
+            apiType: erp.apiType,
+            openApiSpecUrl: erp.specUrl,
+          },
+          ragSettings: {
+            provider: rag.provider,
+            qdrant: rag.qdrant,
+          },
         },
+        {
+          llmKey: llm.apiKey,
+          llmProvider: llm.provider,
+          llmBaseUrl: llm.baseUrl,
+          erpProvider: erp.provider,
+          erpBaseUrl: erp.url,
+          erpApiType: erp.apiType,
+          erpDb: erp.db,
+          erpUsername: erp.username,
+          erpPassword: erp.password || undefined,
+          erpApiKey: erp.apiKey || undefined,
+        } as EphemeralCredentials,
       );
 
       if (!serverResponse.ok) {

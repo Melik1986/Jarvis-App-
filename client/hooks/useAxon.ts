@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
-import { apiRequest } from "@/lib/query-client";
+import { secureApiRequest } from "@/lib/query-client";
 import { localStore } from "@/lib/local-store";
 import { useSettingsStore } from "@/store/settingsStore";
+import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import {
   getUserFriendlyMessage,
   logError,
@@ -61,34 +62,42 @@ export function useAxon() {
           localStore.getEnabledSkills(),
         ]);
 
-        const response = await apiRequest("POST", "/api/chat", {
-          content: question,
-          history,
-          userInstructions: llmSettings.userInstructions || undefined,
-          rules: activeRules.map((r) => ({
-            id: r.id,
-            name: r.name,
-            condition: r.condition,
-            action: r.action,
-            message: r.message,
-            priority: r.priority,
-          })),
-          skills: enabledSkills.map((s) => ({
-            id: s.id,
-            name: s.name,
-            description: s.description,
-            code: s.code,
-            inputSchema: s.inputSchema,
-            outputSchema: s.outputSchema,
-          })),
-          llmSettings: {
-            provider: llmSettings.provider,
-            baseUrl: llmSettings.baseUrl,
-            apiKey: llmSettings.apiKey,
-            modelName: llmSettings.modelName,
+        const response = await secureApiRequest(
+          "POST",
+          "chat",
+          {
+            content: question,
+            history,
+            userInstructions: llmSettings.userInstructions || undefined,
+            rules: activeRules.map((r) => ({
+              id: r.id,
+              name: r.name,
+              condition: r.condition,
+              action: r.action,
+              message: r.message,
+              priority: r.priority,
+            })),
+            skills: enabledSkills.map((s) => ({
+              id: s.id,
+              name: s.name,
+              description: s.description,
+              code: s.code,
+              inputSchema: s.inputSchema,
+              outputSchema: s.outputSchema,
+            })),
+            llmSettings: {
+              provider: llmSettings.provider,
+              baseUrl: llmSettings.baseUrl,
+              modelName: llmSettings.modelName,
+            },
+            mcpServers,
           },
-          mcpServers,
-        });
+          {
+            llmKey: llmSettings.apiKey,
+            llmProvider: llmSettings.provider,
+            llmBaseUrl: llmSettings.baseUrl,
+          } as EphemeralCredentials,
+        );
 
         const responseText = await response.text();
         const lines = responseText.split("\n");

@@ -1,29 +1,25 @@
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { AppLogger } from "../utils/logger";
+import { EphemeralCredentials } from "../modules/auth/auth.types";
 
 interface SessionTokenEntry {
-  credentials: {
-    llmKey?: string;
-    llmProvider?: string;
-    llmBaseUrl?: string;
-    dbUrl?: string;
-    dbKey?: string;
-    erpProvider?: string;
-    erpBaseUrl?: string;
-    erpApiType?: string;
-    erpDb?: string;
-    erpUsername?: string;
-    erpPassword?: string;
-    erpApiKey?: string;
-  };
+  credentials: EphemeralCredentials;
+  userId?: string;
+  issuedAt: number;
+  lastSeenAt: number;
   expiresAt: number;
+}
+
+interface SessionTokenOptions {
+  userId?: string;
+  ttlMs?: number;
 }
 
 @Injectable()
 export class TokenExchangeService {
   private sessionTokens = new Map<string, SessionTokenEntry>();
-  private readonly SESSION_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly SESSION_TTL = 15 * 60 * 1000; // 15 minutes rolling TTL
 
   constructor() {
     // Cleanup expired tokens every minute
@@ -33,20 +29,21 @@ export class TokenExchangeService {
   }
 
   async createSessionToken(
-    credentials: SessionTokenEntry["credentials"],
+    credentials: EphemeralCredentials,
+    options?: SessionTokenOptions,
   ): Promise<string> {
     const tokenId = randomUUID();
-    const expiresAt = Date.now() + this.SESSION_TTL;
+    const now = Date.now();
+    const ttlMs = options?.ttlMs ?? this.SESSION_TTL;
+    const expiresAt = now + ttlMs;
 
     this.sessionTokens.set(tokenId, {
       credentials,
+      userId: options?.userId,
+      issuedAt: now,
+      lastSeenAt: now,
       expiresAt,
     });
-
-    // Auto-cleanup after TTL
-    setTimeout(() => {
-      this.sessionTokens.delete(tokenId);
-    }, this.SESSION_TTL);
 
     AppLogger.debug(`Created session token: ${tokenId.slice(0, 8)}...`);
 
@@ -55,7 +52,8 @@ export class TokenExchangeService {
 
   getCredentials(
     sessionToken: string,
-  ): SessionTokenEntry["credentials"] | null {
+    expectedUserId?: string,
+  ): EphemeralCredentials | null {
     const entry = this.sessionTokens.get(sessionToken);
 
     if (!entry) {
@@ -67,7 +65,41 @@ export class TokenExchangeService {
       return null;
     }
 
+    if (expectedUserId && entry.userId && entry.userId !== expectedUserId) {
+      AppLogger.warn("Session token user mismatch", {
+        tokenPrefix: sessionToken.slice(0, 8),
+      });
+      return null;
+    }
+
+    // Rolling TTL: keep active sessions alive while they are used.
+    entry.lastSeenAt = Date.now();
+    entry.expiresAt = entry.lastSeenAt + this.SESSION_TTL;
+
     return entry.credentials;
+  }
+
+  revokeSessionToken(sessionToken: string, expectedUserId?: string): boolean {
+    const entry = this.sessionTokens.get(sessionToken);
+    if (!entry) return false;
+
+    if (expectedUserId && entry.userId && entry.userId !== expectedUserId) {
+      return false;
+    }
+
+    this.sessionTokens.delete(sessionToken);
+    return true;
+  }
+
+  revokeUserSessions(userId: string): number {
+    let revoked = 0;
+    for (const [tokenId, entry] of this.sessionTokens.entries()) {
+      if (entry.userId === userId) {
+        this.sessionTokens.delete(tokenId);
+        revoked++;
+      }
+    }
+    return revoked;
   }
 
   private cleanupExpiredTokens(): void {

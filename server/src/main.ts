@@ -95,7 +95,13 @@ async function bootstrap() {
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-signature",
+      "x-session-token",
+      "x-encrypted-config",
+    ],
     credentials: true,
   });
 

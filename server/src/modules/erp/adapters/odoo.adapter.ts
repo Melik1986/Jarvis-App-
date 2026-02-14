@@ -11,7 +11,9 @@ export class OdooAdapter implements ErpAdapter {
   constructor(private config: ErpConfig) {}
 
   private getJsonRpcUrl(): string {
-    const raw = (this.config.baseUrl || "").trim();
+    const raw = (this.config.baseUrl || "")
+      .trim()
+      .replace(/^[`'"]+|[`'"]+$/g, "");
     try {
       const url = new URL(raw);
       const cleanedPath = url.pathname.replace(/\/+$/, "");

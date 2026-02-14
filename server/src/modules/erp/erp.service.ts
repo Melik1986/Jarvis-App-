@@ -128,10 +128,13 @@ export class ErpService implements OnModuleInit {
 
     // pingOk unused, but we keep the ping attempt for logging
     try {
+      const cleanUrl = (config.baseUrl || "")
+        .trim()
+        .replace(/^[`'"]+|[`'"]+$/g, "");
       AppLogger.info("ErpService.testConnection: Pinging base URL", {
-        url: config.baseUrl,
+        url: cleanUrl,
       });
-      const pingRes = await fetch(config.baseUrl, { method: "GET" });
+      const pingRes = await fetch(cleanUrl, { method: "GET" });
       steps.push({ name: "ping", ok: pingRes.ok });
     } catch (e) {
       AppLogger.warn("ErpService.testConnection: Ping failed", e);
@@ -142,8 +145,7 @@ export class ErpService implements OnModuleInit {
     try {
       AppLogger.info("ErpService.testConnection: Testing adapter auth", {
         provider: config.provider,
-        username: config.username,
-        hasPassword: !!config.password,
+        hasSecret: !!(config.apiKey || config.password),
       });
       const adapter = this.getAdapter(customConfig);
       const ok = adapter.testConnection ? await adapter.testConnection() : true;

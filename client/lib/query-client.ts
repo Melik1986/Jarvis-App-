@@ -22,6 +22,19 @@ async function tryRefreshToken(): Promise<string | null> {
   return null;
 }
 
+const CREDENTIAL_SESSION_DEFAULT_TTL_MS = 15 * 60 * 1000;
+const CREDENTIAL_SESSION_REFRESH_SKEW_MS = 15 * 1000;
+const ENABLE_DIRECT_JWE = process.env.EXPO_PUBLIC_AXON_ENABLE_JWE === "true";
+
+async function handleUnauthorizedAfterRetry(): Promise<void> {
+  try {
+    clearCredentialSessionCache();
+    await useAuthStore.getState().signOut();
+  } catch {
+    // Ignore sign-out errors, original HTTP error is handled by caller.
+  }
+}
+
 /** Build Authorization header from current store. */
 function authHeaders(): Record<string, string> {
   const token = useAuthStore.getState().getAccessToken();
@@ -57,6 +70,8 @@ export async function authenticatedFetch(
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`);
       res = await fetch(input, { ...init, headers });
+    } else {
+      await handleUnauthorizedAfterRetry();
     }
   }
 
@@ -91,6 +106,156 @@ function normalizeApiRoute(route: string): string {
 
 let cachedPublicKey: string | null = null;
 let cachedSessionToken: string | null = null;
+let cachedSessionTokenExpiresAt = 0;
+let cachedCredentialFingerprint: string | null = null;
+let cachedAuthTokenForCredentialSession: string | null = null;
+
+function clearCredentialSessionCache(): void {
+  cachedSessionToken = null;
+  cachedSessionTokenExpiresAt = 0;
+  cachedCredentialFingerprint = null;
+  cachedAuthTokenForCredentialSession = null;
+}
+
+function invalidateCredentialSessionIfAuthChanged(): void {
+  const currentAuthToken = useAuthStore.getState().getAccessToken();
+  if (cachedAuthTokenForCredentialSession !== currentAuthToken) {
+    clearCredentialSessionCache();
+  }
+}
+
+function hasUsableCredentialSessionToken(): boolean {
+  if (!cachedSessionToken) return false;
+  return (
+    Date.now() + CREDENTIAL_SESSION_REFRESH_SKEW_MS <
+    cachedSessionTokenExpiresAt
+  );
+}
+
+function stableCredentialFingerprint(
+  credentials: EphemeralCredentials,
+): string {
+  const entries = Object.entries(credentials)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify(entries);
+}
+
+function hasSensitiveCredentialValues(
+  credentials: EphemeralCredentials,
+): boolean {
+  return Boolean(
+    credentials.llmKey ||
+    credentials.dbKey ||
+    credentials.dbUrl ||
+    credentials.erpPassword ||
+    credentials.erpApiKey,
+  );
+}
+
+function buildCredentialBootstrapBody(
+  credentials: EphemeralCredentials,
+): Record<string, unknown> {
+  return {
+    ...(credentials.llmKey || credentials.llmProvider || credentials.llmBaseUrl
+      ? {
+          llmSettings: {
+            ...(credentials.llmProvider && {
+              provider: credentials.llmProvider,
+            }),
+            ...(credentials.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
+            ...(credentials.llmKey && { apiKey: credentials.llmKey }),
+          },
+        }
+      : {}),
+    ...(credentials.erpProvider ||
+    credentials.erpBaseUrl ||
+    credentials.erpApiType ||
+    credentials.erpDb ||
+    credentials.erpUsername ||
+    credentials.erpPassword ||
+    credentials.erpApiKey
+      ? {
+          erpSettings: {
+            ...(credentials.erpProvider && {
+              provider: credentials.erpProvider,
+            }),
+            ...(credentials.erpBaseUrl && { baseUrl: credentials.erpBaseUrl }),
+            ...(credentials.erpApiType && { apiType: credentials.erpApiType }),
+            ...(credentials.erpDb && { db: credentials.erpDb }),
+            ...(credentials.erpUsername && {
+              username: credentials.erpUsername,
+            }),
+            ...(credentials.erpPassword && {
+              password: credentials.erpPassword,
+            }),
+            ...(credentials.erpApiKey && { apiKey: credentials.erpApiKey }),
+          },
+        }
+      : {}),
+    ...(credentials.dbUrl && { dbUrl: credentials.dbUrl }),
+    ...(credentials.dbKey && { dbKey: credentials.dbKey }),
+  };
+}
+
+async function bootstrapCredentialSession(
+  credentials: EphemeralCredentials,
+): Promise<void> {
+  const baseUrl = getApiUrl();
+  const url = new URL("/api/auth/credential-session/bootstrap", baseUrl);
+  const body = buildCredentialBootstrapBody(credentials);
+
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    "Content-Type": "application/json",
+  };
+
+  let res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    credentials: "include",
+  });
+
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+    } else {
+      await handleUnauthorizedAfterRetry();
+    }
+  }
+
+  await throwIfResNotOk(res);
+
+  const headerToken = res.headers.get("x-session-token");
+  const payload = (await res.json()) as {
+    sessionToken?: string;
+    expiresInSec?: number;
+  };
+
+  const token = payload.sessionToken || headerToken;
+  if (!token) {
+    throw new Error("Credential session bootstrap failed: missing token");
+  }
+
+  const ttlMs =
+    typeof payload.expiresInSec === "number" && payload.expiresInSec > 0
+      ? payload.expiresInSec * 1000
+      : CREDENTIAL_SESSION_DEFAULT_TTL_MS;
+
+  cachedSessionToken = token;
+  cachedSessionTokenExpiresAt = Date.now() + ttlMs;
+  cachedAuthTokenForCredentialSession = useAuthStore
+    .getState()
+    .getAccessToken();
+}
 
 async function getServerPublicKey(): Promise<string> {
   if (cachedPublicKey) return cachedPublicKey;
@@ -110,6 +275,8 @@ export async function secureApiRequest(
   data?: unknown | undefined,
   credentialsOverride?: EphemeralCredentials,
 ): Promise<Response> {
+  invalidateCredentialSessionIfAuthChanged();
+
   const baseUrl = getApiUrl();
   const url = new URL(normalizeApiRoute(route), baseUrl);
 
@@ -118,19 +285,42 @@ export async function secureApiRequest(
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
-  try {
-    if (credentialsOverride) {
-      if (cachedSessionToken) {
-        headers["x-session-token"] = cachedSessionToken;
-      } else {
+  const hasSensitiveCredentials =
+    !!credentialsOverride && hasSensitiveCredentialValues(credentialsOverride);
+  const credentialFingerprint = credentialsOverride
+    ? stableCredentialFingerprint(credentialsOverride)
+    : null;
+  let usedDirectJwe = false;
+
+  if (credentialsOverride && hasSensitiveCredentials) {
+    const isSameCredentialSession =
+      hasUsableCredentialSessionToken() &&
+      credentialFingerprint === cachedCredentialFingerprint;
+
+    if (isSameCredentialSession && cachedSessionToken) {
+      headers["x-session-token"] = cachedSessionToken;
+    } else if (ENABLE_DIRECT_JWE) {
+      try {
         const pub = await getServerPublicKey();
         const jwe = await encryptCredentialsToJWE(credentialsOverride, pub);
         headers["x-encrypted-config"] = jwe;
+        usedDirectJwe = true;
+      } catch {
+        await bootstrapCredentialSession(credentialsOverride);
+        cachedCredentialFingerprint = credentialFingerprint;
+        if (cachedSessionToken) {
+          headers["x-session-token"] = cachedSessionToken;
+        }
+      }
+    } else {
+      await bootstrapCredentialSession(credentialsOverride);
+      cachedCredentialFingerprint = credentialFingerprint;
+      if (cachedSessionToken) {
+        headers["x-session-token"] = cachedSessionToken;
       }
     }
-  } catch {
-    // If JWE setup fails, we still attempt the request without secrets
-    // Upstream should reject if secrets are required.
+  } else if (hasUsableCredentialSessionToken() && cachedSessionToken) {
+    headers["x-session-token"] = cachedSessionToken;
   }
 
   let res = await fetch(url, {
@@ -144,18 +334,36 @@ export async function secureApiRequest(
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers["Authorization"] = `Bearer ${newToken}`;
+      if (credentialsOverride && hasSensitiveCredentials && !usedDirectJwe) {
+        clearCredentialSessionCache();
+        await bootstrapCredentialSession(credentialsOverride);
+        cachedCredentialFingerprint = credentialFingerprint;
+        if (cachedSessionToken) {
+          headers["x-session-token"] = cachedSessionToken;
+        }
+      }
       res = await fetch(url, {
         method,
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",
       });
+    } else {
+      await handleUnauthorizedAfterRetry();
     }
   }
 
   const newSessionToken = res.headers.get("x-session-token");
   if (newSessionToken) {
     cachedSessionToken = newSessionToken;
+    cachedSessionTokenExpiresAt =
+      Date.now() + CREDENTIAL_SESSION_DEFAULT_TTL_MS;
+    cachedAuthTokenForCredentialSession = useAuthStore
+      .getState()
+      .getAccessToken();
+    if (credentialFingerprint) {
+      cachedCredentialFingerprint = credentialFingerprint;
+    }
   }
 
   await throwIfResNotOk(res);
@@ -197,6 +405,8 @@ export async function apiRequest(
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",
       });
+    } else {
+      await handleUnauthorizedAfterRetry();
     }
   }
 

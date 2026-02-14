@@ -16,6 +16,7 @@ const redact = fastRedact({
     "*.llmKey",
     "*.dbKey",
     "*.erpUrl",
+    "*.erpUsername",
   ],
   censor: "[REDACTED]",
   serialize: false,

@@ -24,7 +24,8 @@ import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
+import { secureApiRequest } from "@/lib/query-client";
+import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 
 type APIType = "odata" | "rest" | "graphql";
 
@@ -81,18 +82,29 @@ export default function ERPSettingsScreen() {
     setIsTesting(true);
     setTestResult(null);
     try {
-      const res = await apiRequest("POST", "erp/test", {
-        erpSettings: {
-          provider,
-          baseUrl: erpUrl,
-          db: erpDb,
-          username: erpUsername,
-          password: erpPassword,
-          apiKey: erpApiKey,
-          apiType,
-          openApiSpecUrl: specUrl,
+      const res = await secureApiRequest(
+        "POST",
+        "erp/test",
+        {
+          erpSettings: {
+            provider,
+            baseUrl: erpUrl,
+            db: erpDb,
+            username: erpUsername,
+            apiType,
+            openApiSpecUrl: specUrl,
+          },
         },
-      });
+        {
+          erpProvider: provider,
+          erpBaseUrl: erpUrl,
+          erpApiType: apiType,
+          erpDb: erpDb || undefined,
+          erpUsername: erpUsername || undefined,
+          erpPassword: erpPassword || undefined,
+          erpApiKey: erpApiKey || undefined,
+        } as EphemeralCredentials,
+      );
       const json = (await res.json()) as {
         success: boolean;
         steps?: { name: string; ok: boolean; error?: string }[];

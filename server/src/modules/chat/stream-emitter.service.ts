@@ -90,6 +90,12 @@ export class StreamEmitterService {
    * Setup SSE headers for response.
    */
   setupSseHeaders(res: Response): void {
+    // Voice/chat pipelines can call this more than once in one request.
+    // If headers are already sent, touching headers throws ERR_HTTP_HEADERS_SENT.
+    if (res.headersSent || res.writableEnded || res.closed) {
+      return;
+    }
+
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");

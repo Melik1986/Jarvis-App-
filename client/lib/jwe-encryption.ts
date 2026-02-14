@@ -24,7 +24,7 @@ export async function encryptCredentialsToJWE(
   publicKeyPem: string,
 ): Promise<string> {
   try {
-    const publicKey = await importSPKI(publicKeyPem, "ECDH-ES+HKDF-256");
+    const publicKey = await importSPKI(publicKeyPem, "ECDH-ES");
 
     const encrypted = await new EncryptJWT({
       ...(credentials.llmKey && { llmKey: credentials.llmKey }),
@@ -40,7 +40,7 @@ export async function encryptCredentialsToJWE(
       ...(credentials.erpPassword && { erpPassword: credentials.erpPassword }),
       ...(credentials.erpApiKey && { erpApiKey: credentials.erpApiKey }),
     })
-      .setProtectedHeader({ alg: "ECDH-ES+HKDF-256", enc: "A256GCM" })
+      .setProtectedHeader({ alg: "ECDH-ES", enc: "A256GCM" })
       .setIssuedAt()
       .setExpirationTime("5m")
       .setIssuer("axon-client")

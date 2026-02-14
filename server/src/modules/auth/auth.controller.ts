@@ -8,17 +8,28 @@ import {
   UseGuards,
   Req,
   Res,
+  BadRequestException,
   UnauthorizedException,
   Inject,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
-import { RefreshRequest, AuthUser, AuthSession } from "./auth.types";
+import {
+  RefreshRequest,
+  AuthUser,
+  AuthSession,
+  EphemeralCredentials,
+} from "./auth.types";
 import { AuthGuard } from "./auth.guard";
 import { SERVER_PUBLIC_KEY } from "../../config/jwk.config";
 import * as jwt from "jsonwebtoken";
 import { AppLogger } from "../../utils/logger";
+import {
+  CredentialSessionBootstrapDto,
+  CredentialSessionRevokeDto,
+} from "./auth.dto";
+import { TokenExchangeService } from "../../services/token-exchange.service";
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -29,8 +40,56 @@ interface AuthenticatedRequest extends Request {
 export class AuthController {
   /** Allowed deep-link schemes for mobile OAuth redirect */
   private readonly ALLOWED_SCHEMES = ["exp://", "axon://"];
+  private readonly CREDENTIAL_SESSION_TTL_SEC = 15 * 60;
 
-  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(TokenExchangeService)
+    private readonly tokenExchangeService: TokenExchangeService,
+  ) {}
+
+  private mapBootstrapToCredentials(
+    body: CredentialSessionBootstrapDto,
+  ): EphemeralCredentials {
+    return {
+      ...(body.llmSettings?.apiKey && { llmKey: body.llmSettings.apiKey }),
+      ...(body.llmSettings?.provider && {
+        llmProvider: body.llmSettings.provider,
+      }),
+      ...(body.llmSettings?.baseUrl && {
+        llmBaseUrl: body.llmSettings.baseUrl,
+      }),
+      ...(body.dbUrl && { dbUrl: body.dbUrl }),
+      ...(body.dbKey && { dbKey: body.dbKey }),
+      ...(body.erpSettings?.provider && {
+        erpProvider: body.erpSettings.provider,
+      }),
+      ...(body.erpSettings?.baseUrl && {
+        erpBaseUrl: body.erpSettings.baseUrl,
+      }),
+      ...(body.erpSettings?.apiType && {
+        erpApiType: body.erpSettings.apiType,
+      }),
+      ...(body.erpSettings?.db && { erpDb: body.erpSettings.db }),
+      ...(body.erpSettings?.username && {
+        erpUsername: body.erpSettings.username,
+      }),
+      ...(body.erpSettings?.password && {
+        erpPassword: body.erpSettings.password,
+      }),
+      ...(body.erpSettings?.apiKey && { erpApiKey: body.erpSettings.apiKey }),
+    };
+  }
+
+  private hasAnyCredentialValue(credentials: EphemeralCredentials): boolean {
+    return Boolean(
+      credentials.llmKey ||
+      credentials.dbKey ||
+      credentials.dbUrl ||
+      credentials.erpPassword ||
+      credentials.erpApiKey,
+    );
+  }
 
   /**
    * Validate redirect URL against allowlist.
@@ -258,8 +317,70 @@ export class AuthController {
     if (body.refreshToken) {
       await this.authService.logout(body.refreshToken);
     }
+    if (req.user?.id) {
+      this.tokenExchangeService.revokeUserSessions(req.user.id);
+    }
     req.logout?.(() => {});
     return { success: true };
+  }
+
+  @Post("credential-session/bootstrap")
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: "Create ephemeral credential session token for secure transport",
+  })
+  async bootstrapCredentialSession(
+    @Body() body: CredentialSessionBootstrapDto,
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!req.user?.id) {
+      throw new UnauthorizedException("User not authenticated");
+    }
+
+    const credentials = this.mapBootstrapToCredentials(body);
+    if (!this.hasAnyCredentialValue(credentials)) {
+      throw new BadRequestException(
+        "No credentials provided for bootstrap session",
+      );
+    }
+
+    const sessionToken = await this.tokenExchangeService.createSessionToken(
+      credentials,
+      { userId: req.user.id },
+    );
+    res.setHeader("x-session-token", sessionToken);
+
+    return {
+      success: true,
+      sessionToken,
+      expiresInSec: this.CREDENTIAL_SESSION_TTL_SEC,
+      mode: "session-token",
+    };
+  }
+
+  @Post("credential-session/revoke")
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "Revoke credential session token" })
+  async revokeCredentialSession(
+    @Body() body: CredentialSessionRevokeDto,
+    @Headers("x-session-token") headerToken: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user?.id) {
+      throw new UnauthorizedException("User not authenticated");
+    }
+
+    const token = body.sessionToken || headerToken;
+    if (!token) {
+      return { success: true, revoked: false };
+    }
+
+    const revoked = this.tokenExchangeService.revokeSessionToken(
+      token,
+      req.user.id,
+    );
+    return { success: true, revoked };
   }
 
   @Get("me")
@@ -296,7 +417,7 @@ export class AuthController {
   getPublicKey() {
     return {
       publicKey: SERVER_PUBLIC_KEY,
-      algorithm: "ECDH-ES+HKDF-256",
+      algorithm: "ECDH-ES",
     };
   }
 
