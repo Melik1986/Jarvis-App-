@@ -19,11 +19,15 @@ export function useTheme() {
     setTheme(themeMode === "dark" ? "light" : "dark");
   };
 
+  const isDark = themeMode === "system"
+    ? systemColorScheme === "dark"
+    : themeMode === "dark";
+
   return {
     theme,
     themeMode,
     setTheme,
     toggleTheme,
-    isDark: themeMode === "dark",
+    isDark,
   };
 }
