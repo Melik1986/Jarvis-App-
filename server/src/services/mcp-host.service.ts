@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { AppLogger } from "../utils/logger";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import * as path from "path";
 
 export interface McpServerConfig {
   name: string;
@@ -21,6 +22,41 @@ export interface McpToolDefinition {
 @Injectable()
 export class McpHostService implements OnModuleDestroy {
   private clients: Map<string, Client> = new Map();
+  private readonly dynamicConnectEnabled =
+    process.env.MCP_DYNAMIC_CONNECT_ENABLED === "true";
+  private readonly allowedCommands = this.parseList(
+    process.env.MCP_ALLOWED_COMMANDS,
+  );
+  private readonly allowedEnvKeys = this.parseList(
+    process.env.MCP_ALLOWED_ENV_KEYS,
+  );
+
+  isDynamicConnectEnabled(): boolean {
+    if (process.env.NODE_ENV === "production") {
+      return false;
+    }
+    return this.dynamicConnectEnabled;
+  }
+
+  assertDynamicConnectEnabled(): void {
+    if (!this.isDynamicConnectEnabled()) {
+      throw new Error(
+        "MCP dynamic connect is disabled by policy (set MCP_DYNAMIC_CONNECT_ENABLED=true in non-production only)",
+      );
+    }
+  }
+
+  validateDynamicServerConfig(config: McpServerConfig): McpServerConfig {
+    this.assertDynamicConnectEnabled();
+    const command = this.validateCommand(config.command);
+    const env = this.filterAllowedEnv(config.env);
+
+    return {
+      ...config,
+      command,
+      env,
+    };
+  }
 
   /**
    * Connect to an MCP server using stdio transport.
@@ -31,8 +67,10 @@ export class McpHostService implements OnModuleDestroy {
     }
 
     try {
+      const validatedConfig = this.validateDynamicServerConfig(config);
+
       AppLogger.info(
-        `Connecting to MCP server: ${config.name}`,
+        `Connecting to MCP server: ${validatedConfig.name}`,
         undefined,
         "MCP",
       );
@@ -71,13 +109,13 @@ export class McpHostService implements OnModuleDestroy {
         }
       }
       // Merge user-provided env (explicit config takes precedence)
-      if (config.env) {
-        Object.assign(env, config.env);
+      if (validatedConfig.env) {
+        Object.assign(env, validatedConfig.env);
       }
 
       const transport = new StdioClientTransport({
-        command: config.command,
-        args: config.args || [],
+        command: validatedConfig.command,
+        args: validatedConfig.args || [],
         env,
       });
 
@@ -94,10 +132,10 @@ export class McpHostService implements OnModuleDestroy {
       );
 
       await client.connect(transport);
-      this.clients.set(config.name, client);
+      this.clients.set(validatedConfig.name, client);
 
       AppLogger.info(
-        `Successfully connected to MCP server: ${config.name}`,
+        `Successfully connected to MCP server: ${validatedConfig.name}`,
         undefined,
         "MCP",
       );
@@ -235,5 +273,62 @@ export class McpHostService implements OnModuleDestroy {
       }
     }
     this.clients.clear();
+  }
+
+  private validateCommand(rawCommand: string): string {
+    const command = (rawCommand || "").trim();
+    if (!command) {
+      throw new Error("MCP command is required");
+    }
+
+    if (this.allowedCommands.length === 0) {
+      throw new Error(
+        "MCP command allowlist is empty. Set MCP_ALLOWED_COMMANDS to enable dynamic MCP execution.",
+      );
+    }
+
+    const normalized = command.toLowerCase();
+    const basename = path.basename(command).toLowerCase();
+    const isAllowed = this.allowedCommands.some((allowed) => {
+      const allowedNorm = allowed.toLowerCase();
+      const allowedBase = path.basename(allowed).toLowerCase();
+      return (
+        normalized === allowedNorm ||
+        basename === allowedNorm ||
+        normalized === allowedBase ||
+        basename === allowedBase
+      );
+    });
+
+    if (!isAllowed) {
+      throw new Error(`MCP command is not allowed: ${command}`);
+    }
+
+    return command;
+  }
+
+  private filterAllowedEnv(
+    source?: Record<string, string>,
+  ): Record<string, string> | undefined {
+    if (!source) return undefined;
+    if (this.allowedEnvKeys.length === 0) {
+      return {};
+    }
+
+    const filtered: Record<string, string> = {};
+    for (const [key, value] of Object.entries(source)) {
+      if (this.allowedEnvKeys.includes(key) && typeof value === "string") {
+        filtered[key] = value;
+      }
+    }
+    return filtered;
+  }
+
+  private parseList(rawValue?: string): string[] {
+    if (!rawValue) return [];
+    return rawValue
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 }

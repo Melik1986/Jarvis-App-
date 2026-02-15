@@ -9,9 +9,13 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { AuthGuard } from "../auth/auth.guard";
+import { RateLimitGuard } from "../../guards/rate-limit.guard";
+import { RequestSignatureGuard } from "../../guards/request-signature.guard";
 import {
   McpHostService,
   McpServerConfig,
@@ -76,6 +80,7 @@ export class McpController {
    * Connect to an MCP server.
    */
   @Post("servers")
+  @UseGuards(AuthGuard, RateLimitGuard, RequestSignatureGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Connect to an MCP server" })
   @ApiResponse({ status: 201, description: "Server connected successfully" })
@@ -83,12 +88,25 @@ export class McpController {
   async connectServer(
     @Body() dto: ConnectServerDto,
   ): Promise<McpConnectionStatus> {
-    const config: McpServerConfig = {
-      name: dto.name,
-      command: dto.command,
-      args: dto.args,
-      env: dto.env,
-    };
+    if (!this.mcpHost.isDynamicConnectEnabled()) {
+      throw new ForbiddenException(
+        "Dynamic MCP connect is disabled in this environment",
+      );
+    }
+
+    let config: McpServerConfig;
+    try {
+      config = this.mcpHost.validateDynamicServerConfig({
+        name: dto.name,
+        command: dto.command,
+        args: dto.args,
+        env: dto.env,
+      });
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : "Invalid MCP server config",
+      );
+    }
 
     try {
       await this.mcpBridge.connectToServer(config);

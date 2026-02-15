@@ -5,6 +5,7 @@ import { ConductorParseDto } from "./conductor.dto";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { AuthenticatedRequest } from "../auth/auth.types";
+import { RequestSignatureGuard } from "../../guards/request-signature.guard";
 
 @ApiTags("conversations")
 @Controller("conductor")
@@ -12,7 +13,7 @@ export class ConductorController {
   constructor(@Inject(ChatService) private chatService: ChatService) {}
 
   @Post("parse")
-  @UseGuards(AuthGuard, RateLimitGuard)
+  @UseGuards(AuthGuard, RateLimitGuard, RequestSignatureGuard)
   @ApiOperation({
     summary: "Parse raw text (Conductor) — no streaming",
     description:

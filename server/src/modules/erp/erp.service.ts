@@ -13,6 +13,7 @@ import { ErpAdapter } from "./adapters/erp-adapter.interface";
 import { DemoAdapter } from "./adapters/demo.adapter";
 import { OneCAdapter } from "./adapters/1c.adapter";
 import { OdooAdapter } from "./adapters/odoo.adapter";
+import { OutboundUrlPolicy } from "../../security/outbound-url-policy";
 
 @Injectable()
 export class ErpService implements OnModuleInit {
@@ -23,6 +24,8 @@ export class ErpService implements OnModuleInit {
     @Inject(ConfigService) private configService: ConfigService,
     @Inject(CircuitBreakerService)
     private circuitBreaker: CircuitBreakerService,
+    @Inject(OutboundUrlPolicy)
+    private outboundUrlPolicy: OutboundUrlPolicy,
   ) {}
 
   onModuleInit() {
@@ -67,6 +70,7 @@ export class ErpService implements OnModuleInit {
     productName?: string,
     customConfig?: Partial<ErpConfig>,
   ): Promise<StockItem[]> {
+    await this.assertSafeErpBaseUrl(customConfig);
     const breaker = this.circuitBreaker.getBreaker("erp-get-stock", () =>
       this.getAdapter(customConfig).getStock(productName),
     );
@@ -83,6 +87,7 @@ export class ErpService implements OnModuleInit {
     filter?: string,
     customConfig?: Partial<ErpConfig>,
   ): Promise<Product[]> {
+    await this.assertSafeErpBaseUrl(customConfig);
     const breaker = this.circuitBreaker.getBreaker("erp-get-products", () =>
       this.getAdapter(customConfig).getProducts(filter),
     );
@@ -99,6 +104,7 @@ export class ErpService implements OnModuleInit {
     request: CreateInvoiceRequest,
     customConfig?: Partial<ErpConfig>,
   ): Promise<Invoice> {
+    await this.assertSafeErpBaseUrl(customConfig);
     const breaker = this.circuitBreaker.getBreaker("erp-create-invoice", () =>
       this.getAdapter(customConfig).createInvoice(request),
     );
@@ -113,6 +119,7 @@ export class ErpService implements OnModuleInit {
 
   async testConnection(customConfig?: Partial<ErpConfig>) {
     const config = { ...this.config, ...customConfig };
+    await this.assertSafeErpBaseUrl(customConfig);
 
     const steps: { name: string; ok: boolean; error?: string }[] = [];
 
@@ -146,6 +153,9 @@ export class ErpService implements OnModuleInit {
       AppLogger.info("ErpService.testConnection: Testing adapter auth", {
         provider: config.provider,
         hasSecret: !!(config.apiKey || config.password),
+        hasDb: !!config.db,
+        hasUsername: !!config.username,
+        hasApiKey: !!config.apiKey,
       });
       const adapter = this.getAdapter(customConfig);
       const ok = adapter.testConnection ? await adapter.testConnection() : true;
@@ -156,5 +166,19 @@ export class ErpService implements OnModuleInit {
       steps.push({ name: "auth_read", ok: false, error: String(e) });
       return { success: false, steps };
     }
+  }
+
+  private async assertSafeErpBaseUrl(
+    customConfig?: Partial<ErpConfig>,
+  ): Promise<void> {
+    const config = { ...this.config, ...customConfig };
+    if (!config.baseUrl) return;
+    const cleanUrl = config.baseUrl.trim().replace(/^[`'"]+|[`'"]+$/g, "");
+    if (!cleanUrl) return;
+    await this.outboundUrlPolicy.assertAllowedUrl(cleanUrl, {
+      context: "ERP baseUrl",
+      allowHttpInDev: true,
+      allowPrivateInDev: true,
+    });
   }
 }

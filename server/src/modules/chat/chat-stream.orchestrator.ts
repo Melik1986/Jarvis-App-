@@ -141,6 +141,7 @@ export class ChatStreamOrchestrator {
       const poolCredentials =
         this.llmProviderFactory.getPoolCredentialsForProvider(llmSettings);
       this.llmProviderFactory.assertApiKeyPresent(llmSettings);
+      await this.llmProviderFactory.assertBaseUrlAllowed(llmSettings);
 
       // Stream with pool
       await this.ephemeralClientPool.useClient(
@@ -282,7 +283,11 @@ export class ChatStreamOrchestrator {
           const body = getLlmProviderErrorBody(error);
           res.status(body.statusCode).json(body);
         } else {
-          res.status(500).json({ error: "Failed to process message" });
+          res.status(500).json({
+            statusCode: 500,
+            message: "Failed to process message",
+            code: "INTERNAL_ERROR",
+          });
         }
       } else {
         const msg = isLlmProviderError(error)

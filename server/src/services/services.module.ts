@@ -6,6 +6,7 @@ import { McpBridgeService } from "./mcp-bridge.service";
 import { McpHostService } from "./mcp-host.service";
 import { OpenApiToolGeneratorService } from "./openapi-tool-generator.service";
 import { ValidationService } from "./validation.service";
+import { OutboundUrlPolicy } from "../security/outbound-url-policy";
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { ValidationService } from "./validation.service";
     McpHostService,
     OpenApiToolGeneratorService,
     ValidationService,
+    OutboundUrlPolicy,
   ],
   exports: [
     TokenExchangeService,
@@ -26,6 +28,7 @@ import { ValidationService } from "./validation.service";
     McpHostService,
     OpenApiToolGeneratorService,
     ValidationService,
+    OutboundUrlPolicy,
   ],
 })
 export class ServicesModule {}

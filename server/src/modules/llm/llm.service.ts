@@ -2,6 +2,7 @@ import { Injectable, Inject, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
+import { OutboundUrlPolicy } from "../../security/outbound-url-policy";
 
 @Injectable()
 export class LlmService implements OnModuleInit {
@@ -9,6 +10,8 @@ export class LlmService implements OnModuleInit {
 
   constructor(
     @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(OutboundUrlPolicy)
+    private readonly outboundUrlPolicy: OutboundUrlPolicy,
   ) {}
 
   onModuleInit() {
@@ -61,6 +64,11 @@ export class LlmService implements OnModuleInit {
   private validateProviderBaseUrl(settings: LlmSettings): void {
     if (!settings.baseUrl) return;
     const provider = settings.provider;
+    this.outboundUrlPolicy.assertAllowedUrlSync(settings.baseUrl, {
+      context: `LLM provider ${provider}`,
+      allowHttpInDev: provider === "ollama",
+      allowPrivateInDev: provider === "ollama",
+    });
     if (provider === "replit" || provider === "custom") return;
     const allowed = LlmService.PROVIDER_HOSTS[provider];
     if (!allowed) return;

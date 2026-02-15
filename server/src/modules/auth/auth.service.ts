@@ -64,10 +64,22 @@ export class AuthService implements OnModuleInit {
 
   onModuleInit() {
     const secret = this.configService.get("SESSION_SECRET");
-    if (!secret && process.env.NODE_ENV === "production") {
-      throw new Error("SESSION_SECRET must be set in production environment.");
+    const allowInsecureDevSecrets =
+      process.env.ALLOW_INSECURE_DEV_SECRETS === "true";
+    if (
+      !secret &&
+      (process.env.NODE_ENV === "production" || !allowInsecureDevSecrets)
+    ) {
+      throw new Error(
+        "SESSION_SECRET must be set (or ALLOW_INSECURE_DEV_SECRETS=true in development).",
+      );
     }
-    this.jwtSecret = secret || "axon-dev-secret-not-for-production";
+    this.jwtSecret = secret || crypto.randomBytes(48).toString("hex");
+    if (!secret) {
+      AppLogger.warn(
+        "SESSION_SECRET is not set. Generated ephemeral development JWT secret.",
+      );
+    }
 
     setInterval(() => this.cleanupExpiredCodes(), 30 * 1000);
   }
@@ -489,8 +501,11 @@ export class AuthService implements OnModuleInit {
 
   async logout(refreshToken: string): Promise<{ success: boolean }> {
     try {
-      const decoded = jwt.decode(refreshToken) as jwt.JwtPayload | null;
-      const sub = decoded?.sub as string | undefined;
+      const payload = jwt.verify(
+        refreshToken,
+        this.jwtSecret,
+      ) as jwt.JwtPayload;
+      const sub = payload?.sub as string | undefined;
       if (sub) {
         AppLogger.info("User logout", { sub });
       }

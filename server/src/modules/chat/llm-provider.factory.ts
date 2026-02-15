@@ -1,10 +1,16 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { createOpenAI } from "@ai-sdk/openai";
 import { AppLogger } from "../../utils/logger";
 import { LlmSettings } from "../llm/llm.types";
+import { OutboundUrlPolicy } from "../../security/outbound-url-policy";
 
 @Injectable()
 export class LlmProviderFactory {
+  constructor(
+    @Inject(OutboundUrlPolicy)
+    private readonly outboundUrlPolicy: OutboundUrlPolicy,
+  ) {}
+
   /**
    * Create Vercel AI SDK provider based on LLM settings.
    */
@@ -62,6 +68,17 @@ export class LlmProviderFactory {
       default:
         return undefined;
     }
+  }
+
+  async assertBaseUrlAllowed(llmSettings?: LlmSettings): Promise<void> {
+    const provider = llmSettings?.provider ?? "replit";
+    const baseURL = this.getBaseUrlForLog(llmSettings);
+    if (!baseURL) return;
+    await this.outboundUrlPolicy.assertAllowedUrl(baseURL, {
+      context: `LLM provider ${provider}`,
+      allowHttpInDev: provider === "ollama",
+      allowPrivateInDev: provider === "ollama",
+    });
   }
 
   /**

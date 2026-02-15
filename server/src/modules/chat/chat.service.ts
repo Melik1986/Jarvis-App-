@@ -1,31 +1,24 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, type Tool, type ModelMessage } from "ai";
+import { streamText, type Tool } from "ai";
 import { toFile } from "openai/uploads";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
-import { ErpService } from "../erp/erp.service";
 import { EphemeralClientPoolService } from "../../services/ephemeral-client-pool.service";
-import { PromptInjectionGuard } from "../../guards/prompt-injection.guard";
 import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
 import { RagSettingsRequest } from "../rag/rag.types";
-import { AppLogger } from "../../utils/logger";
 
 import { ToolRegistryService } from "./tool-registry.service";
-import { ConfidenceScorerService } from "./confidence-scorer.service";
-import { CoveWorkflowService } from "./cove-workflow.service";
-import { GuardianGuard } from "../../guards/guardian.guard";
 import { PromptBuilderService } from "./prompt-builder.service";
-import { AttachmentProcessorService } from "./attachment-processor.service";
 import { LlmProviderFactory } from "./llm-provider.factory";
-import { ChatStreamOrchestrator } from "./chat-stream.orchestrator";
-import { VoiceStreamOrchestrator } from "./voice-stream.orchestrator";
-import { DiffPreviewService } from "./diff-preview.service";
 import { VerificationPipeline } from "./verification-pipeline.service";
 import type { McpServerConfig } from "../../services/mcp-host.service";
 import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
 import type { Attachment, StreamPart } from "./chat.types";
+import { ChatSecurityService } from "./chat-security.service";
+import { ChatRequestContextFactory } from "./chat-request-context.factory";
+import { ChatStreamFacade } from "./chat-stream.facade";
 
 // Tools will be created dynamically in the service with execute handlers
 
@@ -38,25 +31,15 @@ export class ChatService {
   constructor(
     @Inject(LlmService) private llmService: LlmService,
     @Inject(RagService) private ragService: RagService,
-    @Inject(ErpService) private erpService: ErpService,
     @Inject(EphemeralClientPoolService)
     private ephemeralClientPool: EphemeralClientPoolService,
-    @Inject(PromptInjectionGuard)
-    private promptInjectionGuard: PromptInjectionGuard,
+    @Inject(ChatSecurityService) private chatSecurity: ChatSecurityService,
+    @Inject(ChatRequestContextFactory)
+    private contextFactory: ChatRequestContextFactory,
+    @Inject(ChatStreamFacade) private chatStreamFacade: ChatStreamFacade,
     @Inject(ToolRegistryService) private toolRegistry: ToolRegistryService,
-    @Inject(ConfidenceScorerService)
-    private confidenceScorer: ConfidenceScorerService,
-    @Inject(CoveWorkflowService) private coveWorkflow: CoveWorkflowService,
-    @Inject(GuardianGuard) private guardian: GuardianGuard,
     @Inject(PromptBuilderService) private promptBuilder: PromptBuilderService,
-    @Inject(AttachmentProcessorService)
-    private attachmentProcessor: AttachmentProcessorService,
     @Inject(LlmProviderFactory) private llmProviderFactory: LlmProviderFactory,
-    @Inject(ChatStreamOrchestrator)
-    private chatStreamOrchestrator: ChatStreamOrchestrator,
-    @Inject(VoiceStreamOrchestrator)
-    private voiceStreamOrchestrator: VoiceStreamOrchestrator,
-    @Inject(DiffPreviewService) private diffPreview: DiffPreviewService,
     @Inject(VerificationPipeline)
     private verificationPipeline: VerificationPipeline,
   ) {}
@@ -80,6 +63,7 @@ export class ChatService {
         `API key is required for provider: ${poolCredentials.llmProvider}`,
       );
     }
+    await this.llmProviderFactory.assertBaseUrlAllowed(llmSettings);
 
     const audioBuffer = Buffer.from(audioBase64, "base64");
     const file = await toFile(audioBuffer, "voice-input.wav");
@@ -114,8 +98,7 @@ export class ChatService {
     memoryFacts?: { key: string; value: string }[],
     userInstructions?: string,
   ) {
-    // Check for prompt injection
-    const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
+    const injectionCheck = this.chatSecurity.checkPrompt(rawText);
     if (injectionCheck.requireManualReview) {
       res.status(400).json({
         error: "Prompt injection detected",
@@ -125,76 +108,24 @@ export class ChatService {
       return;
     }
 
-    // History comes from client (zero-storage)
-    const history = clientHistory ?? [];
-
-    // Search RAG for context
-    let ragContext = "";
-    try {
-      const ragResults = await this.ragService.search(rawText, 2, ragSettings);
-      ragContext = this.ragService.buildContext(ragResults);
-    } catch (ragError) {
-      AppLogger.warn("RAG search failed:", ragError);
-    }
-
-    // Build system message with RAG context + user instructions from rules/skills
-    // Note: systemMessage is built by prompt builder and used in orchestrators
-    this.promptBuilder.buildSystemPrompt({
-      ragContext,
-      clientRules,
-      clientSkills,
-      memoryFacts,
-      conversationSummary,
-      userInstructions,
-    });
-
-    // Build messages array for Vercel AI SDK
-    // Client now sends only recent window (6 msgs) + summary for older context
-    const RECENT_WINDOW = 6;
-    const messages: ModelMessage[] = history.slice(-RECENT_WINDOW).map((m) => {
-      // Strip non-text parts (images/files) from multimodal history to save tokens
-      const content =
-        typeof m.content === "string"
-          ? m.content
-          : Array.isArray(m.content)
-            ? (m.content as { type: string; text?: string }[])
-                .filter((p) => p.type === "text")
-                .map((p) => p.text ?? "")
-                .join("\n")
-            : String(m.content);
-      return { role: m.role as "user" | "assistant", content };
-    }) as ModelMessage[];
-
-    // Handle multimodal content
-    const userContent = await this.attachmentProcessor.buildUserContent(
-      rawText,
-      attachments,
+    await this.chatStreamFacade.streamChat(
+      this.contextFactory.createChatContext({
+        userId,
+        rawText,
+        res,
+        llmSettings,
+        erpSettings,
+        ragSettings,
+        attachments,
+        clientHistory,
+        mcpServers,
+        clientRules,
+        clientSkills,
+        conversationSummary,
+        memoryFacts,
+        userInstructions,
+      }),
     );
-
-    if (Array.isArray(userContent) && userContent.length > 1) {
-      messages.push({ role: "user", content: userContent });
-    } else {
-      messages.push({ role: "user", content: rawText });
-    }
-
-    // Set up SSE
-    // Delegate to ChatStreamOrchestrator
-    await this.chatStreamOrchestrator.streamChatResponse({
-      userId,
-      rawText,
-      res,
-      llmSettings,
-      erpSettings,
-      ragSettings,
-      attachments,
-      clientHistory,
-      mcpServers,
-      clientRules,
-      clientSkills,
-      conversationSummary,
-      memoryFacts,
-      userInstructions,
-    });
   }
 
   async streamVoiceResponse(
@@ -237,8 +168,7 @@ export class ChatService {
       return;
     }
 
-    const injectionCheck =
-      this.promptInjectionGuard.detectInjection(userTranscript);
+    const injectionCheck = this.chatSecurity.checkPrompt(userTranscript);
     if (injectionCheck.requireManualReview) {
       res.write(
         `data: ${JSON.stringify({
@@ -250,16 +180,17 @@ export class ChatService {
       return;
     }
 
-    // Delegate streaming to VoiceStreamOrchestrator
-    await this.voiceStreamOrchestrator.streamVoiceResponse({
-      userId,
-      userTranscript,
-      res,
-      llmSettings,
-      erpSettings,
-      ragSettings,
-      userInstructions,
-    });
+    await this.chatStreamFacade.streamVoice(
+      this.contextFactory.createVoiceContext({
+        userId,
+        userTranscript,
+        res,
+        llmSettings,
+        erpSettings,
+        ragSettings,
+        userInstructions,
+      }),
+    );
   }
 
   /**
@@ -280,7 +211,7 @@ export class ChatService {
     requiresConfirmation?: boolean;
   }> {
     // Check for prompt injection
-    const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
+    const injectionCheck = this.chatSecurity.checkPrompt(rawText);
     if (injectionCheck.requireManualReview) {
       return {
         rawText,
@@ -304,6 +235,7 @@ export class ChatService {
     // Extract credentials for pool
     const poolCredentials =
       this.llmProviderFactory.getPoolCredentialsForProvider(llmSettings);
+    await this.llmProviderFactory.assertBaseUrlAllowed(llmSettings);
 
     // Use ephemeral client pool for parsing
     return await this.ephemeralClientPool.useClient(

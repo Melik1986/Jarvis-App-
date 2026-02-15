@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import SwaggerParser from "@apidevtools/swagger-parser";
 import { dynamicTool, jsonSchema, type Tool, type JSONSchema7 } from "ai";
 import { AppLogger } from "../utils/logger";
+import { OutboundUrlPolicy } from "../security/outbound-url-policy";
 
 type JSONSchema7TypeName =
   | "string"
@@ -14,6 +15,8 @@ type JSONSchema7TypeName =
 
 @Injectable()
 export class OpenApiToolGeneratorService {
+  constructor(private readonly outboundUrlPolicy: OutboundUrlPolicy) {}
+
   /**
    * Parse OpenAPI spec and generate tools for AI SDK.
    */
@@ -22,6 +25,12 @@ export class OpenApiToolGeneratorService {
     baseUrl?: string,
   ): Promise<Record<string, Tool<unknown, unknown>>> {
     try {
+      await this.outboundUrlPolicy.assertAllowedUrl(specUrl, {
+        context: "OpenAPI spec URL",
+        allowHttpInDev: true,
+        allowPrivateInDev: true,
+      });
+
       AppLogger.info(`Parsing OpenAPI spec: ${specUrl}`, undefined, "OpenAPI");
       const api = (await SwaggerParser.dereference(specUrl)) as {
         servers?: { url: string }[];
@@ -30,6 +39,13 @@ export class OpenApiToolGeneratorService {
       const tools: Record<string, Tool<unknown, unknown>> = {};
 
       const serverUrl = baseUrl || (api.servers && api.servers[0]?.url) || "";
+      if (serverUrl) {
+        await this.outboundUrlPolicy.assertAllowedUrl(serverUrl, {
+          context: "OpenAPI server URL",
+          allowHttpInDev: true,
+          allowPrivateInDev: true,
+        });
+      }
 
       for (const [path, methods] of Object.entries(api.paths || {})) {
         for (const [method, operation] of Object.entries(methods || {})) {
@@ -161,9 +177,16 @@ export class OpenApiToolGeneratorService {
       "OpenAPI",
     );
 
+    await this.outboundUrlPolicy.assertAllowedUrl(fullUrl, {
+      context: "OpenAPI operation URL",
+      allowHttpInDev: true,
+      allowPrivateInDev: true,
+    });
+
     const response = await fetch(fullUrl, {
       method: method.toUpperCase(),
       headers,
+      redirect: "error",
       body:
         body && Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     });

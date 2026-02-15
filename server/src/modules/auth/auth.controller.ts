@@ -15,15 +15,16 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
-import {
-  RefreshRequest,
-  AuthUser,
-  AuthSession,
-  EphemeralCredentials,
-} from "./auth.types";
+import { RefreshRequest, AuthUser, AuthSession } from "./auth.types";
 import { AuthGuard } from "./auth.guard";
-import { SERVER_PUBLIC_KEY } from "../../config/jwk.config";
+import {
+  JWE_KEY_ALGORITHMS,
+  JWE_KEY_ID,
+  SERVER_PUBLIC_KEY,
+  SERVER_PUBLIC_JWK,
+} from "../../config/jwk.config";
 import * as jwt from "jsonwebtoken";
+import { randomBytes } from "crypto";
 import { AppLogger } from "../../utils/logger";
 import {
   CredentialSessionBootstrapDto,
@@ -40,56 +41,12 @@ interface AuthenticatedRequest extends Request {
 export class AuthController {
   /** Allowed deep-link schemes for mobile OAuth redirect */
   private readonly ALLOWED_SCHEMES = ["exp://", "axon://"];
-  private readonly CREDENTIAL_SESSION_TTL_SEC = 15 * 60;
 
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
     @Inject(TokenExchangeService)
     private readonly tokenExchangeService: TokenExchangeService,
   ) {}
-
-  private mapBootstrapToCredentials(
-    body: CredentialSessionBootstrapDto,
-  ): EphemeralCredentials {
-    return {
-      ...(body.llmSettings?.apiKey && { llmKey: body.llmSettings.apiKey }),
-      ...(body.llmSettings?.provider && {
-        llmProvider: body.llmSettings.provider,
-      }),
-      ...(body.llmSettings?.baseUrl && {
-        llmBaseUrl: body.llmSettings.baseUrl,
-      }),
-      ...(body.dbUrl && { dbUrl: body.dbUrl }),
-      ...(body.dbKey && { dbKey: body.dbKey }),
-      ...(body.erpSettings?.provider && {
-        erpProvider: body.erpSettings.provider,
-      }),
-      ...(body.erpSettings?.baseUrl && {
-        erpBaseUrl: body.erpSettings.baseUrl,
-      }),
-      ...(body.erpSettings?.apiType && {
-        erpApiType: body.erpSettings.apiType,
-      }),
-      ...(body.erpSettings?.db && { erpDb: body.erpSettings.db }),
-      ...(body.erpSettings?.username && {
-        erpUsername: body.erpSettings.username,
-      }),
-      ...(body.erpSettings?.password && {
-        erpPassword: body.erpSettings.password,
-      }),
-      ...(body.erpSettings?.apiKey && { erpApiKey: body.erpSettings.apiKey }),
-    };
-  }
-
-  private hasAnyCredentialValue(credentials: EphemeralCredentials): boolean {
-    return Boolean(
-      credentials.llmKey ||
-      credentials.dbKey ||
-      credentials.dbUrl ||
-      credentials.erpPassword ||
-      credentials.erpApiKey,
-    );
-  }
 
   /**
    * Validate redirect URL against allowlist.
@@ -334,29 +291,12 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (!req.user?.id) {
-      throw new UnauthorizedException("User not authenticated");
-    }
-
-    const credentials = this.mapBootstrapToCredentials(body);
-    if (!this.hasAnyCredentialValue(credentials)) {
-      throw new BadRequestException(
-        "No credentials provided for bootstrap session",
-      );
-    }
-
-    const sessionToken = await this.tokenExchangeService.createSessionToken(
-      credentials,
-      { userId: req.user.id },
+    void body;
+    void req;
+    void res;
+    throw new BadRequestException(
+      "Plaintext bootstrap is disabled. Use x-encrypted-config transport.",
     );
-    res.setHeader("x-session-token", sessionToken);
-
-    return {
-      success: true,
-      sessionToken,
-      expiresInSec: this.CREDENTIAL_SESSION_TTL_SEC,
-      mode: "session-token",
-    };
   }
 
   @Post("credential-session/revoke")
@@ -417,7 +357,10 @@ export class AuthController {
   getPublicKey() {
     return {
       publicKey: SERVER_PUBLIC_KEY,
-      algorithm: "ECDH-ES",
+      publicJwk: SERVER_PUBLIC_JWK,
+      algorithm: "dir",
+      supportedAlgorithms: ["dir", ...JWE_KEY_ALGORITHMS],
+      keyId: JWE_KEY_ID,
     };
   }
 
@@ -456,10 +399,17 @@ export class AuthController {
     session: AuthSession;
   } {
     const jwtSecret = process.env.SESSION_SECRET;
-    if (!jwtSecret && process.env.NODE_ENV === "production") {
-      throw new Error("SESSION_SECRET must be set in production.");
+    const allowInsecureDevSecrets =
+      process.env.ALLOW_INSECURE_DEV_SECRETS === "true";
+    if (
+      !jwtSecret &&
+      (process.env.NODE_ENV === "production" || !allowInsecureDevSecrets)
+    ) {
+      throw new Error(
+        "SESSION_SECRET must be set (or ALLOW_INSECURE_DEV_SECRETS=true in development).",
+      );
     }
-    const secret = jwtSecret || "axon-dev-secret-not-for-production";
+    const secret = jwtSecret || randomBytes(48).toString("hex");
 
     const accessToken = jwt.sign(
       {

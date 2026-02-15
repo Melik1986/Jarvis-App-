@@ -1,17 +1,26 @@
 import { LlmService } from "./llm.service";
+import { ConfigService } from "@nestjs/config";
+import { OutboundUrlPolicy } from "../../security/outbound-url-policy";
 
 describe("LlmService (Orchestrator)", () => {
   let service: LlmService;
 
-  const mockConfigService = {
+  const mockConfigService: Pick<ConfigService, "get"> = {
     get: jest.fn().mockReturnValue(undefined),
   };
+  const mockOutboundUrlPolicy: Pick<OutboundUrlPolicy, "assertAllowedUrlSync"> =
+    {
+      assertAllowedUrlSync: jest.fn(),
+    };
 
   beforeEach(() => {
     jest.clearAllMocks();
     // Direct instantiation bypasses NestJS DI (which doesn't work with Babel transform)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    service = new LlmService(mockConfigService as any);
+
+    service = new LlmService(
+      mockConfigService as ConfigService,
+      mockOutboundUrlPolicy as OutboundUrlPolicy,
+    );
     // onModuleInit is not auto-called outside NestJS DI — call manually
     service.onModuleInit();
   });

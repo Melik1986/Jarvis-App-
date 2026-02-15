@@ -22,6 +22,9 @@ import { ChatStreamOrchestrator } from "./chat-stream.orchestrator";
 import { VoiceStreamOrchestrator } from "./voice-stream.orchestrator";
 import { DiffPreviewService } from "./diff-preview.service";
 import { VerificationPipeline } from "./verification-pipeline.service";
+import { ChatRequestContextFactory } from "./chat-request-context.factory";
+import { ChatSecurityService } from "./chat-security.service";
+import { ChatStreamFacade } from "./chat-stream.facade";
 
 @Module({
   imports: [
@@ -47,6 +50,9 @@ import { VerificationPipeline } from "./verification-pipeline.service";
     ToolExecutionPipeline,
     ChatStreamOrchestrator,
     VoiceStreamOrchestrator,
+    ChatRequestContextFactory,
+    ChatSecurityService,
+    ChatStreamFacade,
     DiffPreviewService,
     VerificationPipeline,
   ],

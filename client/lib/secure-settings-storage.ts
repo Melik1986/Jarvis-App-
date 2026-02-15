@@ -26,7 +26,6 @@ export const SETTINGS_HIGH_SEC_PATHS = [
   "erp.apiKey",
   "erp.username",
   "erp.password",
-  "erp.apiKey",
   "erp.db",
   "erp.specUrl",
 ];
@@ -40,6 +39,10 @@ export const SETTINGS_SENSITIVE_PATHS = [
 ];
 
 export const AUTH_SENSITIVE_PATHS = ["session"];
+
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths));
+}
 
 /**
  * Helper to get nested value from object
@@ -103,6 +106,12 @@ export function createHybridStorage(
 ): StateStorage {
   const isWeb = Platform.OS === "web";
   const migrationKey = `${storageName}-migration-v1-done`;
+  const normalizedStdPaths = uniquePaths(stdPaths);
+  const normalizedHighSecPaths = uniquePaths(highSecPaths);
+  const normalizedSensitivePaths = uniquePaths([
+    ...normalizedStdPaths,
+    ...normalizedHighSecPaths,
+  ]);
 
   return {
     getItem: async (name: string): Promise<string | null> => {
@@ -134,14 +143,14 @@ export function createHybridStorage(
         const stdSecrets: Record<string, unknown> = {};
         const highSecrets: Record<string, unknown> = {};
 
-        stdPaths.forEach((path) => {
+        normalizedStdPaths.forEach((path) => {
           const val = getNestedValue(actualState, path);
           if (val && val !== "") {
             stdSecrets[path] = val;
           }
         });
 
-        highSecPaths.forEach((path) => {
+        normalizedHighSecPaths.forEach((path) => {
           const val = getNestedValue(actualState, path);
           if (val && val !== "") {
             highSecrets[path] = val;
@@ -169,7 +178,7 @@ export function createHybridStorage(
         }
 
         // CRITICAL: Clear secrets from public state
-        [...stdPaths, ...highSecPaths].forEach((path) =>
+        normalizedSensitivePaths.forEach((path) =>
           clearNestedValue(actualState, path),
         );
 
@@ -246,7 +255,7 @@ export function createHybridStorage(
       const stdSecrets: Record<string, unknown> = {};
       const highSecrets: Record<string, unknown> = {};
 
-      stdPaths.forEach((path) => {
+      normalizedStdPaths.forEach((path) => {
         const val = getNestedValue(actualState, path);
         if (val !== undefined) {
           stdSecrets[path] = val;
@@ -254,7 +263,7 @@ export function createHybridStorage(
         }
       });
 
-      highSecPaths.forEach((path) => {
+      normalizedHighSecPaths.forEach((path) => {
         const val = getNestedValue(actualState, path);
         if (val !== undefined) {
           highSecrets[path] = val;

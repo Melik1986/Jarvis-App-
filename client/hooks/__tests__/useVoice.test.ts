@@ -1,8 +1,16 @@
 import { act, renderHook } from "@testing-library/react-native";
 import * as FileSystem from "expo-file-system/legacy";
+
 import { useVoice } from "../useVoice";
 import { useChatStore } from "../../store/chatStore";
 import { useAuthStore } from "../../store/authStore";
+
+const mockSecureApiRequest = jest.fn();
+
+jest.mock("@/lib/query-client", () => ({
+  __esModule: true,
+  secureApiRequest: (...args: unknown[]) => mockSecureApiRequest(...args),
+}));
 
 jest.mock("expo-audio", () => {
   const recorder = {

@@ -8,6 +8,7 @@ import session from "express-session";
 import passport from "passport";
 import * as fs from "fs";
 import * as path from "path";
+import { randomBytes } from "crypto";
 import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
 import { GlobalExceptionFilter } from "./filters/global-exception.filter";
@@ -62,6 +63,44 @@ function serveExpoManifest(platform: string, res: express.Response) {
   res.send(manifest);
 }
 
+function getTrustedPublicBaseUrl(): URL {
+  const configured = process.env.PUBLIC_BASE_URL;
+  if (configured) {
+    try {
+      return new URL(configured);
+    } catch {
+      throw new Error("PUBLIC_BASE_URL is invalid");
+    }
+  }
+
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return new URL(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  }
+
+  return new URL("http://localhost:5000");
+}
+
+function createIpRateLimiter(
+  limit: number,
+  windowMs: number,
+): express.RequestHandler {
+  const buckets = new Map<string, { count: number; resetAt: number }>();
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip || "unknown";
+    const current = buckets.get(key);
+    if (!current || current.resetAt <= now) {
+      buckets.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    if (current.count >= limit) {
+      return res.status(429).json({ error: "Rate limit exceeded" });
+    }
+    current.count += 1;
+    return next();
+  };
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const expressApp = app.getHttpAdapter().getInstance();
@@ -99,6 +138,9 @@ async function bootstrap() {
       "Content-Type",
       "Authorization",
       "x-signature",
+      "x-signature-ts",
+      "x-signature-nonce",
+      "x-signature-alg",
       "x-session-token",
       "x-encrypted-config",
     ],
@@ -106,14 +148,28 @@ async function bootstrap() {
   });
 
   // Session middleware for Replit Auth
-  const sessionSecret = process.env.SESSION_SECRET;
-  if (!sessionSecret && process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET must be set in production");
+  const explicitSessionSecret = process.env.SESSION_SECRET;
+  const allowInsecureDevSecrets =
+    process.env.ALLOW_INSECURE_DEV_SECRETS === "true";
+  const generatedDevSecret =
+    process.env.NODE_ENV !== "production" && allowInsecureDevSecrets
+      ? randomBytes(48).toString("hex")
+      : undefined;
+  const sessionSecret = explicitSessionSecret || generatedDevSecret;
+  if (!sessionSecret) {
+    throw new Error(
+      "SESSION_SECRET must be set (or ALLOW_INSECURE_DEV_SECRETS=true in development)",
+    );
+  }
+  if (!explicitSessionSecret && generatedDevSecret) {
+    AppLogger.warn(
+      "SESSION_SECRET is not set. Generated ephemeral development session secret.",
+    );
   }
 
   app.use(
     session({
-      secret: sessionSecret || "axon-session-secret-dev-only",
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -178,6 +234,8 @@ async function bootstrap() {
   // Landing page and Expo manifest routing
   const templatePath = path.resolve(process.cwd(), "web", "index.html");
   const appName = getAppName();
+  const trustedBaseUrl = getTrustedPublicBaseUrl();
+  const landingRateLimiter = createIpRateLimiter(120, 60 * 1000);
 
   AppLogger.info("Serving static Expo files with dynamic manifest routing");
   AppLogger.info(
@@ -187,6 +245,7 @@ async function bootstrap() {
   // Handle Expo manifest requests
   expressApp.get(
     ["/", "/manifest"],
+    landingRateLimiter,
     (
       req: express.Request,
       res: express.Response,
@@ -200,12 +259,8 @@ async function bootstrap() {
       // Serve landing page for browser requests
       if (fs.existsSync(templatePath)) {
         const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
-        const forwardedProto = req.header("x-forwarded-proto");
-        const protocol = forwardedProto || req.protocol || "https";
-        const forwardedHost = req.header("x-forwarded-host");
-        const host = forwardedHost || req.get("host");
-        const baseUrl = `${protocol}://${host}`;
-        const expsUrl = `${host}`;
+        const baseUrl = trustedBaseUrl.origin;
+        const expsUrl = trustedBaseUrl.host;
 
         const html = landingPageTemplate
           .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)

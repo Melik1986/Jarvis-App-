@@ -94,6 +94,7 @@ export class VoiceStreamOrchestrator {
       const poolCredentials =
         this.llmProviderFactory.getPoolCredentialsForProvider(llmSettings);
       this.llmProviderFactory.assertApiKeyPresent(llmSettings);
+      await this.llmProviderFactory.assertBaseUrlAllowed(llmSettings);
 
       // Stream with pool
       await this.ephemeralClientPool.useClient(

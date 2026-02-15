@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import * as Crypto from "expo-crypto";
 import { getApiUrl } from "@/lib/api-config";
 import { useAuthStore } from "@/store/authStore";
 import { extractErrorFromResponse } from "@/lib/error-handler";
@@ -6,6 +7,11 @@ import {
   encryptCredentialsToJWE,
   EphemeralCredentials,
 } from "@/lib/jwe-encryption";
+import {
+  REQUEST_SIGNATURE_ALGORITHM,
+  REQUEST_SIGNATURE_HEADERS,
+  buildCanonicalSignaturePayload,
+} from "@shared/security/request-signature";
 
 export { getApiUrl };
 
@@ -24,7 +30,15 @@ async function tryRefreshToken(): Promise<string | null> {
 
 const CREDENTIAL_SESSION_DEFAULT_TTL_MS = 15 * 60 * 1000;
 const CREDENTIAL_SESSION_REFRESH_SKEW_MS = 15 * 1000;
-const ENABLE_DIRECT_JWE = process.env.EXPO_PUBLIC_AXON_ENABLE_JWE === "true";
+const SIGNATURE_NONCE_BYTES = 16;
+const PROTECTED_MUTATING_ROUTE_PATTERNS: RegExp[] = [
+  /^\/api\/chat$/,
+  /^\/api\/voice\/message$/,
+  /^\/api\/erp\/test$/,
+  /^\/api\/conductor\/parse$/,
+  /^\/api\/documents\/upload-url$/,
+  /^\/api\/mcp\/servers$/,
+];
 
 async function handleUnauthorizedAfterRetry(): Promise<void> {
   try {
@@ -100,11 +114,117 @@ function normalizeApiRoute(route: string): string {
   return `/api/${withoutLeadingSlash}`;
 }
 
+function utf8(input: string): Uint8Array {
+  return new TextEncoder().encode(input);
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256(data: Uint8Array): Promise<Uint8Array> {
+  const digest = await Crypto.digest(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    data as unknown as BufferSource,
+  );
+  return new Uint8Array(digest);
+}
+
+async function hmacSha256Hex(key: string, message: string): Promise<string> {
+  const blockSize = 64;
+  let normalizedKey = utf8(key);
+
+  if (normalizedKey.length > blockSize) {
+    normalizedKey = await sha256(normalizedKey);
+  }
+
+  if (normalizedKey.length < blockSize) {
+    const padded = new Uint8Array(blockSize);
+    padded.set(normalizedKey);
+    normalizedKey = padded;
+  }
+
+  const oPad = new Uint8Array(blockSize);
+  const iPad = new Uint8Array(blockSize);
+  for (let i = 0; i < blockSize; i++) {
+    const keyByte = normalizedKey[i] ?? 0;
+    oPad[i] = keyByte ^ 0x5c;
+    iPad[i] = keyByte ^ 0x36;
+  }
+
+  const inner = await sha256(concatBytes(iPad, utf8(message)));
+  const outer = await sha256(concatBytes(oPad, inner));
+  return bytesToHex(outer);
+}
+
+async function deriveJweSharedSecret(accessToken: string): Promise<Uint8Array> {
+  return sha256(utf8(`axon-jwe:${accessToken}`));
+}
+
+function shouldSignRequest(method: string, url: URL): boolean {
+  const normalizedMethod = method.toUpperCase();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(normalizedMethod)) {
+    return false;
+  }
+  return PROTECTED_MUTATING_ROUTE_PATTERNS.some((pattern) =>
+    pattern.test(url.pathname),
+  );
+}
+
+async function applyRequestSignature(
+  headers: Record<string, string>,
+  method: string,
+  url: URL,
+  body: unknown,
+): Promise<Record<string, string>> {
+  if (!shouldSignRequest(method, url)) {
+    return headers;
+  }
+
+  const accessToken = useAuthStore.getState().getAccessToken();
+  if (!accessToken) {
+    throw new Error(
+      "SECURE_TRANSPORT_UNAVAILABLE: Missing access token for request signature",
+    );
+  }
+
+  const timestamp = String(Date.now());
+  const nonce = bytesToHex(Crypto.getRandomBytes(SIGNATURE_NONCE_BYTES));
+  const canonicalPayload = buildCanonicalSignaturePayload({
+    method,
+    path: `${url.pathname}${url.search}`,
+    timestamp,
+    nonce,
+    body: body ?? {},
+  });
+  const signature = await hmacSha256Hex(accessToken, canonicalPayload);
+
+  return {
+    ...headers,
+    [REQUEST_SIGNATURE_HEADERS.algorithm]: REQUEST_SIGNATURE_ALGORITHM,
+    [REQUEST_SIGNATURE_HEADERS.timestamp]: timestamp,
+    [REQUEST_SIGNATURE_HEADERS.nonce]: nonce,
+    [REQUEST_SIGNATURE_HEADERS.signature]: signature,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // secureApiRequest — JSON with JWE transport for secrets + session token
 // ---------------------------------------------------------------------------
 
-let cachedPublicKey: string | null = null;
 let cachedSessionToken: string | null = null;
 let cachedSessionTokenExpiresAt = 0;
 let cachedCredentialFingerprint: string | null = null;
@@ -153,122 +273,6 @@ function hasSensitiveCredentialValues(
   );
 }
 
-function buildCredentialBootstrapBody(
-  credentials: EphemeralCredentials,
-): Record<string, unknown> {
-  return {
-    ...(credentials.llmKey || credentials.llmProvider || credentials.llmBaseUrl
-      ? {
-          llmSettings: {
-            ...(credentials.llmProvider && {
-              provider: credentials.llmProvider,
-            }),
-            ...(credentials.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
-            ...(credentials.llmKey && { apiKey: credentials.llmKey }),
-          },
-        }
-      : {}),
-    ...(credentials.erpProvider ||
-    credentials.erpBaseUrl ||
-    credentials.erpApiType ||
-    credentials.erpDb ||
-    credentials.erpUsername ||
-    credentials.erpPassword ||
-    credentials.erpApiKey
-      ? {
-          erpSettings: {
-            ...(credentials.erpProvider && {
-              provider: credentials.erpProvider,
-            }),
-            ...(credentials.erpBaseUrl && { baseUrl: credentials.erpBaseUrl }),
-            ...(credentials.erpApiType && { apiType: credentials.erpApiType }),
-            ...(credentials.erpDb && { db: credentials.erpDb }),
-            ...(credentials.erpUsername && {
-              username: credentials.erpUsername,
-            }),
-            ...(credentials.erpPassword && {
-              password: credentials.erpPassword,
-            }),
-            ...(credentials.erpApiKey && { apiKey: credentials.erpApiKey }),
-          },
-        }
-      : {}),
-    ...(credentials.dbUrl && { dbUrl: credentials.dbUrl }),
-    ...(credentials.dbKey && { dbKey: credentials.dbKey }),
-  };
-}
-
-async function bootstrapCredentialSession(
-  credentials: EphemeralCredentials,
-): Promise<void> {
-  const baseUrl = getApiUrl();
-  const url = new URL("/api/auth/credential-session/bootstrap", baseUrl);
-  const body = buildCredentialBootstrapBody(credentials);
-
-  const headers: Record<string, string> = {
-    ...authHeaders(),
-    "Content-Type": "application/json",
-  };
-
-  let res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-
-  if (res.status === 401) {
-    const newToken = await tryRefreshToken();
-    if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        credentials: "include",
-      });
-    } else {
-      await handleUnauthorizedAfterRetry();
-    }
-  }
-
-  await throwIfResNotOk(res);
-
-  const headerToken = res.headers.get("x-session-token");
-  const payload = (await res.json()) as {
-    sessionToken?: string;
-    expiresInSec?: number;
-  };
-
-  const token = payload.sessionToken || headerToken;
-  if (!token) {
-    throw new Error("Credential session bootstrap failed: missing token");
-  }
-
-  const ttlMs =
-    typeof payload.expiresInSec === "number" && payload.expiresInSec > 0
-      ? payload.expiresInSec * 1000
-      : CREDENTIAL_SESSION_DEFAULT_TTL_MS;
-
-  cachedSessionToken = token;
-  cachedSessionTokenExpiresAt = Date.now() + ttlMs;
-  cachedAuthTokenForCredentialSession = useAuthStore
-    .getState()
-    .getAccessToken();
-}
-
-async function getServerPublicKey(): Promise<string> {
-  if (cachedPublicKey) return cachedPublicKey;
-  const baseUrl = getApiUrl();
-  const res = await fetch(new URL("/api/auth/public-key", baseUrl));
-  if (!res.ok) {
-    throw new Error("Failed to fetch server public key");
-  }
-  const { publicKey } = (await res.json()) as { publicKey: string };
-  cachedPublicKey = publicKey;
-  return publicKey;
-}
-
 export async function secureApiRequest(
   method: string,
   route: string,
@@ -279,8 +283,9 @@ export async function secureApiRequest(
 
   const baseUrl = getApiUrl();
   const url = new URL(normalizeApiRoute(route), baseUrl);
+  const normalizedMethod = method.toUpperCase();
 
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     ...authHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
@@ -290,60 +295,88 @@ export async function secureApiRequest(
   const credentialFingerprint = credentialsOverride
     ? stableCredentialFingerprint(credentialsOverride)
     : null;
-  let usedDirectJwe = false;
 
-  if (credentialsOverride && hasSensitiveCredentials) {
-    const isSameCredentialSession =
-      hasUsableCredentialSessionToken() &&
-      credentialFingerprint === cachedCredentialFingerprint;
+  const buildHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { ...baseHeaders };
 
-    if (isSameCredentialSession && cachedSessionToken) {
-      headers["x-session-token"] = cachedSessionToken;
-    } else if (ENABLE_DIRECT_JWE) {
-      try {
-        const pub = await getServerPublicKey();
-        const jwe = await encryptCredentialsToJWE(credentialsOverride, pub);
-        headers["x-encrypted-config"] = jwe;
-        usedDirectJwe = true;
-      } catch {
-        await bootstrapCredentialSession(credentialsOverride);
-        cachedCredentialFingerprint = credentialFingerprint;
-        if (cachedSessionToken) {
-          headers["x-session-token"] = cachedSessionToken;
+    if (credentialsOverride && hasSensitiveCredentials) {
+      const isSameCredentialSession =
+        hasUsableCredentialSessionToken() &&
+        credentialFingerprint === cachedCredentialFingerprint;
+
+      if (isSameCredentialSession && cachedSessionToken) {
+        headers["x-session-token"] = cachedSessionToken;
+      } else {
+        const accessToken = useAuthStore.getState().getAccessToken();
+        if (!accessToken) {
+          throw new Error(
+            "SECURE_TRANSPORT_UNAVAILABLE: Missing access token for JWE transport",
+          );
+        }
+        const sharedSecretKey = await deriveJweSharedSecret(accessToken);
+
+        try {
+          headers["x-encrypted-config"] = await encryptCredentialsToJWE(
+            credentialsOverride,
+            {
+              sharedSecretKey,
+            },
+            {
+              preferredAlgorithm: "dir",
+              supportedAlgorithms: ["dir"],
+            },
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          throw new Error(
+            `SECURE_TRANSPORT_UNAVAILABLE: Failed to encrypt credentials (${message})`,
+          );
         }
       }
-    } else {
-      await bootstrapCredentialSession(credentialsOverride);
-      cachedCredentialFingerprint = credentialFingerprint;
-      if (cachedSessionToken) {
-        headers["x-session-token"] = cachedSessionToken;
-      }
+    } else if (hasUsableCredentialSessionToken() && cachedSessionToken) {
+      headers["x-session-token"] = cachedSessionToken;
     }
-  } else if (hasUsableCredentialSessionToken() && cachedSessionToken) {
-    headers["x-session-token"] = cachedSessionToken;
-  }
+
+    return applyRequestSignature(headers, normalizedMethod, url, data);
+  };
+
+  let headers = await buildHeaders();
+  const requestUsedSessionToken = (): boolean =>
+    Boolean(headers["x-session-token"]);
 
   let res = await fetch(url, {
-    method,
+    method: normalizedMethod,
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
+  // Server-side credential sessions are in-memory. After server restart,
+  // a stale x-session-token should trigger one transparent retry with fresh JWE.
+  if (res.status === 401 && requestUsedSessionToken()) {
+    clearCredentialSessionCache();
+    headers = await buildHeaders();
+    res = await fetch(url, {
+      method: normalizedMethod,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+  }
+
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
     if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      if (credentialsOverride && hasSensitiveCredentials && !usedDirectJwe) {
+      baseHeaders["Authorization"] = `Bearer ${newToken}`;
+      if (credentialsOverride && hasSensitiveCredentials) {
         clearCredentialSessionCache();
-        await bootstrapCredentialSession(credentialsOverride);
-        cachedCredentialFingerprint = credentialFingerprint;
-        if (cachedSessionToken) {
-          headers["x-session-token"] = cachedSessionToken;
-        }
+      } else if (requestUsedSessionToken()) {
+        clearCredentialSessionCache();
       }
+      headers = await buildHeaders();
       res = await fetch(url, {
-        method,
+        method: normalizedMethod,
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",
@@ -381,26 +414,38 @@ export async function apiRequest(
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   const url = new URL(normalizeApiRoute(route), baseUrl);
+  const normalizedMethod = method.toUpperCase();
 
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     ...authHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
+  let headers = await applyRequestSignature(
+    baseHeaders,
+    normalizedMethod,
+    url,
+    data,
+  );
 
   let res = await fetch(url, {
-    method,
+    method: normalizedMethod,
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
-  // 401 → refresh + retry once
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
     if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
+      baseHeaders["Authorization"] = `Bearer ${newToken}`;
+      headers = await applyRequestSignature(
+        baseHeaders,
+        normalizedMethod,
+        url,
+        data,
+      );
       res = await fetch(url, {
-        method,
+        method: normalizedMethod,
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",

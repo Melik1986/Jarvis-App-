@@ -10,6 +10,12 @@ import { ErpAdapter } from "./erp-adapter.interface";
 export class OdooAdapter implements ErpAdapter {
   constructor(private config: ErpConfig) {}
 
+  private cleanText(value: string | undefined): string | undefined {
+    if (typeof value !== "string") return undefined;
+    const cleaned = value.trim().replace(/^[`'"]+|[`'"]+$/g, "");
+    return cleaned || undefined;
+  }
+
   private getJsonRpcUrl(): string {
     const raw = (this.config.baseUrl || "")
       .trim()
@@ -124,9 +130,11 @@ export class OdooAdapter implements ErpAdapter {
     args: unknown[] = [],
     kwargs: Record<string, unknown> = {},
   ): Promise<unknown> {
-    const { db, username, apiKey } = this.config;
+    const db = this.cleanText(this.config.db);
+    const username = this.cleanText(this.config.username);
+    const apiKey = this.cleanText(this.config.apiKey);
     if (!db || !username || !apiKey) {
-      throw new Error("Odoo configuration missing: db, username or apiKey");
+      throw new Error("Odoo configuration missing: db, username, or apiKey");
     }
 
     // Authenticate first (get UID)
@@ -155,9 +163,13 @@ export class OdooAdapter implements ErpAdapter {
   }
 
   async testConnection(): Promise<boolean> {
-    const { db, username, apiKey } = this.config;
+    const db = this.cleanText(this.config.db);
+    const username = this.cleanText(this.config.username);
+    const apiKey = this.cleanText(this.config.apiKey);
     if (!db || !username || !apiKey || !this.config.baseUrl) {
-      return false;
+      throw new Error(
+        "Odoo configuration missing: baseUrl, db, username, or apiKey",
+      );
     }
 
     const uidResult = await this.jsonRpc("common", "authenticate", [
@@ -167,7 +179,9 @@ export class OdooAdapter implements ErpAdapter {
       {},
     ]);
     const uid = this.getNumber(uidResult);
-    if (!uid) return false;
+    if (!uid) {
+      throw new Error("Odoo authentication failed: invalid db/login/apiKey");
+    }
 
     const res = await this.jsonRpc("object", "execute_kw", [
       db,

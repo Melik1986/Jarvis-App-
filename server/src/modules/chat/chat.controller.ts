@@ -101,7 +101,7 @@ export class VoiceController {
   constructor(@Inject(ChatService) private chatService: ChatService) {}
 
   @Post("message")
-  @UseGuards(AuthGuard, RateLimitGuard)
+  @UseGuards(AuthGuard, RateLimitGuard, RequestSignatureGuard)
   @ApiOperation({ summary: "Send voice message (stateless SSE stream)" })
   @ApiBody({ type: VoiceMessageDto })
   @ApiResponse({ status: 200, description: "SSE stream of response" })

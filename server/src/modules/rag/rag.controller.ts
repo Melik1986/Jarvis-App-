@@ -21,6 +21,7 @@ import { RagService } from "./rag.service";
 import { DocumentMetadata, RagSettingsRequest } from "./rag.types";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
+import { RequestSignatureGuard } from "../../guards/request-signature.guard";
 
 interface ExtendedRequest extends Request {
   ephemeralCredentials?: {
@@ -91,6 +92,7 @@ export class RagController {
   }
 
   @Post("upload-url")
+  @UseGuards(AuthGuard, RateLimitGuard, RequestSignatureGuard)
   async uploadFromUrl(
     @Body("url") url: string,
     @Body("name") name: string,

@@ -1,5 +1,11 @@
 import { Type } from "class-transformer";
-import { IsIn, IsOptional, IsString, ValidateNested } from "class-validator";
+import {
+  IsEmpty,
+  IsIn,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from "class-validator";
 
 export class BootstrapLlmSettingsDto {
   @IsOptional()
@@ -11,6 +17,10 @@ export class BootstrapLlmSettingsDto {
   baseUrl?: string;
 
   @IsOptional()
+  @IsEmpty({
+    message:
+      "llmSettings.apiKey must NOT be provided in body (use x-encrypted-config)",
+  })
   @IsString()
   apiKey?: string;
 }
@@ -37,10 +47,18 @@ export class BootstrapErpSettingsDto {
   username?: string;
 
   @IsOptional()
+  @IsEmpty({
+    message:
+      "erpSettings.password must NOT be provided in body (use x-encrypted-config)",
+  })
   @IsString()
   password?: string;
 
   @IsOptional()
+  @IsEmpty({
+    message:
+      "erpSettings.apiKey must NOT be provided in body (use x-encrypted-config)",
+  })
   @IsString()
   apiKey?: string;
 }
@@ -57,10 +75,16 @@ export class CredentialSessionBootstrapDto {
   erpSettings?: BootstrapErpSettingsDto;
 
   @IsOptional()
+  @IsEmpty({
+    message: "dbUrl must NOT be provided in body (use x-encrypted-config)",
+  })
   @IsString()
   dbUrl?: string;
 
   @IsOptional()
+  @IsEmpty({
+    message: "dbKey must NOT be provided in body (use x-encrypted-config)",
+  })
   @IsString()
   dbKey?: string;
 }

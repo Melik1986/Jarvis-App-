@@ -6,6 +6,7 @@ import {
   setAudioModeAsync,
   useAudioRecorderState,
   useAudioPlayer,
+  createAudioPlayer,
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform, Alert } from "react-native";
@@ -121,7 +122,6 @@ export function useVoice() {
         });
 
         // Create a new Audio instance for playback
-        const { createAudioPlayer } = await import("expo-audio");
         const audioPlayer = createAudioPlayer({ uri: tempPath });
 
         audioPlayer.addListener("playbackStatusUpdate", (status) => {
