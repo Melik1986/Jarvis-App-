@@ -100,13 +100,37 @@ export class AuthController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    let clientRedirectFromState: string | null = null;
+    if (state) {
+      try {
+        const parsed = JSON.parse(Buffer.from(state, "base64url").toString());
+        clientRedirectFromState = parsed.redirect || null;
+      } catch {
+        try {
+          const parsed = JSON.parse(Buffer.from(state, "base64").toString());
+          clientRedirectFromState = parsed.redirect || null;
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     if (error) {
       AppLogger.error(`OIDC callback error: ${error}`);
-      return res.redirect("/login?error=auth_denied");
+      if (
+        clientRedirectFromState &&
+        this.ALLOWED_SCHEMES.some((s) => clientRedirectFromState!.startsWith(s))
+      ) {
+        const sep = clientRedirectFromState.includes("?") ? "&" : "?";
+        return res.redirect(
+          `${clientRedirectFromState}${sep}error=auth_denied`,
+        );
+      }
+      return res.status(401).json({ error: "auth_denied", message: "Authentication was denied by provider" });
     }
 
     if (!code) {
-      return res.redirect("/login?error=no_code");
+      return res.status(400).json({ error: "no_code", message: "No authorization code received" });
     }
 
     const callbackUrl = this.authService.getCallbackUrl();
@@ -119,25 +143,19 @@ export class AuthController {
 
     if (!result.success || !result.session || !result.user) {
       AppLogger.error(`Auth callback failed: ${result.error}`);
-      return res.redirect("/login?error=auth_failed");
+      if (
+        clientRedirectFromState &&
+        this.ALLOWED_SCHEMES.some((s) => clientRedirectFromState!.startsWith(s))
+      ) {
+        const sep = clientRedirectFromState.includes("?") ? "&" : "?";
+        return res.redirect(
+          `${clientRedirectFromState}${sep}error=auth_failed`,
+        );
+      }
+      return res.status(401).json({ error: "auth_failed", message: result.error || "Authentication failed" });
     }
 
-    let clientRedirect: string | null = null;
-    try {
-      const stateData = JSON.parse(Buffer.from(state, "base64url").toString());
-      if (stateData.redirect) {
-        clientRedirect = stateData.redirect;
-      }
-    } catch {
-      try {
-        const stateData = JSON.parse(Buffer.from(state, "base64").toString());
-        if (stateData.redirect) {
-          clientRedirect = stateData.redirect;
-        }
-      } catch {
-        // State parsing failed
-      }
-    }
+    const clientRedirect = clientRedirectFromState;
 
     const tempCode = this.authService.generateTempAuthCode(
       result.user,

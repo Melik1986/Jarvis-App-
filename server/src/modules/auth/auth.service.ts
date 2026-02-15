@@ -97,8 +97,8 @@ export class AuthService implements OnModuleInit {
 
   getCallbackUrl(): string {
     const devDomain = process.env.REPLIT_DEV_DOMAIN;
-    const domains = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const host = devDomain || domains;
+    const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const host = deployedDomain || devDomain;
     if (!host) {
       return "/api/auth/callback";
     }
