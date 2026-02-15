@@ -339,7 +339,8 @@ export class ToolRegistryService {
             erpSettings,
           );
 
-          return `Invoice created:\n- Number: ${invoice.number}\n- Date: ${new Date(invoice.date).toLocaleDateString("ru-RU")}\n- Customer: ${invoice.customerName}\n- Total: ${invoice.total}\n- Status: ${invoice.status === "draft" ? "Draft" : "Posted"}`;
+          const invoiceDate = new Date(invoice.date).toISOString().slice(0, 10);
+          return `Invoice created:\n- Number: ${invoice.number}\n- Date: ${invoiceDate}\n- Customer: ${invoice.customerName}\n- Total: ${invoice.total}\n- Status: ${invoice.status === "draft" ? "Draft" : "Posted"}`;
         }),
       }),
     };

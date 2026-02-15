@@ -3,8 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="AXON — Universal AI ERP OS. Voice, Vision, and AI for your business. Mobile app for iOS and Android." />
-    <title>AXON — Universal AI ERP OS</title>
+    <meta
+      name="description"
+      content="AXON - Voice-to-ERP AI Orchestrator. Learn how to connect providers and use AXON mobile."
+    />
+    <title>AXON - Voice-to-ERP AI Orchestrator</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -12,94 +15,98 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        /* design_guidelines.md — Dark Theme */
-        --bg-root: #0A0E1A;
-        --bg-surface: #151B2E;
-        --bg-surface-hover: #1F2637;
-        --primary: #00D9FF;
-        --primary-dark: #00A3BF;
-        --text: #FFFFFF;
-        --text-secondary: #A0AABF;
-        --text-tertiary: #6B7589;
-        --accent: #7C4DFF;
-        --success: #00E676;
-        --error: #FF5252;
-        --warning: #FFB74D;
-        --glow: rgba(0, 217, 255, 0.3);
-        --border: rgba(0, 217, 255, 0.2);
-        --radius: 12px;
-        --radius-lg: 24px;
+        --bg-root: #080d1a;
+        --bg-surface: #131a2d;
+        --bg-surface-soft: #1a233c;
+        --primary: #08d7ff;
+        --primary-strong: #04a9cc;
+        --text: #f2f6ff;
+        --text-secondary: #c5d0e6;
+        --text-muted: #8d99b2;
+        --border: rgba(8, 215, 255, 0.24);
+        --warning: #ffb74d;
+        --radius: 14px;
+        --radius-lg: 22px;
+        --glow: rgba(8, 215, 255, 0.3);
       }
 
       * {
         box-sizing: border-box;
       }
 
-      html, body {
-        height: 100%;
+      html,
+      body {
         margin: 0;
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: var(--bg-root);
+        min-height: 100%;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: var(--text);
-        -webkit-font-smoothing: antialiased;
+        background: radial-gradient(circle at 20% 10%, #15264f 0%, transparent 32%),
+          radial-gradient(circle at 90% 0%, #0f2741 0%, transparent 26%), var(--bg-root);
       }
 
       .page {
-        min-height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 24px 16px;
-        text-align: center;
+        width: min(1100px, calc(100% - 32px));
+        margin: 32px auto 44px;
+        display: grid;
+        gap: 18px;
       }
 
       .card {
-        background: var(--bg-surface);
-        border-radius: var(--radius-lg);
         border: 1px solid var(--border);
-        padding: 40px 32px;
-        max-width: 420px;
-        width: 100%;
+        border-radius: var(--radius-lg);
+        background: linear-gradient(180deg, rgba(19, 26, 45, 0.94), rgba(11, 17, 30, 0.95));
+        padding: 26px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.24);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 22px;
+        align-items: center;
       }
 
       .logo {
-        font-size: 32px;
-        font-weight: 700;
+        margin: 0;
+        font-size: clamp(30px, 4vw, 42px);
+        font-weight: 800;
         letter-spacing: -0.02em;
-        margin: 0 0 8px;
-        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        background: linear-gradient(160deg, #7cecff, var(--primary-strong));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
 
       .tagline {
-        font-size: 14px;
-        color: var(--text-tertiary);
-        margin: 0 0 24px;
+        margin: 8px 0 14px;
+        color: var(--text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
+        font-size: 12px;
+        font-weight: 700;
       }
 
       .description {
-        font-size: 16px;
-        line-height: 1.5;
+        margin: 0;
         color: var(--text-secondary);
-        margin: 0 0 28px;
+        font-size: 18px;
+        line-height: 1.46;
       }
 
       .notice {
-        background: var(--bg-surface-hover);
-        border-radius: var(--radius);
+        margin-top: 18px;
         border: 1px solid var(--border);
-        padding: 16px;
-        margin-bottom: 28px;
-        font-size: 14px;
+        background: var(--bg-surface-soft);
+        border-radius: var(--radius);
+        padding: 12px 14px;
         color: var(--text-secondary);
+        font-size: 14px;
       }
 
       .notice strong {
@@ -107,25 +114,24 @@
       }
 
       .buttons {
+        margin-top: 16px;
         display: flex;
-        flex-direction: column;
-        gap: 12px;
+        flex-wrap: wrap;
+        gap: 10px;
       }
 
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        padding: 14px 24px;
-        font-size: 16px;
-        font-weight: 600;
-        font-family: inherit;
+        gap: 8px;
         border-radius: var(--radius);
         text-decoration: none;
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
         border: none;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 12px 18px;
+        transition: transform 0.15s ease;
       }
 
       .btn:active {
@@ -133,59 +139,200 @@
       }
 
       .btn-primary {
-        background: linear-gradient(180deg, var(--primary), var(--primary-dark));
-        color: var(--bg-root);
-        box-shadow: 0 4px 14px var(--glow);
-      }
-
-      .btn-primary:hover {
+        color: #04101c;
+        background: linear-gradient(180deg, var(--primary), var(--primary-strong));
         box-shadow: 0 6px 20px var(--glow);
       }
 
-      .btn-secondary {
-        background: var(--bg-surface-hover);
-        color: var(--primary);
-        border: 1px solid var(--border);
-      }
-
-      .btn-secondary:hover {
-        background: var(--bg-surface);
-      }
-
       .btn svg {
-        width: 22px;
-        height: 22px;
-        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+      }
+
+      .hero-media {
+        margin: 0;
+      }
+
+      .hero-media img {
+        display: block;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+      }
+
+      .hero-media figcaption {
+        margin-top: 8px;
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+
+      .steps {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        display: grid;
+        gap: 8px;
+      }
+
+      .grid-two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .provider-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        background: rgba(26, 35, 60, 0.52);
+      }
+
+      .provider-card h3 {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .provider-card p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .examples {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-secondary);
+        display: grid;
+        gap: 10px;
+      }
+
+      code {
+        display: inline-block;
+        background: rgba(8, 215, 255, 0.08);
+        border: 1px solid rgba(8, 215, 255, 0.24);
+        border-radius: 8px;
+        padding: 4px 8px;
+        color: #b9f4ff;
+        font-size: 13px;
+        line-height: 1.4;
       }
 
       .footer {
-        margin-top: 32px;
+        color: var(--text-muted);
         font-size: 12px;
-        color: var(--text-tertiary);
+        text-align: center;
+        margin-top: 2px;
+      }
+
+      @media (max-width: 920px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-two {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
     <main class="page">
-      <div class="card">
-        <h1 class="logo">AXON</h1>
-        <p class="tagline">Universal AI ERP OS</p>
-        <p class="description">
-          Transforming ERP interaction with Voice, Vision, and AI Agents. Speak or show what you need — AXON turns it into actions in your business system.
-        </p>
-        <div class="notice">
-          <strong>Web version is not planned yet.</strong> Please use the mobile app on iOS or Android.
+      <section class="card hero">
+        <div>
+          <h1 class="logo">AXON</h1>
+          <p class="tagline">Voice-to-ERP AI Orchestrator</p>
+          <p class="description">
+            Manage inventory, invoices, and operations with voice or text. AXON connects LLM providers and ERP services in one secure mobile workflow.
+          </p>
+          <div class="notice">
+            <strong>Web client is informational only.</strong> Use AXON on mobile to run real ERP and AI actions.
+          </div>
+          <div class="buttons">
+            <a
+              href="https://apps.apple.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-primary"
+              aria-label="Download AXON on the App Store"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+              </svg>
+              Download for iOS
+            </a>
+          </div>
         </div>
-        <div class="buttons">
-          <a href="https://apps.apple.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary" aria-label="Download on the App Store">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-            </svg>
-            App Store (iOS)
-          </a>
+        <figure class="hero-media">
+          <img
+            src="/axon-banner.png"
+            alt="AXON mobile interface preview with AI and ERP provider integrations"
+            loading="eager"
+          />
+          <figcaption>
+            AXON mobile app preview with integrated ERP and AI provider workflow.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">How to Start Using AXON</h2>
+        <ol class="steps">
+          <li>Install the app from the App Store and sign in.</li>
+          <li>Open <strong>Profile - Providers</strong> and connect your LLM provider.</li>
+          <li>Add LLM credentials: provider, base URL, model, and API key (OpenAI/Anthropic/Gemini or custom endpoint).</li>
+          <li>Open <strong>ERP Settings</strong> and add your ERP connection: provider, URL, database, login, and API key/password.</li>
+          <li>Run <strong>Test Connection</strong> for both LLM and ERP, then start a chat.</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Provider Setup Reference</h2>
+        <div class="grid-two">
+          <article class="provider-card">
+            <h3>LLM Provider Example</h3>
+            <p>
+              Provider: OpenAI<br />
+              Base URL: https://api.openai.com<br />
+              Model: gpt-4o<br />
+              API Key: sk-...<br />
+              Save, then run test in app settings.
+            </p>
+          </article>
+          <article class="provider-card">
+            <h3>ERP Provider Example (Odoo)</h3>
+            <p>
+              Provider: Odoo<br />
+              URL: https://company.odoo.com/odoo<br />
+              Database: company-prod<br />
+              Login: ops@company.com<br />
+              API Key: ********
+            </p>
+          </article>
         </div>
-        <p class="footer">One codebase — iOS & Android. Built with Expo & React Native.</p>
-      </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Example Prompts You Can Use</h2>
+        <ul class="examples">
+          <li><code>Check stock for "beer" and "wine" with quantities by warehouse.</code></li>
+          <li><code>Create a sales invoice for ACME: 10 x Product A, due in 14 days.</code></li>
+          <li><code>Show all low-stock items (less than 20 units) and suggest reorder amounts.</code></li>
+          <li><code>Summarize today's ERP updates and pending tasks.</code></li>
+        </ul>
+      </section>
+
+      <p class="footer">
+        AXON uses secure transport for provider credentials and keeps web as an informational entry point.
+      </p>
     </main>
   </body>
 </html>

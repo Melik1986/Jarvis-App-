@@ -6,12 +6,16 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  Alert,
+  ActionSheetIOS,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
@@ -47,7 +51,7 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
 
   const { llm, erp, rag, voice, language } = useSettingsStore();
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, setUser } = useAuthStore();
 
   const getRagProviderLabel = () => {
     switch (rag.provider) {
@@ -100,6 +104,124 @@ export default function ProfileScreen() {
     await signOut();
   };
 
+  const restoreProviderAvatar = React.useCallback(() => {
+    if (!user?.providerPicture) return;
+    setUser({
+      ...user,
+      picture: user.providerPicture,
+      avatarSource: "provider",
+    });
+  }, [setUser, user]);
+
+  const persistAvatarLocally = React.useCallback(
+    async (sourceUri: string): Promise<string> => {
+      const baseDirectory = FileSystem.documentDirectory;
+      if (!baseDirectory) return sourceUri;
+
+      const userId = user?.id ?? "user";
+      const destinationUri = `${baseDirectory}profile-avatar-${userId}.jpg`;
+
+      if (sourceUri !== destinationUri) {
+        try {
+          await FileSystem.deleteAsync(destinationUri, { idempotent: true });
+        } catch {
+          // Ignore cleanup error before overwrite
+        }
+        await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+      }
+
+      return destinationUri;
+    },
+    [user?.id],
+  );
+
+  const handlePickAvatarFromLibrary = React.useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("accessDenied"), t("photoLibrary"));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: false,
+    });
+
+    if (result.canceled || !result.assets?.length || !user) {
+      return;
+    }
+
+    const firstAsset = result.assets[0];
+    if (!firstAsset?.uri) return;
+
+    const localAvatarUri = await persistAvatarLocally(firstAsset.uri);
+    setUser({
+      ...user,
+      picture: localAvatarUri,
+      providerPicture: user.providerPicture ?? null,
+      avatarSource: "local",
+    });
+  }, [persistAvatarLocally, setUser, t, user]);
+
+  const handleEditAvatar = React.useCallback(() => {
+    handleHaptic();
+
+    const hasProviderAvatar =
+      !!user?.providerPicture && user.providerPicture !== user.picture;
+    const restoreProviderLabel = "Use account photo";
+
+    if (Platform.OS === "ios") {
+      const options = hasProviderAvatar
+        ? [t("photoLibrary"), restoreProviderLabel, t("cancel")]
+        : [t("photoLibrary"), t("cancel")];
+      const cancelButtonIndex = options.length - 1;
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            void handlePickAvatarFromLibrary();
+            return;
+          }
+          if (hasProviderAvatar && buttonIndex === 1) {
+            restoreProviderAvatar();
+          }
+        },
+      );
+      return;
+    }
+
+    const buttons = hasProviderAvatar
+      ? [
+          {
+            text: t("photoLibrary"),
+            onPress: () => void handlePickAvatarFromLibrary(),
+          },
+          { text: restoreProviderLabel, onPress: restoreProviderAvatar },
+          { text: t("cancel"), style: "cancel" as const },
+        ]
+      : [
+          {
+            text: t("photoLibrary"),
+            onPress: () => void handlePickAvatarFromLibrary(),
+          },
+          { text: t("cancel"), style: "cancel" as const },
+        ];
+
+    Alert.alert(t("chooseSource"), "", buttons);
+  }, [
+    handlePickAvatarFromLibrary,
+    restoreProviderAvatar,
+    t,
+    user?.picture,
+    user?.providerPicture,
+  ]);
+
+  const avatarUri = user?.picture || user?.providerPicture || null;
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
@@ -116,8 +238,8 @@ export default function ProfileScreen() {
         <View style={styles.avatarContainer}>
           <Image
             source={
-              user?.picture
-                ? { uri: user.picture }
+              avatarUri
+                ? { uri: avatarUri }
                 : require("../../assets/images/avatar-default.png")
             }
             style={[styles.avatar, { borderColor: theme.primary }]}
@@ -130,7 +252,7 @@ export default function ProfileScreen() {
                 borderColor: theme.backgroundRoot,
               },
             ]}
-            onPress={handleHaptic}
+            onPress={handleEditAvatar}
           >
             <AnimatedPencilIcon size={14} color={theme.buttonText} />
           </Pressable>

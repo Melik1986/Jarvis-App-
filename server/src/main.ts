@@ -104,6 +104,7 @@ function createIpRateLimiter(
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set("query parser", "simple");
 
   // Enable CORS with dynamic origins
   app.enableCors({
@@ -187,7 +188,13 @@ async function bootstrap() {
 
   // Increase body-parser limits for voice messages (base64 audio)
   app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+  app.use(
+    express.urlencoded({
+      extended: false,
+      limit: "50mb",
+      parameterLimit: 1000,
+    }),
+  );
 
   // Global exception filters (order matters: GlobalExceptionFilter first, then specialized)
   app.useGlobalFilters(

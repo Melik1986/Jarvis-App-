@@ -10,6 +10,7 @@ import {
   Alert,
   ActionSheetIOS,
   ScrollView,
+  Clipboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -402,20 +403,38 @@ export default function ChatScreen() {
               }
 
               const textContent = fullContent.trim();
-              const fallbackFromTools = toolCalls
-                .map((tool) => tool.resultSummary)
-                .filter(
-                  (summary): summary is string =>
-                    typeof summary === "string" && summary.trim().length > 0,
-                )
-                .join("\n\n");
+              const toolCallsByName = new Map<string, ToolCall>();
+              for (const toolCall of toolCalls) {
+                const normalizedToolName = toolCall.toolName
+                  .trim()
+                  .toLowerCase();
+                const existing = toolCallsByName.get(normalizedToolName);
+
+                if (!existing) {
+                  toolCallsByName.set(normalizedToolName, toolCall);
+                  continue;
+                }
+
+                const existingDone =
+                  existing.status === "done" || !!existing.resultSummary;
+                const currentDone =
+                  toolCall.status === "done" || !!toolCall.resultSummary;
+
+                if (!existingDone && currentDone) {
+                  toolCallsByName.set(normalizedToolName, {
+                    ...existing,
+                    ...toolCall,
+                  });
+                }
+              }
+              const uniqueToolCalls = Array.from(toolCallsByName.values());
 
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
-                content: textContent || fallbackFromTools,
+                content: textContent || t("completed"),
                 createdAt: new Date().toISOString(),
-                toolCalls: toolCalls,
+                toolCalls: uniqueToolCalls,
               };
               addMessage(assistantMessage);
               clearStreamingContent();
@@ -501,16 +520,6 @@ export default function ChatScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  };
-
-  const handleConfirmAction = (toolName: string) => {
-    setInputText(`Confirm: ${toolName}`);
-    // Optional: automatically send the message
-    // setTimeout(sendMessage, 100);
-  };
-
-  const handleRejectAction = (toolName: string) => {
-    setInputText(`Reject: ${toolName}`);
   };
 
   const handleCamera = async () => {
@@ -737,6 +746,15 @@ export default function ChatScreen() {
     [handleFork, t],
   );
 
+  const handleCopyMessage = useCallback((content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    Clipboard.setString(text);
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync().catch(() => {});
+    }
+  }, []);
+
   const renderMessage = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
       const isLastAssistant =
@@ -745,13 +763,18 @@ export default function ChatScreen() {
         !isStreaming;
 
       return (
-        <Pressable onLongPress={() => handleMessageLongPress(item)}>
+        <Pressable
+          onLongPress={
+            item.role === "user"
+              ? () => handleMessageLongPress(item)
+              : undefined
+          }
+        >
           <ChatBubble
             content={item.content}
             isUser={item.role === "user"}
             toolCalls={item.toolCalls}
-            onConfirm={handleConfirmAction}
-            onReject={handleRejectAction}
+            onCopy={handleCopyMessage}
           />
           {isLastAssistant && (
             <Pressable style={styles.regenerateBtn} onPress={handleRegenerate}>

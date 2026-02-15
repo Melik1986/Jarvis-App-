@@ -1,6 +1,6 @@
 <div align="center">
 
-![AXON Banner](assets/images/baner%20axon.dark.png)
+![AXON Banner](assets/images/baner-axon.dark.png)
 
 # AXON
 

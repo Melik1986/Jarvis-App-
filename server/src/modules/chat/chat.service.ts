@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, type Tool } from "ai";
+import { streamText, stepCountIs, type Tool } from "ai";
 import { toFile } from "openai/uploads";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
@@ -256,6 +256,7 @@ export class ChatService {
           system: systemMsg,
           messages: [{ role: "user", content: rawText }],
           tools,
+          stopWhen: stepCountIs(5),
           maxOutputTokens: 2048,
         });
 

@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, type Tool, type ModelMessage } from "ai";
+import { streamText, stepCountIs, type Tool, type ModelMessage } from "ai";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
 import { ToolRegistryService } from "./tool-registry.service";
@@ -175,6 +175,7 @@ export class ChatStreamOrchestrator {
             system: systemMessage,
             messages,
             tools,
+            stopWhen: stepCountIs(5),
             maxOutputTokens: 2048,
             providerOptions: {
               openai: { truncation: "auto" },

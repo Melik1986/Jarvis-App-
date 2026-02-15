@@ -36,21 +36,8 @@ export class ConfidenceScorerService {
     // 3. Success indicators in result summary
     if (toolCall.resultSummary) {
       const lowerSummary = toolCall.resultSummary.toLowerCase();
-      const successWords = [
-        "создан",
-        "найдено",
-        "успешно",
-        "ok",
-        "success",
-        "created",
-      ];
-      const failureWords = [
-        "не найдено",
-        "ошибка",
-        "failed",
-        "error",
-        "not found",
-      ];
+      const successWords = ["ok", "success", "created", "completed", "done"];
+      const failureWords = ["failed", "error", "not found", "invalid"];
 
       if (successWords.some((word) => lowerSummary.includes(word))) {
         confidence += 0.15;

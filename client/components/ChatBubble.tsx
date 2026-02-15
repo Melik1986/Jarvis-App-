@@ -4,15 +4,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import type { ChatMessage } from "@shared/types";
+import type { ToolCall } from "@shared/types";
 
 interface ChatBubbleProps {
   content: string;
   isUser: boolean;
   isStreaming?: boolean;
-  toolCalls?: ChatMessage["toolCalls"];
-  onConfirm?: (toolName: string) => void;
-  onReject?: (toolName: string) => void;
+  toolCalls?: ToolCall[];
+  onCopy?: (content: string) => void;
 }
 
 export function ChatBubble({
@@ -20,10 +19,39 @@ export function ChatBubble({
   isUser,
   isStreaming,
   toolCalls,
-  onConfirm,
-  onReject,
+  onCopy,
 }: ChatBubbleProps) {
   const { theme } = useTheme();
+  const toolIndicators = React.useMemo(() => {
+    if (!toolCalls || toolCalls.length === 0) {
+      return [];
+    }
+
+    const byToolName = new Map<string, { label: string; isDone: boolean }>();
+    for (const tool of toolCalls) {
+      const isDone = tool.status === "done" || !!tool.resultSummary;
+      const normalizedToolName = tool.toolName.trim().toLowerCase();
+      const existing = byToolName.get(normalizedToolName);
+
+      if (!existing) {
+        byToolName.set(normalizedToolName, {
+          label: tool.toolName.trim(),
+          isDone,
+        });
+        continue;
+      }
+
+      byToolName.set(normalizedToolName, {
+        label: existing.label,
+        isDone: existing.isDone || isDone,
+      });
+    }
+
+    return Array.from(byToolName.values()).map((tool) => ({
+      toolName: tool.label,
+      isDone: tool.isDone,
+    }));
+  }, [toolCalls]);
 
   return (
     <View
@@ -49,103 +77,45 @@ export function ChatBubble({
         {content ? (
           <ThemedText
             style={[styles.text, isUser && { color: theme.buttonText }]}
+            selectable={!isUser}
           >
             {content}
-            {isStreaming ? "▌" : ""}
+            {isStreaming ? "|" : ""}
           </ThemedText>
         ) : null}
 
-        {toolCalls && toolCalls.length > 0 && (
-          <View style={styles.toolCalls}>
-            {toolCalls.map((tool, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.toolCall,
-                  { backgroundColor: theme.backgroundDefault },
-                ]}
+        {!isUser && !isStreaming && content.trim().length > 0 && (
+          <View style={styles.copyRow}>
+            <Pressable
+              style={styles.copyButton}
+              onPress={() => onCopy?.(content)}
+              accessibilityRole="button"
+              accessibilityLabel="Copy message"
+            >
+              <Ionicons
+                name="copy-outline"
+                size={13}
+                color={theme.textSecondary}
+              />
+              <ThemedText
+                style={[styles.copyText, { color: theme.textSecondary }]}
               >
-                <View style={styles.toolHeader}>
-                  <Ionicons
-                    name="construct-outline"
-                    size={14}
-                    color={theme.primary}
-                  />
-                  <ThemedText style={styles.toolName}>
-                    {tool.toolName}
-                  </ThemedText>
+                Copy
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
 
-                  {tool.confidence !== undefined && (
-                    <View
-                      style={[
-                        styles.confidenceBadge,
-                        {
-                          backgroundColor:
-                            tool.confidence > 0.85 ? "#dcfce7" : "#fee2e2",
-                        },
-                      ]}
-                    >
-                      <ThemedText
-                        style={{
-                          fontSize: 10,
-                          fontWeight: "bold",
-                          color: tool.confidence > 0.85 ? "#166534" : "#991b1b",
-                        }}
-                      >
-                        {Math.round(tool.confidence * 100)}%
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-
-                {tool.resultSummary ? (
-                  <ThemedText
-                    style={[styles.toolResult, { color: theme.textSecondary }]}
-                  >
-                    {tool.resultSummary}
-                  </ThemedText>
-                ) : (
-                  <ThemedText
-                    style={[
-                      styles.toolResult,
-                      { fontStyle: "italic", color: theme.textSecondary },
-                    ]}
-                  >
-                    Executing...
-                  </ThemedText>
-                )}
-
-                {tool.confidence !== undefined && tool.confidence < 0.85 && (
-                  <View style={styles.confirmationRow}>
-                    <Pressable
-                      style={[
-                        styles.confirmBtn,
-                        { backgroundColor: theme.primary },
-                      ]}
-                      onPress={() => onConfirm?.(tool.toolName)}
-                    >
-                      <ThemedText
-                        style={{ color: theme.buttonText, fontSize: 12 }}
-                      >
-                        Confirm
-                      </ThemedText>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.confirmBtn,
-                        { backgroundColor: theme.error },
-                      ]}
-                      onPress={() => onReject?.(tool.toolName)}
-                    >
-                      <ThemedText
-                        style={{ color: theme.buttonText, fontSize: 12 }}
-                      >
-                        Reject
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
+        {toolIndicators.length > 0 && (
+          <View style={styles.toolIconsRow}>
+            {toolIndicators.map((tool) => (
+              <Ionicons
+                key={tool.toolName}
+                name="construct-outline"
+                size={14}
+                color={tool.isDone ? theme.primary : theme.textTertiary}
+                style={styles.toolIcon}
+              />
             ))}
           </View>
         )}
@@ -182,43 +152,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  toolCalls: {
-    marginTop: Spacing.sm,
-    gap: Spacing.xs,
+  copyRow: {
+    marginTop: Spacing.xs,
+    alignItems: "flex-end",
   },
-  toolCall: {
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    borderWidth: 0.5,
-    borderColor: "rgba(0,0,0,0.1)",
-  },
-  toolHeader: {
+  copyButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 4,
-  },
-  toolName: {
-    fontSize: 12,
-    fontWeight: "bold",
-    flex: 1,
-  },
-  toolResult: {
-    fontSize: 12,
-  },
-  confidenceBadge: {
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingVertical: 4,
   },
-  confirmationRow: {
-    flexDirection: "row",
-    gap: Spacing.sm,
+  copyText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  toolIconsRow: {
     marginTop: Spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
   },
-  confirmBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
+  toolIcon: {
+    opacity: 0.95,
   },
 });

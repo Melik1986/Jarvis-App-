@@ -73,6 +73,64 @@ export class OdooAdapter implements ErpAdapter {
     return undefined;
   }
 
+  private normalizeSearchTerm(value?: string): string | undefined {
+    const cleaned = this.cleanText(value);
+    if (!cleaned) return undefined;
+    const noTrailingPunctuation = cleaned.replace(/[.,!?;:]+$/g, "").trim();
+    return noTrailingPunctuation || undefined;
+  }
+
+  /**
+   * Build args for Odoo search/search_read methods.
+   * The first positional arg is a domain.
+   */
+  private buildProductSearchArgs(filter?: string): unknown[] {
+    const query = this.normalizeSearchTerm(filter);
+    if (!query) return [[]];
+    const domain: unknown[] = [
+      "|",
+      "|",
+      ["name", "ilike", query],
+      ["default_code", "ilike", query],
+      ["barcode", "ilike", query],
+    ];
+    return [domain];
+  }
+
+  private mapStockItem(record: Record<string, unknown>): StockItem {
+    const uom = this.getTuple2(record.uom_id);
+    const name =
+      this.getString(record.name) ||
+      this.getString(record.display_name) ||
+      "Unnamed product";
+    return {
+      id: String(this.getNumber(record.id) ?? ""),
+      name,
+      sku: this.getString(record.default_code) || "",
+      quantity: this.getNumber(record.qty_available) ?? 0,
+      unit: uom?.[1] || "pcs",
+    };
+  }
+
+  private mapProduct(record: Record<string, unknown>): Product {
+    const uom = this.getTuple2(record.uom_id);
+    const kind =
+      this.getString(record.detailed_type) || this.getString(record.type);
+    const name =
+      this.getString(record.name) ||
+      this.getString(record.display_name) ||
+      "Unnamed product";
+    return {
+      id: String(this.getNumber(record.id) ?? ""),
+      name,
+      sku: this.getString(record.default_code) || "",
+      price: this.getNumber(record.list_price),
+      quantity: this.getNumber(record.qty_available),
+      unit: uom?.[1] || "pcs",
+      isService: kind === "service",
+    };
+  }
+
   /**
    * Universal JSON-RPC client for Odoo.
    * Uses standard /jsonrpc endpoint which works with all Odoo versions (16-19).
@@ -197,38 +255,43 @@ export class OdooAdapter implements ErpAdapter {
   }
 
   async getStock(productName?: string): Promise<StockItem[]> {
-    const domain: unknown[] = productName
-      ? [[["name", "ilike", productName]]]
-      : [[]];
+    const searchArgs = this.buildProductSearchArgs(productName);
     const fields = ["name", "default_code", "qty_available", "uom_id"];
 
     const productsUnknown = await this.executeKw(
       "product.product",
       "search_read",
-      domain,
-      { fields, limit: 20 } as Record<string, unknown>,
+      searchArgs,
+      { fields, limit: 50 } as Record<string, unknown>,
     );
 
     const products = this.asArray(productsUnknown);
-    return products.map((pUnknown) => {
-      const p = this.asRecord(pUnknown);
-      const uom = this.getTuple2(p.uom_id);
-      return {
-        id: String(this.getNumber(p.id) ?? ""),
-        name: this.getString(p.name) ?? "",
-        sku: this.getString(p.default_code) || "",
-        quantity: this.getNumber(p.qty_available) ?? 0,
-        unit: uom?.[1] || "шт",
-      };
-    });
+    if (products.length > 0) {
+      return products.map((pUnknown) =>
+        this.mapStockItem(this.asRecord(pUnknown)),
+      );
+    }
+
+    const templatesUnknown = await this.executeKw(
+      "product.template",
+      "search_read",
+      searchArgs,
+      { fields, limit: 50 } as Record<string, unknown>,
+    );
+    const templates = this.asArray(templatesUnknown);
+    return templates.map((tUnknown) =>
+      this.mapStockItem(this.asRecord(tUnknown)),
+    );
   }
 
   async getProducts(filter?: string): Promise<Product[]> {
-    const domain: unknown[] = filter ? [[["name", "ilike", filter]]] : [[]];
+    const searchArgs = this.buildProductSearchArgs(filter);
     const fields = [
       "name",
       "default_code",
+      "barcode",
       "list_price",
+      "detailed_type",
       "type",
       "qty_available",
       "uom_id",
@@ -237,24 +300,27 @@ export class OdooAdapter implements ErpAdapter {
     const productsUnknown = await this.executeKw(
       "product.product",
       "search_read",
-      domain,
+      searchArgs,
       { fields, limit: 50 } as Record<string, unknown>,
     );
 
     const products = this.asArray(productsUnknown);
-    return products.map((pUnknown) => {
-      const p = this.asRecord(pUnknown);
-      const uom = this.getTuple2(p.uom_id);
-      return {
-        id: String(this.getNumber(p.id) ?? ""),
-        name: this.getString(p.name) ?? "",
-        sku: this.getString(p.default_code) || "",
-        price: this.getNumber(p.list_price),
-        quantity: this.getNumber(p.qty_available),
-        unit: uom?.[1] || "шт",
-        isService: this.getString(p.type) === "service",
-      };
-    });
+    if (products.length > 0) {
+      return products.map((pUnknown) =>
+        this.mapProduct(this.asRecord(pUnknown)),
+      );
+    }
+
+    const templatesUnknown = await this.executeKw(
+      "product.template",
+      "search_read",
+      searchArgs,
+      { fields, limit: 50 } as Record<string, unknown>,
+    );
+    const templates = this.asArray(templatesUnknown);
+    return templates.map((tUnknown) =>
+      this.mapProduct(this.asRecord(tUnknown)),
+    );
   }
 
   async createInvoice(request: CreateInvoiceRequest): Promise<Invoice> {
@@ -405,15 +471,41 @@ export class OdooAdapter implements ErpAdapter {
   }
 
   private async findProductId(name: string): Promise<number | null> {
+    const searchArgs = this.buildProductSearchArgs(name);
     const productsUnknown = await this.executeKw(
       "product.product",
       "search_read",
-      [[["name", "ilike", name]]],
+      searchArgs,
       { limit: 1, fields: ["id"] } as Record<string, unknown>,
     );
     const products = this.asArray(productsUnknown);
     const product = products[0] ? this.asRecord(products[0]) : undefined;
     const id = product ? this.getNumber(product.id) : undefined;
-    return id ?? null;
+    if (id) return id;
+
+    const templatesUnknown = await this.executeKw(
+      "product.template",
+      "search_read",
+      searchArgs,
+      { limit: 1, fields: ["id"] } as Record<string, unknown>,
+    );
+    const templates = this.asArray(templatesUnknown);
+    const firstTemplate = templates[0]
+      ? this.asRecord(templates[0])
+      : undefined;
+    const templateId = firstTemplate
+      ? this.getNumber(firstTemplate.id)
+      : undefined;
+    if (!templateId) return null;
+
+    const variantUnknown = await this.executeKw(
+      "product.product",
+      "search_read",
+      [[["product_tmpl_id", "=", templateId]]],
+      { limit: 1, fields: ["id"] } as Record<string, unknown>,
+    );
+    const variants = this.asArray(variantUnknown);
+    const firstVariant = variants[0] ? this.asRecord(variants[0]) : undefined;
+    return firstVariant ? (this.getNumber(firstVariant.id) ?? null) : null;
   }
 }

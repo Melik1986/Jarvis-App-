@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { Response } from "express";
-import { streamText, type Tool, type ModelMessage } from "ai";
+import { streamText, stepCountIs, type Tool, type ModelMessage } from "ai";
 import { LlmService } from "../llm/llm.service";
 import { RagService } from "../rag/rag.service";
 import { ToolRegistryService } from "./tool-registry.service";
@@ -121,6 +121,7 @@ export class VoiceStreamOrchestrator {
             system: systemMessage,
             messages,
             tools,
+            stopWhen: stepCountIs(5),
             maxOutputTokens: 2048,
           });
 
@@ -206,7 +207,11 @@ export class VoiceStreamOrchestrator {
           const body = getLlmProviderErrorBody(error);
           res.status(body.statusCode).json(body);
         } else {
-          res.status(500).json({ error: "Failed to process voice message" });
+          res.status(500).json({
+            statusCode: 500,
+            message: "Failed to process voice message",
+            code: "INTERNAL_ERROR",
+          });
         }
       } else {
         const msg = isLlmProviderError(error)
