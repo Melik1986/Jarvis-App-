@@ -1,7 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import {
   RagConfig,
   SearchResult,
@@ -129,16 +128,10 @@ export class RagService {
       content = buffer.toString("utf-8");
     } else if (mimeType === "application/pdf") {
       try {
-        let parser: PDFParse | null = null;
-        try {
-          parser = new PDFParse({ data: buffer });
-          const pdfData = await parser.getText();
-          content = pdfData.text || "";
-        } finally {
-          if (parser) {
-            await parser.destroy();
-          }
-        }
+        const mod = await import("pdf-parse");
+        const pdfParseFn = (mod.default ?? mod) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+        const pdfData = await pdfParseFn(buffer);
+        content = pdfData.text || "";
         if (!content.trim()) {
           content =
             "[PDF contains no extractable text - may be scanned/image-based]";
@@ -264,16 +257,10 @@ export class RagService {
         content = buffer.toString("utf-8");
       } else if (mimeType === "application/pdf") {
         try {
-          let parser: PDFParse | null = null;
-          try {
-            parser = new PDFParse({ data: buffer });
-            const pdfData = await parser.getText();
-            content = pdfData.text || "";
-          } finally {
-            if (parser) {
-              await parser.destroy();
-            }
-          }
+          const mod = await import("pdf-parse");
+          const pdfParseFn = (mod.default ?? mod) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+          const pdfData = await pdfParseFn(buffer);
+          content = pdfData.text || "";
           if (!content.trim()) {
             content =
               "[PDF contains no extractable text - may be scanned/image-based]";
