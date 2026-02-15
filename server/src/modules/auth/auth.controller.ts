@@ -354,7 +354,7 @@ export class AuthController {
   @ApiOperation({
     summary: "Get server public key for JWE encryption",
   })
-  getPublicKey() {
+  getPublicKey(): Record<string, unknown> {
     return {
       publicKey: SERVER_PUBLIC_KEY,
       publicJwk: SERVER_PUBLIC_JWK,
