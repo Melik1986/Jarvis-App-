@@ -112,6 +112,7 @@
     "lottie-react-native": "^7.3.5",
     "multer": "^2.0.2",
     "node-cache": "^5.1.2",
+    "npm-run-all2": "^8.0.4",
     "openai": "^6.17.0",
     "opossum": "^9.0.0",
     "p-limit": "^7.2.0",
