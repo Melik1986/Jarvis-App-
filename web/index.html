@@ -269,6 +269,17 @@
               </svg>
               Download for iOS
             </a>
+            <a
+              href="#apk-download"
+              class="btn btn-primary"
+              aria-label="Download AXON APK for Android"
+              onclick="downloadAPK()"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6 18h12v-2H6v2zM6 14h12v-2H6v2zM6 8v2h12V8H6zM3 22h18v-2H3v2zM3 4v2h18V4H3z"/>
+              </svg>
+              Download APK for Android
+            </a>
           </div>
         </div>
         <figure class="hero-media">
@@ -334,5 +345,42 @@
         AXON uses secure transport for provider credentials and keeps web as an informational entry point.
       </p>
     </main>
+    <script>
+      function downloadAPK() {
+        // Check if APK is available, if not show instructions
+        const apkUrl = '/axon-app.apk';
+        
+        fetch(apkUrl, { method: 'HEAD' })
+          .then(response => {
+            if (response.ok) {
+              // APK exists, download it
+              window.location.href = apkUrl;
+            } else {
+              // APK not found, show build instructions
+              showBuildInstructions();
+            }
+          })
+          .catch(() => {
+            // Network error, show build instructions
+            showBuildInstructions();
+          });
+      }
+
+      function showBuildInstructions() {
+        alert('APK file is not available yet. Please build it using one of these methods:\n\n' +
+              '1. Use Expo CLI: npm run build:android\n' +
+              '2. Use EAS Build: eas build --platform android --profile preview\n' +
+              '3. Contact support for pre-built APK\n\n' +
+              'The APK will be available at this URL once built.');
+      }
+
+      // Update notice to reflect Android availability
+      document.addEventListener('DOMContentLoaded', function() {
+        const notice = document.querySelector('.notice');
+        if (notice) {
+          notice.innerHTML = '<strong>Mobile app required.</strong> Download AXON for iOS or Android to connect providers and run ERP actions.';
+        }
+      });
+    </script>
   </body>
 </html>
