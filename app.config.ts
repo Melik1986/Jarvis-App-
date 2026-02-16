@@ -1,6 +1,5 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
-
-const appJson = require("./app.json") as { expo: ExpoConfig };
+import appJson from "./app.json";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const base = appJson.expo || config;
