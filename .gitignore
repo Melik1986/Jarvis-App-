@@ -96,7 +96,6 @@ app-example
 /android
 
 # Replit specific (sacred files: do not edit in IDE; Replit-managed)
-.replit
 replit.nix
 .cache/
 .config/
