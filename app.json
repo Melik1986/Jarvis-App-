@@ -19,7 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.axon.mobile",
+      "package": "com.axon.app",
       "usesCleartextTraffic": false
     },
     "web": {
@@ -67,7 +67,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "51f51f96-1ce1-4d93-afa6-cca16a25e31b"
+        "projectId": "b68fefe8-dcf2-41d8-92e8-68193900064a"
       }
     }
   }
