@@ -190,29 +190,7 @@ export default function LoginScreen() {
     setIsSigningIn(false);
   };
 
-  const handleDevLogin = async () => {
-    setIsSigningIn(true);
-    try {
-      const baseUrl = getApiUrl();
-      const response = await fetch(`${baseUrl}api/auth/dev-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "dev@axon.local", name: "Dev User" }),
-      });
-
-      const data = await response.json();
-      if (!handleAuthSuccess(data)) {
-        Alert.alert(t("error"), data.error || t("authFailed"));
-      }
-    } catch (error) {
-      AppLogger.error("Dev login error:", error);
-      Alert.alert(t("error"), t("authFailed"));
-    }
-    setIsSigningIn(false);
-  };
-
   const loading = isLoading || isSigningIn;
-  const isDev = __DEV__;
 
   const inputStyle = [
     styles.input,
@@ -382,28 +360,6 @@ export default function LoginScreen() {
                 Sign in with Replit
               </Text>
             </Pressable>
-
-            {isDev ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.altButton,
-                  { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
-                ]}
-                onPress={handleDevLogin}
-                disabled={loading}
-                testID="button-dev-signin"
-              >
-                <Feather name="code" size={18} color={colors.textSecondary} />
-                <Text
-                  style={[
-                    styles.altButtonText,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Continue as Dev User
-                </Text>
-              </Pressable>
-            ) : null}
 
             <Text style={[styles.termsText, { color: colors.textSecondary }]}>
               {t("termsAgreement")}

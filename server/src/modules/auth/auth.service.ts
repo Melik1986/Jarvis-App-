@@ -46,6 +46,7 @@ export class AuthService implements OnModuleInit {
     AUTH_CONFIG.REFRESH_TOKEN_EXPIRY;
 
   private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
+  private readonly pkceVerifiers: Map<string, string> = new Map();
 
   private readonly REPLIT_AUTH_AUTHORIZE = "https://replit.com/oidc/auth";
   private readonly REPLIT_AUTH_TOKEN = "https://replit.com/oidc/token";
@@ -97,12 +98,29 @@ export class AuthService implements OnModuleInit {
 
   getCallbackUrl(): string {
     const devDomain = process.env.REPLIT_DEV_DOMAIN;
-    const domains = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const host = devDomain || domains;
+    const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const host = deployedDomain || devDomain;
     if (!host) {
       return "/api/auth/callback";
     }
     return `https://${host}:5000/api/auth/callback`;
+  }
+
+  private generatePKCE(): { verifier: string; challenge: string } {
+    const verifier = crypto.randomBytes(32).toString("base64url");
+    const challenge = crypto
+      .createHash("sha256")
+      .update(verifier)
+      .digest("base64url");
+    return { verifier, challenge };
+  }
+
+  getCodeVerifier(state: string): string | undefined {
+    const verifier = this.pkceVerifiers.get(state);
+    if (verifier) {
+      this.pkceVerifiers.delete(state);
+    }
+    return verifier;
   }
 
   getAuthUrl(callbackUrl: string, state: string): string {
@@ -112,12 +130,17 @@ export class AuthService implements OnModuleInit {
       throw new Error("Auth not configured: missing client ID");
     }
 
+    const pkce = this.generatePKCE();
+    this.pkceVerifiers.set(state, pkce.verifier);
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: callbackUrl,
       response_type: "code",
       scope: "openid email profile",
       state: state,
+      code_challenge: pkce.challenge,
+      code_challenge_method: "S256",
     });
 
     return `${this.REPLIT_AUTH_AUTHORIZE}?${params.toString()}`;
@@ -127,6 +150,7 @@ export class AuthService implements OnModuleInit {
     code: string,
     state: string,
     callbackUrl: string,
+    codeVerifier?: string,
   ): Promise<{
     success: boolean;
     user?: AuthUser;
@@ -150,6 +174,10 @@ export class AuthService implements OnModuleInit {
         client_id: clientId,
         redirect_uri: callbackUrl,
       };
+
+      if (codeVerifier) {
+        tokenBody.code_verifier = codeVerifier;
+      }
 
       if (clientSecret) {
         tokenBody.client_secret = clientSecret;
