@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "AXON",
-    "slug": "axon-1c-mobile",
+    "slug": "axon-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -64,6 +64,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "51f51f96-1ce1-4d93-afa6-cca16a25e31b"
+      }
     }
   }
 }
