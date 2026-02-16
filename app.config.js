@@ -1,8 +1,11 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
+const fs = require("fs");
+const path = require("path");
 
-const appJson = require("./app.json") as { expo: ExpoConfig };
+const appJson = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, "app.json"), "utf-8"),
+);
 
-export default ({ config }: ConfigContext): ExpoConfig => {
+module.exports = ({ config }) => {
   const base = appJson.expo || config;
   const isProd = process.env.NODE_ENV === "production";
   const allowCleartextDev =
@@ -10,7 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const androidConfig = {
     ...(base.android || {}),
     usesCleartextTraffic: allowCleartextDev,
-  } as ExpoConfig["android"];
+  };
 
   return {
     ...base,
