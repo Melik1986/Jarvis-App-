@@ -97,13 +97,16 @@ export class AuthService implements OnModuleInit {
   }
 
   getCallbackUrl(): string {
-    const devDomain = process.env.REPLIT_DEV_DOMAIN;
     const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const host = deployedDomain || devDomain;
-    if (!host) {
-      return "/api/auth/callback";
+    const devDomain = process.env.REPLIT_DEV_DOMAIN;
+
+    if (deployedDomain) {
+      return `https://${deployedDomain}/api/auth/callback`;
     }
-    return `https://${host}:5000/api/auth/callback`;
+    if (devDomain) {
+      return `https://${devDomain}/api/auth/callback`;
+    }
+    return "/api/auth/callback";
   }
 
   private generatePKCE(): { verifier: string; challenge: string } {

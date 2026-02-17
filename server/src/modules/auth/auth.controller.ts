@@ -190,9 +190,10 @@ export class AuthController {
     }
 
     // Web redirect — only relative paths allowed
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "";
+    const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const devDomain = process.env.REPLIT_DEV_DOMAIN;
+    const host = deployedDomain || devDomain;
+    const baseUrl = host ? `https://${host}` : "";
 
     const webPath = safeRedirect || "/auth/success";
     const appRedirectUrl = new URL(webPath, baseUrl || "http://localhost");
