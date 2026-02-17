@@ -26,7 +26,7 @@ if (result.error) {
     // husky is optional in CI/remote envs where devDependencies are not installed
     process.exit(0);
   }
-  console.error("[prepare] husky failed:", result.error.message);
+  process.stderr.write(`[prepare] husky failed: ${result.error.message}\n`);
   process.exit(1);
 }
 
