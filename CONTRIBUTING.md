@@ -1,6 +1,6 @@
-# Contributing to Axon
+# Contributing to Axon Flow AI
 
-Thank you for your interest in contributing to Axon! We welcome contributions from the community to help make this project better.
+Thank you for your interest in contributing to Axon Flow AI! We welcome contributions from the community to help make this project better.
 
 ## Getting Started
 

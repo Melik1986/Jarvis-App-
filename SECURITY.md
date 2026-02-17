@@ -14,7 +14,7 @@ currently being supported with security updates.
 
 **DO NOT** open a public issue for security exploits.
 
-If you have discovered a security vulnerability in Axon, please report it via email to **security@aura-app.com**. We will review the report and respond within 48 hours.
+If you have discovered a security vulnerability in Axon Flow AI, please report it via email to **security@aura-app.com**. We will review the report and respond within 48 hours.
 
 ### What to Include
 
@@ -22,4 +22,4 @@ If you have discovered a security vulnerability in Axon, please report it via em
 - Steps to reproduce.
 - Potential impact.
 
-We appreciate your help in keeping Axon secure for everyone.
+We appreciate your help in keeping Axon Flow AI secure for everyone.

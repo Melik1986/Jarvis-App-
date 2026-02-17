@@ -1,4 +1,4 @@
-# 📖 AXON Documentation - How to Get Started
+# 📖 Axon Flow AI Documentation - How to Get Started
 
 **Welcome! Here's how to find what you need:**
 
@@ -152,7 +152,7 @@ Located in `/docs/`:
 1. **README.md** — Complete navigation guide
 2. **QUICK-REFERENCE.md** — One-page quick lookup
 3. **QUICK-START.md** — Getting started (5-60 min)
-4. **ARCHITECTURE.md** — How AXON is designed
+4. **ARCHITECTURE.md** — How Axon Flow AI is designed
 5. **API-REFERENCE.md** — REST API with examples
 6. **DATABASE-SCHEMA.md** — Database structure
 7. **INSTALLATION-DEPLOYMENT.md** — Setup guide
