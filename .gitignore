@@ -102,6 +102,7 @@ replit.nix
 .local/
 .upm/
 attached_assets/
+package-lock.json
 
 # Logs
 logs/
