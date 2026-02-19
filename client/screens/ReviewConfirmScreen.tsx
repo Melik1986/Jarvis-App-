@@ -28,8 +28,8 @@ export function ReviewConfirmScreen({
     <ScrollView style={styles.container}>
       <Text style={styles.title}>AI понял вашу команду так:</Text>
 
-      {toolCalls.map((call, index) => (
-        <View key={index} style={styles.card}>
+      {toolCalls.map((call) => (
+        <View key={call.toolName} style={styles.card}>
           <Text style={styles.toolName}>{call.toolName}</Text>
 
           {call.diffPreview && (

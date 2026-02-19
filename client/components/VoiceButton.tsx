@@ -24,6 +24,14 @@ const springConfig: WithSpringConfig = {
   stiffness: 150,
 };
 
+function applySpring(
+  sv: { value: number },
+  toValue: number,
+  config: WithSpringConfig,
+) {
+  sv.value = withSpring(toValue, config);
+}
+
 export function VoiceButton({
   isRecording,
   onPress,
@@ -39,13 +47,13 @@ export function VoiceButton({
 
   const handlePressIn = () => {
     if (!disabled) {
-      scale.value = withSpring(0.92, springConfig);
+      applySpring(scale, 0.92, springConfig);
     }
   };
 
   const handlePressOut = () => {
     if (!disabled) {
-      scale.value = withSpring(1, springConfig);
+      applySpring(scale, 1, springConfig);
     }
   };
 

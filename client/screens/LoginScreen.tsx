@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useCallback, useReducer } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Image,
+  StyleProp,
+  TextStyle,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -32,18 +34,192 @@ const redirectUri = makeRedirectUri({
   path: "auth/callback",
 });
 
+type FormState = {
+  isSigningIn: boolean;
+  isRegisterMode: boolean;
+  email: string;
+  password: string;
+  name: string;
+  showPassword: boolean;
+};
+
+function formReducer(prev: FormState, next: Partial<FormState>): FormState {
+  return { ...prev, ...next };
+}
+
+function EmailForm({
+  form,
+  updateForm,
+  handleEmailAuth,
+  loading,
+  inputStyle,
+  colors,
+  t,
+}: {
+  form: FormState;
+  updateForm: (update: Partial<FormState>) => void;
+  handleEmailAuth: () => void;
+  loading: boolean;
+  inputStyle: StyleProp<TextStyle>;
+  colors: { textSecondary: string; primary: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: any) => string;
+}) {
+  return (
+    <View style={styles.form}>
+      {form.isRegisterMode && (
+        <TextInput
+          style={inputStyle}
+          placeholder={t("namePlaceholder")}
+          placeholderTextColor={colors.textSecondary}
+          value={form.name}
+          onChangeText={(v) => updateForm({ name: v })}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      )}
+
+      <TextInput
+        style={inputStyle}
+        placeholder={t("emailPlaceholder")}
+        placeholderTextColor={colors.textSecondary}
+        value={form.email}
+        onChangeText={(v) => updateForm({ email: v })}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="email"
+      />
+
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[inputStyle, styles.passwordInput]}
+          placeholder={t("passwordPlaceholder")}
+          placeholderTextColor={colors.textSecondary}
+          value={form.password}
+          onChangeText={(v) => updateForm({ password: v })}
+          secureTextEntry={!form.showPassword}
+          autoCapitalize="none"
+          autoComplete={form.isRegisterMode ? "new-password" : "password"}
+        />
+        <Pressable
+          style={styles.eyeButton}
+          onPress={() => updateForm({ showPassword: !form.showPassword })}
+        >
+          <Feather
+            name={form.showPassword ? "eye-off" : "eye"}
+            size={20}
+            color={colors.textSecondary}
+          />
+        </Pressable>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.loginButton,
+          { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
+          loading && styles.buttonDisabled,
+        ]}
+        onPress={handleEmailAuth}
+        disabled={loading}
+        testID="button-email-auth"
+      >
+        {loading ? (
+          <ActivityIndicator color="#FFF" size="small" />
+        ) : (
+          <>
+            <Feather
+              name={form.isRegisterMode ? "user-plus" : "log-in"}
+              size={20}
+              color="#FFF"
+            />
+            <Text style={styles.buttonText}>
+              {form.isRegisterMode ? t("signUp") : t("signIn")}
+            </Text>
+          </>
+        )}
+      </Pressable>
+
+      <Pressable
+        onPress={() => updateForm({ isRegisterMode: !form.isRegisterMode })}
+        style={styles.toggleMode}
+      >
+        <Text style={[styles.toggleText, { color: colors.primary }]}>
+          {form.isRegisterMode ? t("haveAccount") : t("noAccount")}{" "}
+          <Text style={styles.toggleTextBold}>
+            {form.isRegisterMode ? t("signIn") : t("signUp")}
+          </Text>
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function SocialLoginSection({
+  handleReplitLogin,
+  loading,
+  colors,
+  t,
+}: {
+  handleReplitLogin: () => void;
+  loading: boolean;
+  colors: { textSecondary: string; border: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: any) => string;
+}) {
+  return (
+    <>
+      <View style={styles.divider}>
+        <View
+          style={[styles.dividerLine, { backgroundColor: colors.border }]}
+        />
+        <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
+          or
+        </Text>
+        <View
+          style={[styles.dividerLine, { backgroundColor: colors.border }]}
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.altButton,
+            { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
+            loading && styles.buttonDisabled,
+          ]}
+          onPress={handleReplitLogin}
+          disabled={loading}
+          testID="button-replit-login"
+        >
+          <Feather name="box" size={18} color={colors.textSecondary} />
+          <Text style={[styles.altButtonText, { color: colors.textSecondary }]}>
+            Sign in with Replit
+          </Text>
+        </Pressable>
+
+        <Text style={[styles.termsText, { color: colors.textSecondary }]}>
+          {t("termsAgreement")}
+        </Text>
+      </View>
+    </>
+  );
+}
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
   const colors = theme;
   const { t } = useTranslation();
   const { setUser, setSession, isLoading } = useAuthStore();
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [form, updateForm] = useReducer(formReducer, {
+    isSigningIn: false,
+    isRegisterMode: false,
+    email: "",
+    password: "",
+    name: "",
+    showPassword: false,
+  });
 
   const handleAuthSuccess = useCallback(
     (data: {
@@ -91,9 +267,10 @@ export default function LoginScreen() {
   );
 
   const extractCodeFromUrl = useCallback((url: string): string | null => {
+    const codeMatch = url.match(/[?&]code=([^&]+)/);
+    if (!codeMatch || !codeMatch[1]) return null;
     try {
-      const codeMatch = url.match(/[?&]code=([^&]+)/);
-      return codeMatch?.[1] ? decodeURIComponent(codeMatch[1]) : null;
+      return decodeURIComponent(codeMatch[1]);
     } catch {
       return null;
     }
@@ -103,9 +280,9 @@ export default function LoginScreen() {
     const handleDeepLink = async (event: { url: string }) => {
       const code = extractCodeFromUrl(event.url);
       if (code) {
-        setIsSigningIn(true);
+        updateForm({ isSigningIn: true });
         await exchangeCodeForSession(code);
-        setIsSigningIn(false);
+        updateForm({ isSigningIn: false });
       }
     };
 
@@ -123,74 +300,84 @@ export default function LoginScreen() {
   }, [exchangeCodeForSession, extractCodeFromUrl]);
 
   const handleEmailAuth = async () => {
-    if (!email.trim() || !password.trim()) {
+    if (!form.email.trim() || !form.password.trim()) {
       Alert.alert(t("error"), "Email and password are required");
       return;
     }
 
-    if (isRegisterMode && password.length < 6) {
+    if (form.isRegisterMode && form.password.length < 6) {
       Alert.alert(t("error"), "Password must be at least 6 characters");
       return;
     }
 
-    setIsSigningIn(true);
+    updateForm({ isSigningIn: true });
 
+    const baseUrl = getApiUrl();
+    const endpoint = form.isRegisterMode ? "register" : "login";
+    const body: Record<string, string> = {
+      email: form.email.trim(),
+      password: form.password,
+    };
+
+    if (form.isRegisterMode && form.name.trim()) {
+      body.name = form.name.trim();
+    }
+
+    let data;
     try {
-      const baseUrl = getApiUrl();
-      const endpoint = isRegisterMode ? "register" : "login";
-      const body: Record<string, string> = { email: email.trim(), password };
-
-      if (isRegisterMode && name.trim()) {
-        body.name = name.trim();
-      }
-
       const response = await fetch(`${baseUrl}api/auth/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
-      const data = await response.json();
-
-      if (!handleAuthSuccess(data)) {
-        const errorMsg = data.message || data.error || t("authFailed");
-        Alert.alert(t("error"), errorMsg);
-      }
+      data = await response.json();
     } catch (error) {
       AppLogger.error("Email auth error:", error);
       Alert.alert(t("error"), t("authFailed"));
+      updateForm({ isSigningIn: false });
+      return;
     }
 
-    setIsSigningIn(false);
+    if (!handleAuthSuccess(data)) {
+      const errorMsg = data.message || data.error || t("authFailed");
+      Alert.alert(t("error"), errorMsg);
+    }
+
+    updateForm({ isSigningIn: false });
   };
 
   const handleReplitLogin = async () => {
-    setIsSigningIn(true);
+    updateForm({ isSigningIn: true });
 
+    const baseUrl = getApiUrl();
+    const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
+
+    let result;
     try {
-      const baseUrl = getApiUrl();
-      const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
-
-      const result = await WebBrowser.openAuthSessionAsync(
-        loginUrl,
-        redirectUri,
-        { preferEphemeralSession: Platform.OS === "ios" },
-      );
-
-      if (result.type === "success" && result.url) {
-        const code = extractCodeFromUrl(result.url);
-        if (code) {
-          await exchangeCodeForSession(code);
-        }
-      }
+      result = await WebBrowser.openAuthSessionAsync(loginUrl, redirectUri, {
+        preferEphemeralSession: Platform.OS === "ios",
+      });
     } catch (error) {
       AppLogger.error("Replit login error:", error);
+      updateForm({ isSigningIn: false });
+      return;
     }
 
-    setIsSigningIn(false);
+    if (result.type === "success" && result.url) {
+      const code = extractCodeFromUrl(result.url);
+      if (code) {
+        try {
+          await exchangeCodeForSession(code);
+        } catch (error) {
+          AppLogger.error("Session exchange error:", error);
+        }
+      }
+    }
+
+    updateForm({ isSigningIn: false });
   };
 
-  const loading = isLoading || isSigningIn;
+  const loading = isLoading || form.isSigningIn;
 
   const inputStyle = [
     styles.input,
@@ -243,128 +430,22 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          <View style={styles.form}>
-            {isRegisterMode && (
-              <TextInput
-                style={inputStyle}
-                placeholder={t("namePlaceholder")}
-                placeholderTextColor={colors.textSecondary}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            )}
+          <EmailForm
+            form={form}
+            updateForm={updateForm}
+            handleEmailAuth={handleEmailAuth}
+            loading={loading}
+            inputStyle={inputStyle}
+            colors={colors}
+            t={t}
+          />
 
-            <TextInput
-              style={inputStyle}
-              placeholder={t("emailPlaceholder")}
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-            />
-
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[inputStyle, styles.passwordInput]}
-                placeholder={t("passwordPlaceholder")}
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoComplete={isRegisterMode ? "new-password" : "password"}
-              />
-              <Pressable
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Feather
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.loginButton,
-                { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
-                loading && styles.buttonDisabled,
-              ]}
-              onPress={handleEmailAuth}
-              disabled={loading}
-              testID="button-email-auth"
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <>
-                  <Feather
-                    name={isRegisterMode ? "user-plus" : "log-in"}
-                    size={20}
-                    color="#FFF"
-                  />
-                  <Text style={styles.buttonText}>
-                    {isRegisterMode ? t("signUp") : t("signIn")}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={() => setIsRegisterMode(!isRegisterMode)}
-              style={styles.toggleMode}
-            >
-              <Text style={[styles.toggleText, { color: colors.primary }]}>
-                {isRegisterMode ? t("haveAccount") : t("noAccount")}{" "}
-                <Text style={styles.toggleTextBold}>
-                  {isRegisterMode ? t("signIn") : t("signUp")}
-                </Text>
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.divider}>
-            <View
-              style={[styles.dividerLine, { backgroundColor: colors.border }]}
-            />
-            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
-              or
-            </Text>
-            <View
-              style={[styles.dividerLine, { backgroundColor: colors.border }]}
-            />
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.altButton,
-                { opacity: pressed ? 0.8 : 1, borderColor: colors.border },
-                loading && styles.buttonDisabled,
-              ]}
-              onPress={handleReplitLogin}
-              disabled={loading}
-              testID="button-replit-login"
-            >
-              <Feather name="box" size={18} color={colors.textSecondary} />
-              <Text
-                style={[styles.altButtonText, { color: colors.textSecondary }]}
-              >
-                Sign in with Replit
-              </Text>
-            </Pressable>
-
-            <Text style={[styles.termsText, { color: colors.textSecondary }]}>
-              {t("termsAgreement")}
-            </Text>
-          </View>
+          <SocialLoginSection
+            handleReplitLogin={handleReplitLogin}
+            loading={loading}
+            colors={colors}
+            t={t}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>

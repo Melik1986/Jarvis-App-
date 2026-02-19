@@ -44,6 +44,14 @@ const getBackgroundColorForElevation = (
   }
 };
 
+function applySpring(
+  sv: { value: number },
+  toValue: number,
+  config: WithSpringConfig,
+) {
+  sv.value = withSpring(toValue, config);
+}
+
 export function Card({
   elevation = 1,
   title,
@@ -62,11 +70,11 @@ export function Card({
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.98, springConfig);
+    applySpring(scale, 0.98, springConfig);
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, springConfig);
+    applySpring(scale, 1, springConfig);
   };
 
   return (

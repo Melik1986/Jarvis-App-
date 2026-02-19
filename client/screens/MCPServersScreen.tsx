@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useReducer } from "react";
 import {
   StyleSheet,
   View,
@@ -28,6 +28,68 @@ interface McpServer {
   toolCount?: number;
 }
 
+async function performServerFetch(
+  mcpServers: McpServer[],
+  session: { accessToken?: string } | null,
+  setServers: (servers: McpServer[]) => void,
+  setIsLoading: (v: boolean) => void,
+) {
+  const stored = mcpServers;
+  const baseUrl = getApiUrl();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (session?.accessToken) {
+    headers["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+  try {
+    const response = await fetch(`${baseUrl}api/mcp/servers`, { headers });
+    if (response.ok) {
+      const data = (await response.json()) as {
+        name: string;
+        toolCount?: number;
+        status?: "connected" | "disconnected" | "error";
+      }[];
+
+      const connectedByName = new Map(data.map((s) => [s.name, s]));
+
+      const merged = stored.map((s) => {
+        const server = connectedByName.get(s.name);
+        if (!server) {
+          return { ...s, status: "disconnected" as const };
+        }
+        return {
+          ...s,
+          status: server.status ?? "connected",
+          toolCount: server.toolCount,
+        };
+      });
+
+      setServers(merged);
+    }
+  } catch (error) {
+    AppLogger.error("Failed to fetch MCP servers", error);
+  }
+  setIsLoading(false);
+}
+
+type ScreenState = {
+  servers: McpServer[];
+  isAdding: boolean;
+  isLoading: boolean;
+  isConnecting: boolean;
+  name: string;
+  command: string;
+  args: string;
+};
+
+function screenReducer(
+  prev: ScreenState,
+  next: Partial<ScreenState>,
+): ScreenState {
+  return { ...prev, ...next };
+}
+
 export default function MCPServersScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -37,105 +99,64 @@ export default function MCPServersScreen() {
   const mcpServers = useSettingsStore((state) => state.mcpServers);
   const setMcpServers = useSettingsStore((state) => state.setMcpServers);
 
-  const [servers, setServers] = useState<McpServer[]>([]);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const [name, setName] = useState("");
-  const [command, setCommand] = useState("npx");
-  const [args, setArgs] = useState(
-    "-y @modelcontextprotocol/server-everything",
-  );
-
-  const fetchServers = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      const stored = mcpServers;
-      if (stored.length > 0) {
-        setServers(stored);
-      }
-
-      const baseUrl = getApiUrl();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (session?.accessToken) {
-        headers["Authorization"] = `Bearer ${session.accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}api/mcp/servers`, { headers });
-      if (response.ok) {
-        const data = (await response.json()) as {
-          name: string;
-          toolCount?: number;
-          status?: "connected" | "disconnected" | "error";
-        }[];
-
-        const connectedByName = new Map(data.map((s) => [s.name, s]));
-
-        const merged = stored.map((s) => {
-          const server = connectedByName.get(s.name);
-          if (!server) {
-            return { ...s, status: "disconnected" as const };
-          }
-          return {
-            ...s,
-            status: server.status ?? "connected",
-            toolCount: server.toolCount,
-          };
-        });
-
-        setServers(merged);
-      }
-    } catch (error) {
-      AppLogger.error("Failed to fetch MCP servers", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [mcpServers, session?.accessToken]);
+  const [state, update] = useReducer(screenReducer, {
+    servers: mcpServers,
+    isAdding: false,
+    isLoading: true,
+    isConnecting: false,
+    name: "",
+    command: "npx",
+    args: "-y @modelcontextprotocol/server-everything",
+  });
 
   useEffect(() => {
-    fetchServers();
+    performServerFetch(
+      mcpServers,
+      session,
+      (servers) => update({ servers }),
+      (v) => update({ isLoading: v }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddServer = async () => {
+    update({ isConnecting: true });
+    const baseUrl = getApiUrl();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (session?.accessToken) {
+      headers["Authorization"] = `Bearer ${session.accessToken}`;
+    }
     try {
-      setIsConnecting(true);
-      const baseUrl = getApiUrl();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (session?.accessToken) {
-        headers["Authorization"] = `Bearer ${session.accessToken}`;
-      }
-
       const response = await fetch(`${baseUrl}api/mcp/servers`, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          name,
-          command,
-          args: args.split(" "),
+          name: state.name,
+          command: state.command,
+          args: state.args.split(" "),
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
+        let serverStatus: McpServer["status"] = "error";
+        if (result.connected) {
+          serverStatus = "connected";
+        }
         const newServer: McpServer = {
-          name,
-          command,
-          args: args.split(" "),
-          status: result.connected ? "connected" : "error",
+          name: state.name,
+          command: state.command,
+          args: state.args.split(" "),
+          status: serverStatus,
           toolCount: result.toolCount,
         };
         const nextServers = [
-          ...servers.filter((s) => s.name !== name),
+          ...state.servers.filter((s) => s.name !== state.name),
           newServer,
         ];
-        setServers(nextServers);
+        update({ servers: nextServers });
         setMcpServers(
           nextServers.map((s) => ({
             name: s.name,
@@ -143,14 +164,12 @@ export default function MCPServersScreen() {
             args: s.args,
           })),
         );
-        setIsAdding(false);
-        setName("");
+        update({ isAdding: false, name: "" });
       }
     } catch (error) {
       AppLogger.error("Failed to connect MCP server", error);
-    } finally {
-      setIsConnecting(false);
     }
+    update({ isConnecting: false });
   };
 
   const handleDisconnect = async (serverName: string) => {
@@ -159,8 +178,10 @@ export default function MCPServersScreen() {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (session?.accessToken) {
-        headers["Authorization"] = `Bearer ${session.accessToken}`;
+      if (session) {
+        if (session.accessToken) {
+          headers["Authorization"] = `Bearer ${session.accessToken}`;
+        }
       }
 
       await fetch(`${baseUrl}api/mcp/servers/${serverName}`, {
@@ -168,8 +189,8 @@ export default function MCPServersScreen() {
         headers,
       });
 
-      const nextServers = servers.filter((s) => s.name !== serverName);
-      setServers(nextServers);
+      const nextServers = state.servers.filter((s) => s.name !== serverName);
+      update({ servers: nextServers });
       setMcpServers(
         nextServers.map((s) => ({
           name: s.name,
@@ -220,9 +241,9 @@ export default function MCPServersScreen() {
           </ThemedText>
         </View>
 
-        {!isAdding ? (
+        {!state.isAdding ? (
           <Button
-            onPress={() => setIsAdding(true)}
+            onPress={() => update({ isAdding: true })}
             variant="outline"
             style={styles.addBtn}
           >
@@ -246,8 +267,8 @@ export default function MCPServersScreen() {
               ]}
               placeholder={t("serverName")}
               placeholderTextColor={theme.textTertiary}
-              value={name}
-              onChangeText={setName}
+              value={state.name}
+              onChangeText={(v) => update({ name: v })}
             />
 
             <TextInput
@@ -257,8 +278,8 @@ export default function MCPServersScreen() {
               ]}
               placeholder={t("command")}
               placeholderTextColor={theme.textTertiary}
-              value={command}
-              onChangeText={setCommand}
+              value={state.command}
+              onChangeText={(v) => update({ command: v })}
             />
 
             <ThemedText style={styles.label}>{t("arguments")}</ThemedText>
@@ -267,41 +288,41 @@ export default function MCPServersScreen() {
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              value={args}
-              onChangeText={setArgs}
+              value={state.args}
+              onChangeText={(v) => update({ args: v })}
             />
 
             <View style={styles.formRow}>
               <Button
-                onPress={() => setIsAdding(false)}
+                onPress={() => update({ isAdding: false })}
                 variant="outline"
-                disabled={isConnecting}
+                disabled={state.isConnecting}
               >
                 {t("cancel")}
               </Button>
               <Button
                 onPress={handleAddServer}
-                disabled={isConnecting || !name}
+                disabled={state.isConnecting || !state.name}
               >
-                {isConnecting ? t("connecting") : t("connect")}
+                {state.isConnecting ? t("connecting") : t("connect")}
               </Button>
             </View>
           </View>
         )}
 
         <View style={styles.list}>
-          {isLoading ? (
+          {state.isLoading ? (
             <ActivityIndicator size="large" color={theme.primary} />
-          ) : servers.length === 0 ? (
+          ) : state.servers.length === 0 ? (
             <ThemedText
               style={[styles.emptyText, { color: theme.textSecondary }]}
             >
               {t("noMcpServers")}
             </ThemedText>
           ) : (
-            servers.map((server, index) => (
+            state.servers.map((server) => (
               <View
-                key={index}
+                key={server.name}
                 style={[
                   styles.card,
                   { backgroundColor: theme.backgroundSecondary },

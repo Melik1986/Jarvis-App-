@@ -18,6 +18,17 @@ interface IconProps {
   strokeWidth?: number;
 }
 
+function startPulseLoop(target: { value: number }) {
+  target.value = withRepeat(
+    withSequence(
+      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+    ),
+    -1,
+    false,
+  );
+}
+
 export function AnimatedMicIcon({
   size = 24,
   color = "#fff",
@@ -26,14 +37,7 @@ export function AnimatedMicIcon({
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
+    startPulseLoop(progress);
   }, [progress]);
 
   const animatedProps = useAnimatedProps(() => ({
@@ -154,6 +158,14 @@ export function AnimatedLibraryFilledIcon({
   );
 }
 
+function startRotationLoop(target: { value: number }) {
+  target.value = withRepeat(
+    withTiming(360, { duration: 8000, easing: Easing.linear }),
+    -1,
+    false,
+  );
+}
+
 export function AnimatedHistoryIcon({
   size = 24,
   color = "#fff",
@@ -162,11 +174,7 @@ export function AnimatedHistoryIcon({
   const rotation = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 8000, easing: Easing.linear }),
-      -1,
-      false,
-    );
+    startRotationLoop(rotation);
   }, [rotation]);
 
   return (

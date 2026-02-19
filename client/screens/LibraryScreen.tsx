@@ -104,6 +104,31 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+async function performDocumentLoad(
+  setIsLoading: (v: boolean) => void,
+  setDocuments: (docs: DocumentDisplay[]) => void,
+  currentTimeRef: React.MutableRefObject<number>,
+) {
+  try {
+    setIsLoading(true);
+    const docs = await localVectorStore.listAll();
+    setDocuments(
+      docs.map((doc) => ({
+        id: doc.id,
+        name: doc.name,
+        type: (doc.metadata?.type as string) || "other",
+        size: formatBytes((doc.metadata?.size as number) || doc.content.length),
+        createdAt: doc.createdAt,
+        status: "ready" as const,
+      })),
+    );
+    currentTimeRef.current = Date.now();
+  } catch (error) {
+    AppLogger.error("Failed to load local documents:", error);
+  }
+  setIsLoading(false);
+}
+
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
@@ -115,29 +140,11 @@ export default function LibraryScreen() {
   const [documents, setDocuments] = useState<DocumentDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const currentTimeRef = React.useRef(0);
 
   /** Load documents from local SQLite */
   const loadDocuments = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const docs = await localVectorStore.listAll();
-      setDocuments(
-        docs.map((doc) => ({
-          id: doc.id,
-          name: doc.name,
-          type: (doc.metadata?.type as string) || "other",
-          size: formatBytes(
-            (doc.metadata?.size as number) || doc.content.length,
-          ),
-          createdAt: doc.createdAt,
-          status: "ready" as const,
-        })),
-      );
-    } catch (error) {
-      AppLogger.error("Failed to load local documents:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await performDocumentLoad(setIsLoading, setDocuments, currentTimeRef);
   }, []);
 
   useEffect(() => {
@@ -160,9 +167,8 @@ export default function LibraryScreen() {
     } catch (error) {
       AppLogger.error("Upload error:", error);
       Alert.alert(t("error"), t("uploadFailed"));
-    } finally {
-      setIsUploading(false);
     }
+    setIsUploading(false);
   };
 
   /** Delete from local SQLite */
@@ -203,18 +209,20 @@ export default function LibraryScreen() {
     return status === "ready" ? t("indexed") : t("processing");
   };
 
-  const formatDate = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+  const formatDate = useCallback(
+    (timestamp: number) => {
+      const diff = currentTimeRef.current - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
 
-    if (minutes < 1) return t("justNow");
-    if (hours < 1) return `${minutes}m`;
-    if (days < 1) return `${hours}${t("hoursAgo")}`;
-    return `${days}${t("daysAgo")}`;
-  };
+      if (minutes < 1) return t("justNow");
+      if (hours < 1) return `${minutes}m`;
+      if (days < 1) return `${hours}${t("hoursAgo")}`;
+      return `${days}${t("daysAgo")}`;
+    },
+    [t],
+  );
 
   const handleDocumentPress = (item: DocumentDisplay) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

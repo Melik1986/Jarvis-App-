@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useReducer, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -32,6 +32,168 @@ interface Skill {
   enabled: boolean;
 }
 
+type FormState = {
+  isAdding: boolean;
+  name: string;
+  description: string;
+  code: string;
+  content: string;
+};
+
+const initialFormState: FormState = {
+  isAdding: false,
+  name: "",
+  description: "",
+  code: "result = { success: true, message: 'Hello from skill' };",
+  content: "",
+};
+
+function formReducer(prev: FormState, next: Partial<FormState>): FormState {
+  return { ...prev, ...next };
+}
+
+interface AddSkillFormProps {
+  form: FormState;
+  updateForm: (next: Partial<FormState>) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  theme: Record<string, string>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: (key: any) => string;
+}
+
+function AddSkillForm({
+  form,
+  updateForm,
+  onCancel,
+  onSave,
+  theme,
+  t,
+}: AddSkillFormProps) {
+  return (
+    <View style={[styles.form, { backgroundColor: theme.backgroundSecondary }]}>
+      <ThemedText style={styles.formTitle}>{t("newSkill")}</ThemedText>
+
+      <TextInput
+        style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+        placeholder={t("skillName")}
+        placeholderTextColor={theme.textTertiary}
+        value={form.name}
+        onChangeText={(v) => updateForm({ name: v })}
+      />
+
+      <TextInput
+        style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+        placeholder={t("description")}
+        placeholderTextColor={theme.textTertiary}
+        value={form.description}
+        onChangeText={(v) => updateForm({ description: v })}
+      />
+
+      <ThemedText style={styles.label}>{t("code")}</ThemedText>
+      <TextInput
+        style={[
+          styles.input,
+          styles.textArea,
+          { color: theme.text, borderColor: theme.border },
+        ]}
+        multiline
+        value={form.code}
+        onChangeText={(v) => updateForm({ code: v })}
+      />
+
+      {form.content ? (
+        <>
+          <ThemedText style={styles.label}>
+            MD Content ({form.content.length} chars)
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.input,
+              styles.contentArea,
+              { color: theme.text, borderColor: theme.border },
+            ]}
+            multiline
+            value={form.content}
+            onChangeText={(v) => updateForm({ content: v })}
+          />
+        </>
+      ) : null}
+
+      <View style={styles.formRow}>
+        <Button onPress={onCancel} variant="outline">
+          {t("cancel")}
+        </Button>
+        <Button onPress={onSave}>{t("saveSkill")}</Button>
+      </View>
+    </View>
+  );
+}
+
+interface SkillCardProps {
+  skill: Skill;
+  onToggle: (skill: Skill) => void;
+  onDelete: (id: string) => void;
+  theme: Record<string, string>;
+}
+
+function SkillCard({ skill, onToggle, onDelete, theme }: SkillCardProps) {
+  return (
+    <View style={[styles.card, { backgroundColor: theme.backgroundSecondary }]}>
+      <View style={styles.cardHeader}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.cardName}>{skill.name}</ThemedText>
+          <ThemedText style={[styles.cardDesc, { color: theme.textSecondary }]}>
+            {skill.description}
+          </ThemedText>
+        </View>
+        <Switch
+          value={skill.enabled}
+          onValueChange={() => onToggle(skill)}
+          trackColor={{ true: theme.primary }}
+        />
+      </View>
+
+      <View style={styles.cardFooter}>
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          <ThemedText
+            style={{
+              fontSize: 10,
+              color: theme.textTertiary,
+              fontFamily: "monospace",
+            }}
+          >
+            ID: {skill.id.split("-")[0]}
+          </ThemedText>
+          {skill.content ? (
+            <View
+              style={{
+                backgroundColor: "#dbeafe",
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderRadius: 4,
+              }}
+            >
+              <ThemedText
+                style={{
+                  color: "#1e40af",
+                  fontSize: 9,
+                  fontWeight: "bold",
+                }}
+              >
+                MD
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+        <Pressable onPress={() => onDelete(skill.id)}>
+          <Ionicons name="trash-outline" size={20} color={theme.error} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function SkillStoreScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -50,14 +212,8 @@ export default function SkillStoreScreen() {
     ...s,
     enabled: !!s.enabled,
   }));
-  const [isAdding, setIsAdding] = useState(false);
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [code, setCode] = useState(
-    "result = { success: true, message: 'Hello from skill' };",
-  );
-  const [content, setContent] = useState("");
+  const [form, updateForm] = useReducer(formReducer, initialFormState);
 
   useEffect(() => {
     void loadSkills();
@@ -65,59 +221,73 @@ export default function SkillStoreScreen() {
   }, []);
 
   const handleUploadMd = async () => {
+    let pickerResult;
     try {
-      const result = await DocumentPicker.getDocumentAsync({
+      pickerResult = await DocumentPicker.getDocumentAsync({
         type: ["text/markdown", "text/plain", "application/octet-stream"],
         copyToCacheDirectory: true,
       });
-      if (result.canceled || !result.assets?.length) return;
-      const asset = result.assets[0];
-      if (!asset) return;
-
-      const text = await FileSystem.readAsStringAsync(asset.uri);
-      const fileName = (asset.name ?? "skill").replace(/\.[^.]+$/, "");
-      const ext = (asset.name ?? "").split(".").pop()?.toLowerCase();
-
-      const headingMatch = text.match(/^#\s+(.+)/m);
-      const firstLine = headingMatch?.[1] ?? text.split("\n")[0] ?? "";
-
-      setName(fileName);
-      setDescription(firstLine.slice(0, 120));
-
-      if (ext === "js" || ext === "ts") {
-        setCode(text);
-        setContent("");
-      } else {
-        setCode("result = { success: true, message: 'Instruction skill' };");
-        setContent(text);
-      }
-      setIsAdding(true);
     } catch (error) {
       AppLogger.error("Failed to pick file:", error);
+      return;
+    }
+
+    if (pickerResult.canceled || !pickerResult.assets?.length) return;
+    const asset = pickerResult.assets[0];
+    if (!asset) return;
+
+    const assetName = asset.name ?? "skill";
+    const fileName = assetName.replace(/\.[^.]+$/, "");
+    const ext = assetName.split(".").pop()?.toLowerCase();
+
+    let text;
+    try {
+      text = await FileSystem.readAsStringAsync(asset.uri);
+    } catch (error) {
+      AppLogger.error("Failed to process file:", error);
+      return;
+    }
+
+    const headingMatch = text.match(/^#\s+(.+)/m);
+    const firstLine = headingMatch?.[1] ?? text.split("\n")[0] ?? "";
+
+    if (ext === "js" || ext === "ts") {
+      updateForm({
+        name: fileName,
+        description: firstLine.slice(0, 120),
+        code: text,
+        content: "",
+        isAdding: true,
+      });
+    } else {
+      updateForm({
+        name: fileName,
+        description: firstLine.slice(0, 120),
+        code: "result = { success: true, message: 'Instruction skill' };",
+        content: text,
+        isAdding: true,
+      });
     }
   };
 
   const resetForm = () => {
-    setIsAdding(false);
-    setName("");
-    setDescription("");
-    setContent("");
-    setCode("result = { success: true, message: 'Hello from skill' };");
+    updateForm(initialFormState);
   };
 
   const handleAddSkill = async () => {
-    if (!name || (!code && !content)) {
+    if (!form.name || (!form.code && !form.content)) {
       Alert.alert(t("error"), t("configurationRequired"));
       return;
     }
 
+    const skillData = {
+      name: form.name,
+      description: form.description,
+      code: form.code || "result = { success: true };",
+      content: form.content || undefined,
+    };
     try {
-      await storeCreateSkill({
-        name,
-        description,
-        code: code || "result = { success: true };",
-        content: content || undefined,
-      });
+      await storeCreateSkill(skillData);
       resetForm();
     } catch (error) {
       AppLogger.error("Failed to add skill:", error);
@@ -166,10 +336,10 @@ export default function SkillStoreScreen() {
           </ThemedText>
         </View>
 
-        {!isAdding ? (
+        {!form.isAdding ? (
           <View style={styles.addRow}>
             <Button
-              onPress={() => setIsAdding(true)}
+              onPress={() => updateForm({ isAdding: true })}
               variant="outline"
               style={{ flex: 1 }}
             >
@@ -193,73 +363,14 @@ export default function SkillStoreScreen() {
             </Pressable>
           </View>
         ) : (
-          <View
-            style={[
-              styles.form,
-              { backgroundColor: theme.backgroundSecondary },
-            ]}
-          >
-            <ThemedText style={styles.formTitle}>{t("newSkill")}</ThemedText>
-
-            <TextInput
-              style={[
-                styles.input,
-                { color: theme.text, borderColor: theme.border },
-              ]}
-              placeholder={t("skillName")}
-              placeholderTextColor={theme.textTertiary}
-              value={name}
-              onChangeText={setName}
-            />
-
-            <TextInput
-              style={[
-                styles.input,
-                { color: theme.text, borderColor: theme.border },
-              ]}
-              placeholder={t("description")}
-              placeholderTextColor={theme.textTertiary}
-              value={description}
-              onChangeText={setDescription}
-            />
-
-            <ThemedText style={styles.label}>{t("code")}</ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                styles.textArea,
-                { color: theme.text, borderColor: theme.border },
-              ]}
-              multiline
-              value={code}
-              onChangeText={setCode}
-            />
-
-            {content ? (
-              <>
-                <ThemedText style={styles.label}>
-                  MD Content ({content.length} chars)
-                </ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.contentArea,
-                    { color: theme.text, borderColor: theme.border },
-                  ]}
-                  multiline
-                  value={content}
-                  onChangeText={setContent}
-                />
-              </>
-            ) : null}
-
-            <View style={styles.formRow}>
-              <Button onPress={resetForm} variant="outline">
-                {t("cancel")}
-              </Button>
-              <Button onPress={handleAddSkill}>{t("saveSkill")}</Button>
-            </View>
-          </View>
+          <AddSkillForm
+            form={form}
+            updateForm={updateForm}
+            onCancel={resetForm}
+            onSave={handleAddSkill}
+            theme={theme}
+            t={t}
+          />
         )}
 
         {loading ? (
@@ -271,75 +382,16 @@ export default function SkillStoreScreen() {
         ) : (
           <View style={styles.list}>
             {skills.map((skill) => (
-              <View
+              <SkillCard
                 key={skill.id}
-                style={[
-                  styles.card,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.cardName}>
-                      {skill.name}
-                    </ThemedText>
-                    <ThemedText
-                      style={[styles.cardDesc, { color: theme.textSecondary }]}
-                    >
-                      {skill.description}
-                    </ThemedText>
-                  </View>
-                  <Switch
-                    value={skill.enabled}
-                    onValueChange={() => toggleSkill(skill)}
-                    trackColor={{ true: theme.primary }}
-                  />
-                </View>
-
-                <View style={styles.cardFooter}>
-                  <View style={{ flexDirection: "row", gap: 6 }}>
-                    <ThemedText
-                      style={{
-                        fontSize: 10,
-                        color: theme.textTertiary,
-                        fontFamily: "monospace",
-                      }}
-                    >
-                      ID: {skill.id.split("-")[0]}
-                    </ThemedText>
-                    {skill.content ? (
-                      <View
-                        style={{
-                          backgroundColor: "#dbeafe",
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 4,
-                        }}
-                      >
-                        <ThemedText
-                          style={{
-                            color: "#1e40af",
-                            fontSize: 9,
-                            fontWeight: "bold",
-                          }}
-                        >
-                          MD
-                        </ThemedText>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Pressable onPress={() => deleteSkill(skill.id)}>
-                    <Ionicons
-                      name="trash-outline"
-                      size={20}
-                      color={theme.error}
-                    />
-                  </Pressable>
-                </View>
-              </View>
+                skill={skill}
+                onToggle={toggleSkill}
+                onDelete={deleteSkill}
+                theme={theme}
+              />
             ))}
 
-            {skills.length === 0 && !isAdding && (
+            {skills.length === 0 && !form.isAdding && (
               <View style={styles.empty}>
                 <ThemedText style={{ color: theme.textTertiary }}>
                   {t("noSkillsYet")}

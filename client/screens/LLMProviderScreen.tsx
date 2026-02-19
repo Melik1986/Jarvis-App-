@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useReducer } from "react";
 import {
   StyleSheet,
   View,
@@ -31,6 +31,21 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
 type ProviderIconName = "flash" | "chip" | "server" | "speedometer" | "code";
 
+type FormState = {
+  selectedProvider: LLMProvider;
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+  transcriptionModel: string;
+  userInstructions: string;
+  showModelPicker: boolean;
+};
+
+const formReducer = (prev: FormState, next: Partial<FormState>): FormState => ({
+  ...prev,
+  ...next,
+});
+
 const modelsByProvider: Record<LLMProvider, string[]> = {
   replit: ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "claude-3-haiku"],
   openai: [
@@ -57,6 +72,14 @@ const transcriptionModelsByProvider: Record<LLMProvider, string> = {
   groq: "whisper-large-v3",
   ollama: "",
   custom: "",
+};
+
+const providerDocsUrlByProvider: Partial<Record<LLMProvider, string>> = {
+  replit: "https://docs.replit.com/replitai/replit-ai-integrations",
+  openai: "https://platform.openai.com/api-keys",
+  groq: "https://console.groq.com/keys",
+  ollama: "https://docs.ollama.com/api/openai-compatibility",
+  custom: "https://platform.openai.com/api-keys",
 };
 
 function ProviderIcon({
@@ -180,31 +203,17 @@ function ProviderIcon({
   }
 }
 
-export default function LLMProviderScreen() {
-  const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
-  const navigation = useNavigation();
-  const { theme } = useTheme();
-  const { t } = useTranslation();
-  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
-  useProtectScreen();
-
-  const { llm, setLLMSettings } = useSettingsStore();
-
-  const [selectedProvider, setSelectedProvider] = useState<LLMProvider>(
-    llm.provider,
-  );
-  const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
-  const [apiKey, setApiKey] = useState(llm.apiKey);
-  const [modelName, setModelName] = useState(llm.modelName);
-  const [transcriptionModel, setTranscriptionModel] = useState(
-    llm.transcriptionModel || "",
-  );
-  const [userInstructions, setUserInstructions] = useState(
-    llm.userInstructions || "",
-  );
-  const [showModelPicker, setShowModelPicker] = useState(false);
-
+function LLMProviderList({
+  theme,
+  t,
+  selectedProvider,
+  onProviderSelect,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  selectedProvider: LLMProvider;
+  onProviderSelect: (id: LLMProvider) => void;
+}) {
   const providers: {
     id: LLMProvider;
     name: string;
@@ -238,33 +247,6 @@ export default function LLMProviderScreen() {
     },
   ];
 
-  const handleSave = () => {
-    setLLMSettings({
-      provider: selectedProvider,
-      baseUrl,
-      apiKey,
-      modelName,
-      transcriptionModel,
-      userInstructions,
-    });
-    navigation.goBack();
-  };
-
-  const handleProviderSelect = (providerId: LLMProvider) => {
-    setSelectedProvider(providerId);
-    const defaultModel = modelsByProvider[providerId][0] ?? "";
-    setModelName(defaultModel);
-    setTranscriptionModel(transcriptionModelsByProvider[providerId]);
-  };
-
-  const providerDocsUrlByProvider: Partial<Record<LLMProvider, string>> = {
-    replit: "https://docs.replit.com/replitai/replit-ai-integrations",
-    openai: "https://platform.openai.com/api-keys",
-    groq: "https://console.groq.com/keys",
-    ollama: "https://docs.ollama.com/api/openai-compatibility",
-    custom: "https://platform.openai.com/api-keys",
-  };
-
   const selectedProviderDocsUrl = providerDocsUrlByProvider[selectedProvider];
   const selectedProviderLabel =
     providers.find((p) => p.id === selectedProvider)?.name ?? selectedProvider;
@@ -274,8 +256,389 @@ export default function LLMProviderScreen() {
     await Linking.openURL(selectedProviderDocsUrl);
   };
 
-  const showCustomFields = selectedProvider !== "replit";
-  const availableModels = modelsByProvider[selectedProvider];
+  return (
+    <View style={styles.section}>
+      <ThemedText
+        style={[styles.sectionDescription, { color: theme.textSecondary }]}
+      >
+        {t("chooseProvider")}
+      </ThemedText>
+
+      <View
+        style={[
+          styles.hintCard,
+          {
+            backgroundColor: theme.warning + "10",
+            borderColor: theme.warning + "40",
+          },
+        ]}
+      >
+        <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+          ⚠️ {t("secretsWarningTitle")}
+        </ThemedText>
+        <ThemedText
+          style={[
+            styles.hintText,
+            { color: theme.textSecondary, marginTop: Spacing.xs },
+          ]}
+        >
+          {t("secretsWarningBody")}
+        </ThemedText>
+      </View>
+
+      <View
+        style={[
+          styles.hintCard,
+          {
+            backgroundColor: theme.primary + "10",
+            borderColor: theme.primary + "30",
+          },
+        ]}
+      >
+        <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+          💡 {t("llmHint")}
+        </ThemedText>
+      </View>
+
+      <View style={styles.providerList}>
+        {providers.map((provider) => (
+          <Pressable
+            key={provider.id}
+            style={[
+              styles.providerItem,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+              },
+              selectedProvider === provider.id && {
+                borderColor: theme.primary,
+                backgroundColor: theme.primary + "10",
+              },
+            ]}
+            onPress={() => onProviderSelect(provider.id)}
+          >
+            <View style={styles.providerIcon}>
+              <ProviderIcon
+                name={provider.icon}
+                size={20}
+                color={theme.primary}
+              />
+            </View>
+            <View style={styles.providerContent}>
+              <ThemedText style={[styles.providerName, { color: theme.text }]}>
+                {provider.name}
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.providerDescription,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                {provider.description}
+              </ThemedText>
+            </View>
+            {selectedProvider === provider.id ? (
+              <View
+                style={[styles.checkCircle, { backgroundColor: theme.primary }]}
+              >
+                <AnimatedCheckIcon size={16} color={theme.buttonText} />
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.emptyCircle,
+                  { borderColor: theme.textTertiary },
+                ]}
+              />
+            )}
+          </Pressable>
+        ))}
+      </View>
+
+      {selectedProviderDocsUrl ? (
+        <Pressable
+          onPress={handleOpenSelectedProviderDocs}
+          style={styles.docsLinkRow}
+        >
+          <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+            {t("apiKeyDocs")}: {selectedProviderLabel}
+          </ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function LLMSettingsForm({
+  theme,
+  t,
+  form,
+  updateForm,
+  availableModels,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  form: FormState;
+  updateForm: (next: Partial<FormState>) => void;
+  availableModels: string[];
+}) {
+  const showCustomFields = form.selectedProvider !== "replit";
+
+  return (
+    <>
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("model")}
+        </ThemedText>
+        <Pressable
+          style={[
+            styles.modelPicker,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+            },
+          ]}
+          onPress={() => updateForm({ showModelPicker: true })}
+        >
+          <ThemedText style={[styles.modelPickerText, { color: theme.text }]}>
+            {form.modelName || availableModels[0]}
+          </ThemedText>
+          <AnimatedChevronIcon size={20} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("transcriptionModel")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder={
+            transcriptionModelsByProvider[form.selectedProvider] || "whisper-1"
+          }
+          placeholderTextColor={theme.textTertiary}
+          value={form.transcriptionModel}
+          onChangeText={(val) => updateForm({ transcriptionModel: val })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("customInstructions")}
+        </ThemedText>
+        <ThemedText
+          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        >
+          {t("customInstructionsDesc")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+              minHeight: 120,
+              textAlignVertical: "top",
+            },
+          ]}
+          placeholder={t("customInstructionsPlaceholder")}
+          placeholderTextColor={theme.textTertiary}
+          value={form.userInstructions}
+          onChangeText={(val) => updateForm({ userInstructions: val })}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      {showCustomFields ? (
+        <View style={styles.section}>
+          <ThemedText
+            style={[styles.sectionTitle, { color: theme.textTertiary }]}
+          >
+            {t("providerSettings")}
+          </ThemedText>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              {t("baseUrl")}
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder={
+                form.selectedProvider === "ollama"
+                  ? "http://localhost:11434/v1"
+                  : "https://api.openai.com/v1"
+              }
+              placeholderTextColor={theme.textTertiary}
+              value={form.baseUrl}
+              onChangeText={(val) => updateForm({ baseUrl: val })}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+              {t("apiKey")}
+            </ThemedText>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
+              ]}
+              placeholder="sk-..."
+              placeholderTextColor={theme.textTertiary}
+              value={form.apiKey}
+              onChangeText={(val) => updateForm({ apiKey: val })}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+function ModelPickerModal({
+  theme,
+  t,
+  visible,
+  modelName,
+  availableModels,
+  onSelect,
+  onClose,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  visible: boolean;
+  modelName: string;
+  availableModels: string[];
+  onSelect: (model: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View
+          style={[
+            styles.modalContent,
+            { backgroundColor: theme.backgroundDefault },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <ThemedText type="h4" style={{ color: theme.text }}>
+              {t("model")}
+            </ThemedText>
+            <Pressable onPress={onClose}>
+              <ThemedText style={{ color: theme.primary }}>
+                {t("save")}
+              </ThemedText>
+            </Pressable>
+          </View>
+          <FlatList
+            data={availableModels}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[
+                  styles.modelOption,
+                  { borderBottomColor: theme.border },
+                  modelName === item && {
+                    backgroundColor: theme.primary + "15",
+                  },
+                ]}
+                onPress={() => onSelect(item)}
+              >
+                <ThemedText style={{ color: theme.text }}>{item}</ThemedText>
+                {modelName === item ? (
+                  <AnimatedCheckIcon size={20} color={theme.primary} />
+                ) : null}
+              </Pressable>
+            )}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+export default function LLMProviderScreen() {
+  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
+
+  const { llm, setLLMSettings } = useSettingsStore();
+
+  const [form, updateForm] = useReducer(formReducer, {
+    selectedProvider: llm.provider,
+    baseUrl: llm.baseUrl,
+    apiKey: llm.apiKey,
+    modelName: llm.modelName,
+    transcriptionModel: llm.transcriptionModel || "",
+    userInstructions: llm.userInstructions || "",
+    showModelPicker: false,
+  });
+
+  const handleSave = () => {
+    setLLMSettings({
+      provider: form.selectedProvider,
+      baseUrl: form.baseUrl,
+      apiKey: form.apiKey,
+      modelName: form.modelName,
+      transcriptionModel: form.transcriptionModel,
+      userInstructions: form.userInstructions,
+    });
+    navigation.goBack();
+  };
+
+  const handleProviderSelect = (providerId: LLMProvider) => {
+    updateForm({
+      selectedProvider: providerId,
+      modelName: modelsByProvider[providerId][0] ?? "",
+      transcriptionModel: transcriptionModelsByProvider[providerId],
+    });
+  };
+
+  const availableModels = modelsByProvider[form.selectedProvider];
 
   if (!isUnlocked) {
     return (
@@ -314,315 +677,36 @@ export default function LLMProviderScreen() {
       ]}
       bottomOffset={20}
     >
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
-        >
-          {t("chooseProvider")}
-        </ThemedText>
+      <LLMProviderList
+        theme={theme}
+        t={t}
+        selectedProvider={form.selectedProvider}
+        onProviderSelect={handleProviderSelect}
+      />
 
-        <View
-          style={[
-            styles.hintCard,
-            {
-              backgroundColor: theme.warning + "10",
-              borderColor: theme.warning + "40",
-            },
-          ]}
-        >
-          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
-            ⚠️ {t("secretsWarningTitle")}
-          </ThemedText>
-          <ThemedText
-            style={[
-              styles.hintText,
-              { color: theme.textSecondary, marginTop: Spacing.xs },
-            ]}
-          >
-            {t("secretsWarningBody")}
-          </ThemedText>
-        </View>
-
-        <View
-          style={[
-            styles.hintCard,
-            {
-              backgroundColor: theme.primary + "10",
-              borderColor: theme.primary + "30",
-            },
-          ]}
-        >
-          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
-            💡 {t("llmHint")}
-          </ThemedText>
-        </View>
-
-        <View style={styles.providerList}>
-          {providers.map((provider) => (
-            <Pressable
-              key={provider.id}
-              style={[
-                styles.providerItem,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                },
-                selectedProvider === provider.id && {
-                  borderColor: theme.primary,
-                  backgroundColor: theme.primary + "10",
-                },
-              ]}
-              onPress={() => handleProviderSelect(provider.id)}
-            >
-              <View style={styles.providerIcon}>
-                <ProviderIcon
-                  name={provider.icon}
-                  size={20}
-                  color={theme.primary}
-                />
-              </View>
-              <View style={styles.providerContent}>
-                <ThemedText
-                  style={[styles.providerName, { color: theme.text }]}
-                >
-                  {provider.name}
-                </ThemedText>
-                <ThemedText
-                  style={[
-                    styles.providerDescription,
-                    { color: theme.textSecondary },
-                  ]}
-                >
-                  {provider.description}
-                </ThemedText>
-              </View>
-              {selectedProvider === provider.id ? (
-                <View
-                  style={[
-                    styles.checkCircle,
-                    { backgroundColor: theme.primary },
-                  ]}
-                >
-                  <AnimatedCheckIcon size={16} color={theme.buttonText} />
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.emptyCircle,
-                    { borderColor: theme.textTertiary },
-                  ]}
-                />
-              )}
-            </Pressable>
-          ))}
-        </View>
-
-        {selectedProviderDocsUrl ? (
-          <Pressable
-            onPress={handleOpenSelectedProviderDocs}
-            style={styles.docsLinkRow}
-          >
-            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
-              {t("apiKeyDocs")}: {selectedProviderLabel}
-            </ThemedText>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("model")}
-        </ThemedText>
-        <Pressable
-          style={[
-            styles.modelPicker,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-            },
-          ]}
-          onPress={() => setShowModelPicker(true)}
-        >
-          <ThemedText style={[styles.modelPickerText, { color: theme.text }]}>
-            {modelName || availableModels[0]}
-          </ThemedText>
-          <AnimatedChevronIcon size={20} color={theme.textSecondary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("transcriptionModel")}
-        </ThemedText>
-        <TextInput
-          style={[
-            styles.textInput,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-              color: theme.text,
-            },
-          ]}
-          placeholder={
-            transcriptionModelsByProvider[selectedProvider] || "whisper-1"
-          }
-          placeholderTextColor={theme.textTertiary}
-          value={transcriptionModel}
-          onChangeText={setTranscriptionModel}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("customInstructions")}
-        </ThemedText>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
-        >
-          {t("customInstructionsDesc")}
-        </ThemedText>
-        <TextInput
-          style={[
-            styles.textInput,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-              color: theme.text,
-              minHeight: 120,
-              textAlignVertical: "top",
-            },
-          ]}
-          placeholder={t("customInstructionsPlaceholder")}
-          placeholderTextColor={theme.textTertiary}
-          value={userInstructions}
-          onChangeText={setUserInstructions}
-          multiline
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      {showCustomFields ? (
-        <View style={styles.section}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.textTertiary }]}
-          >
-            {t("providerSettings")}
-          </ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("baseUrl")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder={
-                selectedProvider === "ollama"
-                  ? "http://localhost:11434/v1"
-                  : "https://api.openai.com/v1"
-              }
-              placeholderTextColor={theme.textTertiary}
-              value={baseUrl}
-              onChangeText={setBaseUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("apiKey")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="sk-..."
-              placeholderTextColor={theme.textTertiary}
-              value={apiKey}
-              onChangeText={setApiKey}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
-      ) : null}
+      <LLMSettingsForm
+        theme={theme}
+        t={t}
+        form={form}
+        updateForm={updateForm}
+        availableModels={availableModels}
+      />
 
       <View style={styles.buttonContainer}>
         <Button onPress={handleSave}>{t("saveSettings")}</Button>
       </View>
 
-      <Modal
-        visible={showModelPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowModelPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: theme.backgroundDefault },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <ThemedText type="h4" style={{ color: theme.text }}>
-                {t("model")}
-              </ThemedText>
-              <Pressable onPress={() => setShowModelPicker(false)}>
-                <ThemedText style={{ color: theme.primary }}>
-                  {t("save")}
-                </ThemedText>
-              </Pressable>
-            </View>
-            <FlatList
-              data={availableModels}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[
-                    styles.modelOption,
-                    { borderBottomColor: theme.border },
-                    modelName === item && {
-                      backgroundColor: theme.primary + "15",
-                    },
-                  ]}
-                  onPress={() => {
-                    setModelName(item);
-                    setShowModelPicker(false);
-                  }}
-                >
-                  <ThemedText style={{ color: theme.text }}>{item}</ThemedText>
-                  {modelName === item ? (
-                    <AnimatedCheckIcon size={20} color={theme.primary} />
-                  ) : null}
-                </Pressable>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+      <ModelPickerModal
+        theme={theme}
+        t={t}
+        visible={form.showModelPicker}
+        modelName={form.modelName}
+        availableModels={availableModels}
+        onSelect={(model) =>
+          updateForm({ modelName: model, showModelPicker: false })
+        }
+        onClose={() => updateForm({ showModelPicker: false })}
+      />
     </KeyboardAwareScrollView>
   );
 }

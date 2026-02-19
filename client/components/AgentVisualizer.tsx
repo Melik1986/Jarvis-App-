@@ -113,6 +113,24 @@ function recolorLottie(
   return clone as AnimationObject;
 }
 
+function startPulseAnimation(target: { value: number }, state: AgentState) {
+  const intensity = state === "idle" ? 0.5 : state === "listening" ? 0.9 : 1.1;
+  target.value = withRepeat(
+    withSequence(
+      withTiming(1, {
+        duration: 1200 / intensity,
+        easing: Easing.inOut(Easing.quad),
+      }),
+      withTiming(0, {
+        duration: 1200 / intensity,
+        easing: Easing.inOut(Easing.quad),
+      }),
+    ),
+    -1,
+    true,
+  );
+}
+
 export const AgentVisualizer: React.FC<AgentVisualizerProps> = ({
   state,
   volume = 0,
@@ -138,22 +156,7 @@ export const AgentVisualizer: React.FC<AgentVisualizerProps> = ({
   const pulse = useSharedValue(0);
 
   useEffect(() => {
-    const intensity =
-      state === "idle" ? 0.5 : state === "listening" ? 0.9 : 1.1;
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1, {
-          duration: 1200 / intensity,
-          easing: Easing.inOut(Easing.quad),
-        }),
-        withTiming(0, {
-          duration: 1200 / intensity,
-          easing: Easing.inOut(Easing.quad),
-        }),
-      ),
-      -1,
-      true,
-    );
+    startPulseAnimation(pulse, state);
   }, [pulse, state]);
 
   const animatedStyle = useAnimatedStyle(() => {

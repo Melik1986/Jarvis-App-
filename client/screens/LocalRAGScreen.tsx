@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -21,6 +21,19 @@ import {
 } from "@/lib/local-rag/vector-store";
 import { AppLogger } from "@/lib/logger";
 
+async function performDocumentFetch(
+  setDocuments: (docs: LocalDocumentResult[]) => void,
+  setLoading: (v: boolean) => void,
+) {
+  try {
+    const results = await localVectorStore.search(new Array(1536).fill(0), 100);
+    setDocuments(results);
+  } catch (error) {
+    AppLogger.error("Failed to fetch local documents:", error);
+  }
+  setLoading(false);
+}
+
 export default function LocalRAGScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -29,26 +42,13 @@ export default function LocalRAGScreen() {
   const [loading, setLoading] = useState(true);
   const [indexing, setIndexing] = useState(false);
 
-  const fetchDocuments = async () => {
-    try {
-      setLoading(true);
-      // We don't have a listAll method in vector-store yet, adding one
-      // For now we'll just search with a zero vector to get all
-      const results = await localVectorStore.search(
-        new Array(1536).fill(0),
-        100,
-      );
-      setDocuments(results);
-    } catch (error) {
-      AppLogger.error("Failed to fetch local documents:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchDocuments = useCallback(async () => {
+    await performDocumentFetch(setDocuments, setLoading);
+  }, []);
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
   const handleAddDocument = async () => {
     setIndexing(true);
@@ -60,9 +60,8 @@ export default function LocalRAGScreen() {
     } catch (error) {
       AppLogger.error("Failed to index document:", error);
       Alert.alert("Error", "Failed to index document");
-    } finally {
-      setIndexing(false);
     }
+    setIndexing(false);
   };
 
   const handleDelete = async (id: string) => {

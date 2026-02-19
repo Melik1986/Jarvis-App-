@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useReducer } from "react";
 import {
   StyleSheet,
   View,
@@ -26,6 +26,222 @@ import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
+type FormState = {
+  provider: RagProvider;
+  qdrantUrl: string;
+  qdrantApiKey: string;
+  collectionName: string;
+  supabaseUrl: string;
+  supabaseApiKey: string;
+  supabaseTable: string;
+  replitTable: string;
+  saving: boolean;
+};
+
+function formReducer(prev: FormState, next: Partial<FormState>): FormState {
+  return { ...prev, ...next };
+}
+
+type SectionProps = {
+  form: FormState;
+  updateForm: (next: Partial<FormState>) => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+};
+
+function QdrantSettingsSection({ form, updateForm, theme, t }: SectionProps) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        QDRANT SETTINGS
+      </ThemedText>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          {t("qdrantUrl") || "Qdrant URL"}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="https://your-qdrant-instance.cloud.qdrant.io"
+          placeholderTextColor={theme.textTertiary}
+          value={form.qdrantUrl}
+          onChangeText={(v) => updateForm({ qdrantUrl: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          {t("apiKey")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder={t("optional") || "Optional"}
+          placeholderTextColor={theme.textTertiary}
+          value={form.qdrantApiKey}
+          onChangeText={(v) => updateForm({ qdrantApiKey: v })}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          {t("collectionName") || "Collection Name"}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="kb_axon"
+          placeholderTextColor={theme.textTertiary}
+          value={form.collectionName}
+          onChangeText={(v) => updateForm({ collectionName: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+    </View>
+  );
+}
+
+function SupabaseSettingsSection({ form, updateForm, theme, t }: SectionProps) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        SUPABASE SETTINGS
+      </ThemedText>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          Supabase URL
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="https://your-project.supabase.co"
+          placeholderTextColor={theme.textTertiary}
+          value={form.supabaseUrl}
+          onChangeText={(v) => updateForm({ supabaseUrl: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          {t("apiKey")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="your-anon-key"
+          placeholderTextColor={theme.textTertiary}
+          value={form.supabaseApiKey}
+          onChangeText={(v) => updateForm({ supabaseApiKey: v })}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          Table Name
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="documents"
+          placeholderTextColor={theme.textTertiary}
+          value={form.supabaseTable}
+          onChangeText={(v) => updateForm({ supabaseTable: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+    </View>
+  );
+}
+
+function ReplitSettingsSection({ form, updateForm, theme }: SectionProps) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        REPLIT POSTGRESQL SETTINGS
+      </ThemedText>
+
+      <ThemedText
+        style={[styles.sectionDescription, { color: theme.textSecondary }]}
+      >
+        Uses the built-in PostgreSQL database with pgvector extension for vector
+        storage.
+      </ThemedText>
+
+      <View style={styles.inputGroup}>
+        <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+          Table Name
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder="rag_documents"
+          placeholderTextColor={theme.textTertiary}
+          value={form.replitTable}
+          onChangeText={(v) => updateForm({ replitTable: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+    </View>
+  );
+}
+
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -39,16 +255,17 @@ export default function RAGSettingsScreen() {
 
   // Zero-storage: provider selection lives entirely in the client store.
   // No server round-trip needed — getCurrentProvider() is always "none".
-  const [provider, setProvider] = useState<RagProvider>(rag.provider);
-  const [qdrantUrl, setQdrantUrl] = useState(rag.qdrant.url);
-  const [qdrantApiKey, setQdrantApiKey] = useState(rag.qdrant.apiKey);
-  const [collectionName, setCollectionName] = useState(
-    rag.qdrant.collectionName,
-  );
-  const [supabaseUrl, setSupabaseUrl] = useState(rag.supabase.url);
-  const [supabaseApiKey, setSupabaseApiKey] = useState(rag.supabase.apiKey);
-  const [supabaseTable, setSupabaseTable] = useState(rag.supabase.tableName);
-  const [replitTable, setReplitTable] = useState(rag.replit.tableName);
+  const [form, updateForm] = useReducer(formReducer, {
+    provider: rag.provider,
+    qdrantUrl: rag.qdrant.url,
+    qdrantApiKey: rag.qdrant.apiKey,
+    collectionName: rag.qdrant.collectionName,
+    supabaseUrl: rag.supabase.url,
+    supabaseApiKey: rag.supabase.apiKey,
+    supabaseTable: rag.supabase.tableName,
+    replitTable: rag.replit.tableName,
+    saving: false,
+  });
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
@@ -74,7 +291,6 @@ export default function RAGSettingsScreen() {
   ];
 
   const loading = false; // Data comes from local store, no server fetch needed
-  const [saving, setSaving] = useState(false);
 
   const providerDocsUrlByProvider: Partial<Record<RagProvider, string>> = {
     supabase: "https://supabase.com/docs/guides/api/api-keys",
@@ -84,9 +300,11 @@ export default function RAGSettingsScreen() {
   };
 
   const selectedProviderDocsUrl =
-    provider === null ? undefined : providerDocsUrlByProvider[provider];
+    form.provider === null
+      ? undefined
+      : providerDocsUrlByProvider[form.provider];
   const selectedProviderLabel =
-    providers.find((p) => p.id === provider)?.name ?? provider ?? "";
+    providers.find((p) => p.id === form.provider)?.name ?? form.provider ?? "";
 
   const handleOpenSelectedProviderDocs = async () => {
     if (!selectedProviderDocsUrl) return;
@@ -94,30 +312,30 @@ export default function RAGSettingsScreen() {
   };
 
   const handleSave = () => {
-    if (!provider) return;
+    if (!form.provider) return;
 
-    setSaving(true);
+    updateForm({ saving: true });
     const settings: RagSettings = {
-      provider,
+      provider: form.provider,
       qdrant: {
-        url: qdrantUrl,
-        apiKey: qdrantApiKey,
-        collectionName: collectionName || "kb_axon",
+        url: form.qdrantUrl,
+        apiKey: form.qdrantApiKey,
+        collectionName: form.collectionName || "kb_axon",
       },
       supabase: {
-        url: supabaseUrl,
-        apiKey: supabaseApiKey,
-        tableName: supabaseTable || "documents",
+        url: form.supabaseUrl,
+        apiKey: form.supabaseApiKey,
+        tableName: form.supabaseTable || "documents",
       },
       replit: {
-        tableName: replitTable || "rag_documents",
+        tableName: form.replitTable || "rag_documents",
       },
     };
 
     // Zero-storage: save only to local Zustand store (persisted via SecureStore).
     // Server setProvider() is a noop — no server round-trip needed.
     setRagSettings(settings);
-    setSaving(false);
+    updateForm({ saving: false });
     navigation.goBack();
   };
 
@@ -205,12 +423,12 @@ export default function RAGSettingsScreen() {
                   backgroundColor: theme.backgroundDefault,
                   borderColor: theme.border,
                 },
-                provider === p.id && {
+                form.provider === p.id && {
                   borderColor: theme.primary,
                   backgroundColor: theme.primary + "10",
                 },
               ]}
-              onPress={() => setProvider(p.id)}
+              onPress={() => updateForm({ provider: p.id })}
             >
               <View style={styles.providerContent}>
                 <ThemedText
@@ -227,7 +445,7 @@ export default function RAGSettingsScreen() {
                   {p.description}
                 </ThemedText>
               </View>
-              {provider === p.id ? (
+              {form.provider === p.id ? (
                 <View
                   style={[
                     styles.checkCircle,
@@ -260,202 +478,36 @@ export default function RAGSettingsScreen() {
         ) : null}
       </View>
 
-      {provider === "qdrant" && (
-        <View style={styles.section}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.textTertiary }]}
-          >
-            QDRANT SETTINGS
-          </ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("qdrantUrl") || "Qdrant URL"}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="https://your-qdrant-instance.cloud.qdrant.io"
-              placeholderTextColor={theme.textTertiary}
-              value={qdrantUrl}
-              onChangeText={setQdrantUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("apiKey")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder={t("optional") || "Optional"}
-              placeholderTextColor={theme.textTertiary}
-              value={qdrantApiKey}
-              onChangeText={setQdrantApiKey}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("collectionName") || "Collection Name"}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="kb_axon"
-              placeholderTextColor={theme.textTertiary}
-              value={collectionName}
-              onChangeText={setCollectionName}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
+      {form.provider === "qdrant" && (
+        <QdrantSettingsSection
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+        />
       )}
 
-      {provider === "supabase" && (
-        <View style={styles.section}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.textTertiary }]}
-          >
-            SUPABASE SETTINGS
-          </ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              Supabase URL
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="https://your-project.supabase.co"
-              placeholderTextColor={theme.textTertiary}
-              value={supabaseUrl}
-              onChangeText={setSupabaseUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("apiKey")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="your-anon-key"
-              placeholderTextColor={theme.textTertiary}
-              value={supabaseApiKey}
-              onChangeText={setSupabaseApiKey}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              Table Name
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="documents"
-              placeholderTextColor={theme.textTertiary}
-              value={supabaseTable}
-              onChangeText={setSupabaseTable}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
+      {form.provider === "supabase" && (
+        <SupabaseSettingsSection
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+        />
       )}
 
-      {provider === "replit" && (
-        <View style={styles.section}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.textTertiary }]}
-          >
-            REPLIT POSTGRESQL SETTINGS
-          </ThemedText>
-
-          <ThemedText
-            style={[styles.sectionDescription, { color: theme.textSecondary }]}
-          >
-            Uses the built-in PostgreSQL database with pgvector extension for
-            vector storage.
-          </ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              Table Name
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="rag_documents"
-              placeholderTextColor={theme.textTertiary}
-              value={replitTable}
-              onChangeText={setReplitTable}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        </View>
+      {form.provider === "replit" && (
+        <ReplitSettingsSection
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+        />
       )}
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleSave} disabled={saving}>
-          {saving ? "Saving..." : t("saveSettings")}
+        <Button onPress={handleSave} disabled={form.saving}>
+          {form.saving ? "Saving..." : t("saveSettings")}
         </Button>
       </View>
     </KeyboardAwareScrollView>

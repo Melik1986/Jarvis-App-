@@ -42,6 +42,255 @@ const languageNames: Record<string, string> = {
   zh: "中文",
 };
 
+function ProfileHeader({
+  avatarUri,
+  userName,
+  userEmail,
+  onEditAvatar,
+  theme,
+}: {
+  avatarUri: string | null;
+  userName: string;
+  userEmail: string;
+  onEditAvatar: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
+  return (
+    <View style={styles.profileHeader}>
+      <View style={styles.avatarContainer}>
+        <Image
+          source={
+            avatarUri
+              ? { uri: avatarUri }
+              : require("../../assets/images/avatar-default.png")
+          }
+          style={[styles.avatar, { borderColor: theme.primary }]}
+        />
+        <Pressable
+          style={[
+            styles.editAvatarButton,
+            {
+              backgroundColor: theme.primary,
+              borderColor: theme.backgroundRoot,
+            },
+          ]}
+          onPress={onEditAvatar}
+        >
+          <AnimatedPencilIcon size={14} color={theme.buttonText} />
+        </Pressable>
+      </View>
+      <ThemedText type="h3" style={[styles.userName, { color: theme.text }]}>
+        {userName}
+      </ThemedText>
+      <ThemedText style={[styles.userSubtitle, { color: theme.textSecondary }]}>
+        {userEmail}
+      </ThemedText>
+    </View>
+  );
+}
+
+function AISettingsSection({
+  theme,
+  t,
+  llmProviderLabel,
+  modelName,
+  voice,
+  onNavigate,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  llmProviderLabel: string;
+  modelName: string;
+  voice: string;
+  onNavigate: (screen: keyof RootStackParamList) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        {t("aiSettings")}
+      </ThemedText>
+      <SettingsItem
+        icon="hardware-chip-outline"
+        title={t("llmProvider")}
+        value={llmProviderLabel}
+        onPress={() => onNavigate("LLMProvider")}
+      />
+      <SettingsItem
+        icon="terminal-outline"
+        title={t("model")}
+        value={modelName}
+        onPress={() => onNavigate("LLMProvider")}
+      />
+      <SettingsItem
+        icon="volume-medium-outline"
+        title={t("voice")}
+        value={voice.charAt(0).toUpperCase() + voice.slice(1)}
+        onPress={() => onNavigate("Voice")}
+      />
+    </View>
+  );
+}
+
+function ERPConnectionSection({
+  theme,
+  t,
+  erp,
+  onNavigate,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  erp: { url: string; apiType: string; specUrl: string };
+  onNavigate: (screen: keyof RootStackParamList) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        {t("erpConnection")}
+      </ThemedText>
+      <SettingsItem
+        icon="link-outline"
+        title={t("systemUrl")}
+        subtitle={erp.url || t("notConfigured")}
+        onPress={() => onNavigate("ERPSettings")}
+      />
+      <SettingsItem
+        icon="code-slash-outline"
+        title={t("apiType")}
+        value={erp.apiType.toUpperCase()}
+        onPress={() => onNavigate("ERPSettings")}
+      />
+      <SettingsItem
+        icon="document-text-outline"
+        title={t("apiSpecification")}
+        subtitle={erp.specUrl || t("notConfigured")}
+        onPress={() => onNavigate("ERPSettings")}
+      />
+    </View>
+  );
+}
+
+function AgentPlatformSection({
+  theme,
+  onNavigate,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  onNavigate: (screen: keyof RootStackParamList) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        Agent Platform
+      </ThemedText>
+      <SettingsItem
+        icon="shield-checkmark-outline"
+        title="Agent Rules"
+        subtitle="Validation and constraints"
+        onPress={() => onNavigate("Rulebook")}
+      />
+      <SettingsItem
+        icon="library-outline"
+        title="Local Knowledge"
+        subtitle="Offline document search"
+        onPress={() => onNavigate("LocalRAG")}
+      />
+      <SettingsItem
+        icon="flash-outline"
+        title="Skill Store"
+        subtitle="Custom agent capabilities"
+        onPress={() => onNavigate("SkillStore")}
+      />
+      <SettingsItem
+        icon="server-outline"
+        title="MCP Servers"
+        subtitle="External tool providers"
+        onPress={() => onNavigate("MCPServers")}
+      />
+    </View>
+  );
+}
+
+function PreferencesSection({
+  theme,
+  t,
+  isDark,
+  language,
+  onNavigate,
+  onToggleTheme,
+}: {
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  isDark: boolean;
+  language: string;
+  onNavigate: (screen: keyof RootStackParamList) => void;
+  onToggleTheme: () => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        {t("preferences")}
+      </ThemedText>
+      <SettingsItem
+        icon="globe-outline"
+        title={t("language")}
+        value={languageNames[language] || language}
+        onPress={() => onNavigate("Language")}
+      />
+      <Pressable
+        style={[
+          styles.themeRow,
+          {
+            backgroundColor: theme.backgroundDefault,
+            borderColor: theme.border,
+          },
+        ]}
+        onPress={onToggleTheme}
+      >
+        <View style={styles.themeRowLeft}>
+          {isDark ? (
+            <AnimatedMoonIcon size={22} color={theme.primary} />
+          ) : (
+            <AnimatedSunIcon size={22} color={theme.primary} />
+          )}
+          <ThemedText style={[styles.themeRowTitle, { color: theme.text }]}>
+            {t("theme")}
+          </ThemedText>
+        </View>
+        <View
+          style={[
+            styles.themeToggle,
+            { backgroundColor: theme.backgroundSecondary },
+          ]}
+        >
+          <Pressable
+            style={[
+              styles.themeOption,
+              !isDark && { backgroundColor: theme.primary },
+            ]}
+            onPress={() => !isDark || onToggleTheme()}
+          >
+            <AnimatedSunIcon
+              size={16}
+              color={!isDark ? theme.buttonText : theme.textTertiary}
+            />
+          </Pressable>
+          <Pressable
+            style={[
+              styles.themeOption,
+              isDark && { backgroundColor: theme.primary },
+            ]}
+            onPress={() => isDark || onToggleTheme()}
+          >
+            <AnimatedMoonIcon
+              size={16}
+              color={isDark ? theme.buttonText : theme.textTertiary}
+            />
+          </Pressable>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -212,13 +461,7 @@ export default function ProfileScreen() {
         ];
 
     Alert.alert(t("chooseSource"), "", buttons);
-  }, [
-    handlePickAvatarFromLibrary,
-    restoreProviderAvatar,
-    t,
-    user?.picture,
-    user?.providerPicture,
-  ]);
+  }, [handlePickAvatarFromLibrary, restoreProviderAvatar, t, user]);
 
   const avatarUri = user?.picture || user?.providerPicture || null;
 
@@ -234,90 +477,29 @@ export default function ProfileScreen() {
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <Image
-            source={
-              avatarUri
-                ? { uri: avatarUri }
-                : require("../../assets/images/avatar-default.png")
-            }
-            style={[styles.avatar, { borderColor: theme.primary }]}
-          />
-          <Pressable
-            style={[
-              styles.editAvatarButton,
-              {
-                backgroundColor: theme.primary,
-                borderColor: theme.backgroundRoot,
-              },
-            ]}
-            onPress={handleEditAvatar}
-          >
-            <AnimatedPencilIcon size={14} color={theme.buttonText} />
-          </Pressable>
-        </View>
-        <ThemedText type="h3" style={[styles.userName, { color: theme.text }]}>
-          {user?.name || t("user")}
-        </ThemedText>
-        <ThemedText
-          style={[styles.userSubtitle, { color: theme.textSecondary }]}
-        >
-          {user?.email || t("enterprise")}
-        </ThemedText>
-      </View>
+      <ProfileHeader
+        avatarUri={avatarUri}
+        userName={user?.name || t("user")}
+        userEmail={user?.email || t("enterprise")}
+        onEditAvatar={handleEditAvatar}
+        theme={theme}
+      />
 
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("aiSettings")}
-        </ThemedText>
-        <SettingsItem
-          icon="hardware-chip-outline"
-          title={t("llmProvider")}
-          value={getLLMProviderLabel()}
-          onPress={() => handleNavigate("LLMProvider")}
-        />
-        <SettingsItem
-          icon="terminal-outline"
-          title={t("model")}
-          value={llm.modelName || "gpt-4o"}
-          onPress={() => handleNavigate("LLMProvider")}
-        />
-        <SettingsItem
-          icon="volume-medium-outline"
-          title={t("voice")}
-          value={voice.charAt(0).toUpperCase() + voice.slice(1)}
-          onPress={() => handleNavigate("Voice")}
-        />
-      </View>
+      <AISettingsSection
+        theme={theme}
+        t={t}
+        llmProviderLabel={getLLMProviderLabel()}
+        modelName={llm.modelName || "gpt-4o"}
+        voice={voice}
+        onNavigate={handleNavigate}
+      />
 
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("erpConnection")}
-        </ThemedText>
-        <SettingsItem
-          icon="link-outline"
-          title={t("systemUrl")}
-          subtitle={erp.url || t("notConfigured")}
-          onPress={() => handleNavigate("ERPSettings")}
-        />
-        <SettingsItem
-          icon="code-slash-outline"
-          title={t("apiType")}
-          value={erp.apiType.toUpperCase()}
-          onPress={() => handleNavigate("ERPSettings")}
-        />
-        <SettingsItem
-          icon="document-text-outline"
-          title={t("apiSpecification")}
-          subtitle={erp.specUrl || t("notConfigured")}
-          onPress={() => handleNavigate("ERPSettings")}
-        />
-      </View>
+      <ERPConnectionSection
+        theme={theme}
+        t={t}
+        erp={erp}
+        onNavigate={handleNavigate}
+      />
 
       <View style={styles.section}>
         <ThemedText
@@ -333,37 +515,7 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          Agent Platform
-        </ThemedText>
-        <SettingsItem
-          icon="shield-checkmark-outline"
-          title="Agent Rules"
-          subtitle="Validation and constraints"
-          onPress={() => handleNavigate("Rulebook")}
-        />
-        <SettingsItem
-          icon="library-outline"
-          title="Local Knowledge"
-          subtitle="Offline document search"
-          onPress={() => handleNavigate("LocalRAG")}
-        />
-        <SettingsItem
-          icon="flash-outline"
-          title="Skill Store"
-          subtitle="Custom agent capabilities"
-          onPress={() => handleNavigate("SkillStore")}
-        />
-        <SettingsItem
-          icon="server-outline"
-          title="MCP Servers"
-          subtitle="External tool providers"
-          onPress={() => handleNavigate("MCPServers")}
-        />
-      </View>
+      <AgentPlatformSection theme={theme} onNavigate={handleNavigate} />
 
       <View style={styles.section}>
         <ThemedText
@@ -374,71 +526,14 @@ export default function ProfileScreen() {
         <SpendingTracker />
       </View>
 
-      <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionTitle, { color: theme.textTertiary }]}
-        >
-          {t("preferences")}
-        </ThemedText>
-        <SettingsItem
-          icon="globe-outline"
-          title={t("language")}
-          value={languageNames[language] || language}
-          onPress={() => handleNavigate("Language")}
-        />
-        <Pressable
-          style={[
-            styles.themeRow,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-            },
-          ]}
-          onPress={handleToggleTheme}
-        >
-          <View style={styles.themeRowLeft}>
-            {isDark ? (
-              <AnimatedMoonIcon size={22} color={theme.primary} />
-            ) : (
-              <AnimatedSunIcon size={22} color={theme.primary} />
-            )}
-            <ThemedText style={[styles.themeRowTitle, { color: theme.text }]}>
-              {t("theme")}
-            </ThemedText>
-          </View>
-          <View
-            style={[
-              styles.themeToggle,
-              { backgroundColor: theme.backgroundSecondary },
-            ]}
-          >
-            <Pressable
-              style={[
-                styles.themeOption,
-                !isDark && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => !isDark || handleToggleTheme()}
-            >
-              <AnimatedSunIcon
-                size={16}
-                color={!isDark ? theme.buttonText : theme.textTertiary}
-              />
-            </Pressable>
-            <Pressable
-              style={[
-                styles.themeOption,
-                isDark && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => isDark || handleToggleTheme()}
-            >
-              <AnimatedMoonIcon
-                size={16}
-                color={isDark ? theme.buttonText : theme.textTertiary}
-              />
-            </Pressable>
-          </View>
-        </Pressable>
-      </View>
+      <PreferencesSection
+        theme={theme}
+        t={t}
+        isDark={isDark}
+        language={language}
+        onNavigate={handleNavigate}
+        onToggleTheme={handleToggleTheme}
+      />
 
       <View style={styles.section}>
         <ThemedText

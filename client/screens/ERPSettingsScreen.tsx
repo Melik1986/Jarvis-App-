@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useReducer } from "react";
 import {
   StyleSheet,
   View,
@@ -29,6 +29,297 @@ import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 
 type APIType = "odata" | "rest" | "graphql";
 
+type FormState = {
+  provider: ERPProvider;
+  erpUrl: string;
+  erpDb: string;
+  erpUsername: string;
+  erpPassword: string;
+  erpApiKey: string;
+  specUrl: string;
+  apiType: APIType;
+  isTesting: boolean;
+  testResult: {
+    success: boolean;
+    steps?: { name: string; ok: boolean; error?: string }[];
+  } | null;
+};
+
+function formReducer(prev: FormState, next: Partial<FormState>): FormState {
+  return { ...prev, ...next };
+}
+
+type SharedFormProps = {
+  form: FormState;
+  updateForm: (next: Partial<FormState>) => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+};
+
+function ERPProviderSelector({
+  form,
+  updateForm,
+  theme,
+  t,
+  providers,
+}: SharedFormProps & { providers: { id: ERPProvider; label: string }[] }) {
+  const isDemo = form.provider === "demo";
+  const isOdoo = form.provider === "odoo";
+  const isSap = form.provider === "sap";
+  const isCustom = form.provider === "custom";
+
+  return (
+    <View style={styles.inputGroup}>
+      <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+        {t("mode")}
+      </ThemedText>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.providerRow}
+      >
+        {providers.map((p) => {
+          const selected = p.id === form.provider;
+          return (
+            <Pressable
+              key={p.id}
+              style={[
+                styles.providerChip,
+                {
+                  backgroundColor: selected
+                    ? theme.primary
+                    : theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => updateForm({ provider: p.id })}
+            >
+              <ThemedText style={{ color: selected ? "#fff" : theme.text }}>
+                {p.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+        {isDemo
+          ? t("erpModeHintDemo")
+          : isOdoo
+            ? "Odoo: требуется DB + Username + API Key (JSON-RPC)"
+            : isSap
+              ? "SAP: placeholder (скоро)"
+              : isCustom
+                ? "Custom: используйте OpenAPI Spec URL"
+                : t("erpModeHint1c")}
+      </ThemedText>
+    </View>
+  );
+}
+
+function ERPCredentialsForm({ form, updateForm, theme, t }: SharedFormProps) {
+  const isDemo = form.provider === "demo";
+  const isOdoo = form.provider === "odoo";
+  const isSap = form.provider === "sap";
+  const isCustom = form.provider === "custom";
+
+  return (
+    <>
+      {!isDemo && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("systemUrl")}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder="https://your-erp.com"
+            placeholderTextColor={theme.textTertiary}
+            value={form.erpUrl}
+            onChangeText={(v) => updateForm({ erpUrl: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      )}
+
+      {isOdoo && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            Database Name
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder="my_odoo_db"
+            placeholderTextColor={theme.textTertiary}
+            value={form.erpDb}
+            onChangeText={(v) => updateForm({ erpDb: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      )}
+
+      {!isDemo && !isCustom && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("username")}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder={isOdoo ? "admin" : "Администратор"}
+            placeholderTextColor={theme.textTertiary}
+            value={form.erpUsername}
+            onChangeText={(v) => updateForm({ erpUsername: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      )}
+
+      {!isDemo && !isOdoo && !isCustom && !isSap && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("password")}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder="••••••••"
+            placeholderTextColor={theme.textTertiary}
+            value={form.erpPassword}
+            onChangeText={(v) => updateForm({ erpPassword: v })}
+            secureTextEntry
+          />
+        </View>
+      )}
+
+      {isOdoo && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("apiKey")}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder="API Key (instead of password)"
+            placeholderTextColor={theme.textTertiary}
+            value={form.erpApiKey}
+            onChangeText={(v) => updateForm({ erpApiKey: v })}
+            secureTextEntry
+          />
+          <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+            Use API Key generated in Odoo preferences
+          </ThemedText>
+        </View>
+      )}
+
+      {isCustom && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("openApiSpecUrl")}
+          </ThemedText>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                borderColor: theme.border,
+                color: theme.text,
+              },
+            ]}
+            placeholder="https://your-erp.com/swagger.json"
+            placeholderTextColor={theme.textTertiary}
+            value={form.specUrl}
+            onChangeText={(v) => updateForm({ specUrl: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      )}
+    </>
+  );
+}
+
+function TestConnectionResult({
+  form,
+  theme,
+  t,
+  onTestConnection,
+}: SharedFormProps & { onTestConnection: () => void }) {
+  const isDemo = form.provider === "demo";
+
+  return (
+    <>
+      {!isDemo && (
+        <View style={styles.testRow}>
+          <Button onPress={onTestConnection} disabled={form.isTesting}>
+            {t("testConnection")}
+          </Button>
+          {form.testResult ? (
+            <ThemedText
+              style={[
+                styles.testStatus,
+                {
+                  color: form.testResult.success ? theme.success : theme.error,
+                },
+              ]}
+            >
+              {form.testResult.success
+                ? t("connectionSuccess")
+                : t("connectionFailed")}
+            </ThemedText>
+          ) : null}
+        </View>
+      )}
+      {form.testResult?.steps?.length ? (
+        <View style={styles.testDetails}>
+          {form.testResult.steps.map((s) => (
+            <ThemedText
+              key={s.name}
+              style={[styles.hint, { color: theme.textSecondary }]}
+            >
+              {s.ok ? "✓" : "✗"} {s.name}
+              {s.error ? `: ${s.error}` : ""}
+            </ThemedText>
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
+}
+
 export default function ERPSettingsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -40,19 +331,18 @@ export default function ERPSettingsScreen() {
 
   const { erp, setERPSettings } = useSettingsStore();
 
-  const [provider, setProvider] = useState<ERPProvider>(erp.provider);
-  const [erpUrl, setErpUrl] = useState(erp.url);
-  const [erpDb, setErpDb] = useState(erp.db || "");
-  const [erpUsername, setErpUsername] = useState(erp.username);
-  const [erpPassword, setErpPassword] = useState(erp.password);
-  const [erpApiKey, setErpApiKey] = useState(erp.apiKey);
-  const [specUrl, setSpecUrl] = useState(erp.specUrl);
-  const [apiType, setApiType] = useState<APIType>(erp.apiType as APIType);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    success: boolean;
-    steps?: { name: string; ok: boolean; error?: string }[];
-  } | null>(null);
+  const [form, updateForm] = useReducer(formReducer, {
+    provider: erp.provider,
+    erpUrl: erp.url,
+    erpDb: erp.db || "",
+    erpUsername: erp.username,
+    erpPassword: erp.password,
+    erpApiKey: erp.apiKey,
+    specUrl: erp.specUrl,
+    apiType: erp.apiType as APIType,
+    isTesting: false,
+    testResult: null,
+  });
 
   const apiTypes: {
     id: APIType;
@@ -66,76 +356,75 @@ export default function ERPSettingsScreen() {
 
   const handleSave = () => {
     setERPSettings({
-      provider,
-      url: erpUrl,
-      db: erpDb,
-      username: erpUsername,
-      password: erpPassword,
-      apiKey: erpApiKey,
-      specUrl,
-      apiType,
+      provider: form.provider,
+      url: form.erpUrl,
+      db: form.erpDb,
+      username: form.erpUsername,
+      password: form.erpPassword,
+      apiKey: form.erpApiKey,
+      specUrl: form.specUrl,
+      apiType: form.apiType,
     });
     navigation.goBack();
   };
 
   const handleTestConnection = async () => {
-    setIsTesting(true);
-    setTestResult(null);
+    updateForm({ isTesting: true, testResult: null });
+    const credentials = {
+      erpProvider: form.provider,
+      erpBaseUrl: form.erpUrl,
+      erpApiType: form.apiType,
+      erpDb: form.erpDb || undefined,
+      erpUsername: form.erpUsername || undefined,
+      erpPassword: form.erpPassword || undefined,
+      erpApiKey: form.erpApiKey || undefined,
+    } as EphemeralCredentials;
     try {
       const res = await secureApiRequest(
         "POST",
         "erp/test",
         {
           erpSettings: {
-            provider,
-            baseUrl: erpUrl,
-            db: erpDb,
-            username: erpUsername,
-            apiType,
-            openApiSpecUrl: specUrl,
+            provider: form.provider,
+            baseUrl: form.erpUrl,
+            db: form.erpDb,
+            username: form.erpUsername,
+            apiType: form.apiType,
+            openApiSpecUrl: form.specUrl,
           },
         },
-        {
-          erpProvider: provider,
-          erpBaseUrl: erpUrl,
-          erpApiType: apiType,
-          erpDb: erpDb || undefined,
-          erpUsername: erpUsername || undefined,
-          erpPassword: erpPassword || undefined,
-          erpApiKey: erpApiKey || undefined,
-        } as EphemeralCredentials,
+        credentials,
       );
       const json = (await res.json()) as {
         success: boolean;
         steps?: { name: string; ok: boolean; error?: string }[];
       };
-      setTestResult(json);
+      updateForm({ testResult: json });
     } catch (e) {
-      setTestResult({
-        success: false,
-        steps: [{ name: "request", ok: false, error: String(e) }],
+      updateForm({
+        testResult: {
+          success: false,
+          steps: [{ name: "request", ok: false, error: String(e) }],
+        },
       });
-    } finally {
-      setIsTesting(false);
     }
+    updateForm({ isTesting: false });
   };
 
   const providerDocsUrlByProvider: Partial<Record<ERPProvider, string>> = {
     "1c": "https://kb.1ci.com/1C_Enterprise_Platform/FAQ/Development/Integration/Publishing_standard_REST_API_for_your_infobase/",
   };
 
-  const selectedProviderDocsUrl = providerDocsUrlByProvider[provider];
-  const selectedProviderLabel = provider === "1c" ? "1C" : provider;
+  const selectedProviderDocsUrl = providerDocsUrlByProvider[form.provider];
+  const selectedProviderLabel = form.provider === "1c" ? "1C" : form.provider;
 
   const handleOpenSelectedProviderDocs = async () => {
     if (!selectedProviderDocsUrl) return;
     await Linking.openURL(selectedProviderDocsUrl);
   };
 
-  const isDemo = provider === "demo";
-  const isOdoo = provider === "odoo";
-  const isSap = provider === "sap";
-  const isCustom = provider === "custom";
+  const isCustom = form.provider === "custom";
+  const isSap = form.provider === "sap";
   const showDemo = __DEV__;
 
   const providers: { id: ERPProvider; label: string }[] = [
@@ -231,195 +520,20 @@ export default function ERPSettingsScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.inputGroup}>
-          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-            {t("mode")}
-          </ThemedText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.providerRow}
-          >
-            {providers.map((p) => {
-              const selected = p.id === provider;
-              return (
-                <Pressable
-                  key={p.id}
-                  style={[
-                    styles.providerChip,
-                    {
-                      backgroundColor: selected
-                        ? theme.primary
-                        : theme.backgroundDefault,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                  onPress={() => setProvider(p.id)}
-                >
-                  <ThemedText style={{ color: selected ? "#fff" : theme.text }}>
-                    {p.label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
-            {isDemo
-              ? t("erpModeHintDemo")
-              : isOdoo
-                ? "Odoo: требуется DB + Username + API Key (JSON-RPC)"
-                : isSap
-                  ? "SAP: placeholder (скоро)"
-                  : isCustom
-                    ? "Custom: используйте OpenAPI Spec URL"
-                    : t("erpModeHint1c")}
-          </ThemedText>
-        </View>
+        <ERPProviderSelector
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+          providers={providers}
+        />
 
-        {!isDemo && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("systemUrl")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="https://your-erp.com"
-              placeholderTextColor={theme.textTertiary}
-              value={erpUrl}
-              onChangeText={setErpUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        )}
-
-        {isOdoo && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              Database Name
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="my_odoo_db"
-              placeholderTextColor={theme.textTertiary}
-              value={erpDb}
-              onChangeText={setErpDb}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        )}
-
-        {!isDemo && !isCustom && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("username")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder={isOdoo ? "admin" : "Администратор"}
-              placeholderTextColor={theme.textTertiary}
-              value={erpUsername}
-              onChangeText={setErpUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        )}
-
-        {!isDemo && !isOdoo && !isCustom && !isSap && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("password")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="••••••••"
-              placeholderTextColor={theme.textTertiary}
-              value={erpPassword}
-              onChangeText={setErpPassword}
-              secureTextEntry
-            />
-          </View>
-        )}
-
-        {isOdoo && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("apiKey")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="API Key (instead of password)"
-              placeholderTextColor={theme.textTertiary}
-              value={erpApiKey}
-              onChangeText={setErpApiKey}
-              secureTextEntry
-            />
-            <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
-              Use API Key generated in Odoo preferences
-            </ThemedText>
-          </View>
-        )}
-
-        {isCustom && (
-          <View style={styles.inputGroup}>
-            <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
-              {t("openApiSpecUrl")}
-            </ThemedText>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  borderColor: theme.border,
-                  color: theme.text,
-                },
-              ]}
-              placeholder="https://your-erp.com/swagger.json"
-              placeholderTextColor={theme.textTertiary}
-              value={specUrl}
-              onChangeText={setSpecUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        )}
+        <ERPCredentialsForm
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+        />
       </View>
 
       {(isCustom || isSap) && (
@@ -440,12 +554,12 @@ export default function ERPSettingsScreen() {
                     backgroundColor: theme.backgroundDefault,
                     borderColor: theme.border,
                   },
-                  apiType === type.id && {
+                  form.apiType === type.id && {
                     borderColor: theme.primary,
                     backgroundColor: theme.primary + "10",
                   },
                 ]}
-                onPress={() => setApiType(type.id)}
+                onPress={() => updateForm({ apiType: type.id })}
               >
                 <View style={styles.typeContent}>
                   <ThemedText style={[styles.typeName, { color: theme.text }]}>
@@ -460,7 +574,7 @@ export default function ERPSettingsScreen() {
                     {t(type.descriptionKey)}
                   </ThemedText>
                 </View>
-                {apiType === type.id ? (
+                {form.apiType === type.id ? (
                   <View
                     style={[
                       styles.checkCircle,
@@ -484,38 +598,13 @@ export default function ERPSettingsScreen() {
       )}
 
       <View style={styles.buttonContainer}>
-        {!isDemo && (
-          <View style={styles.testRow}>
-            <Button onPress={handleTestConnection} disabled={isTesting}>
-              {t("testConnection")}
-            </Button>
-            {testResult ? (
-              <ThemedText
-                style={[
-                  styles.testStatus,
-                  { color: testResult.success ? theme.success : theme.error },
-                ]}
-              >
-                {testResult.success
-                  ? t("connectionSuccess")
-                  : t("connectionFailed")}
-              </ThemedText>
-            ) : null}
-          </View>
-        )}
-        {testResult?.steps?.length ? (
-          <View style={styles.testDetails}>
-            {testResult.steps.map((s) => (
-              <ThemedText
-                key={s.name}
-                style={[styles.hint, { color: theme.textSecondary }]}
-              >
-                {s.ok ? "✓" : "✗"} {s.name}
-                {s.error ? `: ${s.error}` : ""}
-              </ThemedText>
-            ))}
-          </View>
-        ) : null}
+        <TestConnectionResult
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+          onTestConnection={handleTestConnection}
+        />
         <Button onPress={handleSave}>{t("saveSettings")}</Button>
       </View>
     </KeyboardAwareScrollView>

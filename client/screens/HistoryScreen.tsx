@@ -6,7 +6,7 @@ import {
   Pressable,
   Platform,
   TextInput,
-  Animated as RNAnimated,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -39,6 +39,172 @@ type HistoryNavProp = CompositeNavigationProp<
 interface Section {
   title: string;
   data: LocalConversation[];
+}
+
+type AppTheme = ReturnType<typeof useTheme>["theme"];
+type TranslationFn = ReturnType<typeof useTranslation>["t"];
+
+function SearchBar({
+  value,
+  onChangeText,
+  theme,
+  t,
+  style,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  theme: AppTheme;
+  t: TranslationFn;
+  style?: ViewStyle;
+}) {
+  return (
+    <View style={[styles.searchContainer, style]}>
+      <View
+        style={[
+          styles.searchBar,
+          {
+            backgroundColor: theme.backgroundDefault,
+            borderColor: theme.border,
+          },
+        ]}
+      >
+        <Ionicons
+          name="search"
+          size={18}
+          color={theme.textTertiary}
+          style={{ marginRight: Spacing.sm }}
+        />
+        <TextInput
+          style={[styles.searchInput, { color: theme.text }]}
+          placeholder={t("searchConversations") || "Search conversations..."}
+          placeholderTextColor={theme.textTertiary}
+          value={value}
+          onChangeText={onChangeText}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {value.length > 0 && (
+          <Pressable onPress={() => onChangeText("")}>
+            <Ionicons
+              name="close-circle"
+              size={18}
+              color={theme.textTertiary}
+            />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function EmptyHistoryState({
+  theme,
+  t,
+}: {
+  theme: AppTheme;
+  t: TranslationFn;
+}) {
+  return (
+    <View style={styles.emptyContainer}>
+      <Ionicons
+        name="time-outline"
+        size={120}
+        color={theme.textTertiary}
+        style={{ marginBottom: Spacing.lg, opacity: 0.5 }}
+      />
+      <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
+        {t("noActivityYet") || "No activity yet"}
+      </ThemedText>
+      <ThemedText style={{ color: theme.textSecondary }}>
+        {t("historyAppearHere") || "Your conversations will appear here"}
+      </ThemedText>
+    </View>
+  );
+}
+
+function HistoryItem({
+  item,
+  theme,
+  onPress,
+  onDelete,
+  formatDate,
+}: {
+  item: LocalConversation;
+  theme: AppTheme;
+  onPress: (item: LocalConversation) => void;
+  onDelete: (id: string) => void;
+  formatDate: (ts: number | string) => string;
+}) {
+  const swipeableRef = useRef<Swipeable | null>(null);
+  const isFork = !!item.forkedFrom;
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={() => (
+        <Pressable
+          style={[styles.swipeDelete, { backgroundColor: theme.error }]}
+          onPress={() => {
+            swipeableRef.current?.close();
+            onDelete(item.id);
+          }}
+        >
+          <Ionicons name="trash-outline" size={22} color="#fff" />
+        </Pressable>
+      )}
+      rightThreshold={80}
+      overshootRight={false}
+    >
+      <Pressable
+        style={[
+          styles.historyItem,
+          {
+            backgroundColor: theme.backgroundDefault,
+            borderColor: theme.border,
+          },
+        ]}
+        onPress={() => onPress(item)}
+      >
+        <View style={styles.itemIcon}>
+          <Ionicons
+            name={isFork ? "git-branch-outline" : "chatbubble-ellipses-outline"}
+            size={22}
+            color={isFork ? theme.warning : theme.primary}
+          />
+        </View>
+        <View style={styles.itemContent}>
+          <View style={styles.titleRow}>
+            <ThemedText
+              style={[styles.itemTitle, { color: theme.text }]}
+              numberOfLines={1}
+            >
+              {item.title}
+            </ThemedText>
+            {isFork && (
+              <View
+                style={[
+                  styles.forkBadge,
+                  { backgroundColor: theme.warning + "20" },
+                ]}
+              >
+                <ThemedText
+                  style={[styles.forkBadgeText, { color: theme.warning }]}
+                >
+                  Fork
+                </ThemedText>
+              </View>
+            )}
+          </View>
+          <ThemedText
+            style={[styles.itemTimestamp, { color: theme.textTertiary }]}
+          >
+            {formatDate(item.createdAt)}
+          </ThemedText>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
+      </Pressable>
+    </Swipeable>
+  );
 }
 
 /** Group conversations into date-based sections */
@@ -93,8 +259,6 @@ export default function HistoryScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
-
   const loadConversations = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -102,12 +266,10 @@ export default function HistoryScreen() {
       setConversations(data);
     } catch (error) {
       AppLogger.error("Failed to load conversations:", error);
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   }, []);
 
-  // Reload when screen gains focus
   useFocusEffect(
     useCallback(() => {
       void loadConversations();
@@ -179,101 +341,6 @@ export default function HistoryScreen() {
     [t],
   );
 
-  const renderRightActions = useCallback(
-    (
-      _progress: RNAnimated.AnimatedInterpolation<number>,
-      _dragX: RNAnimated.AnimatedInterpolation<number>,
-      item: LocalConversation,
-    ) => (
-      <Pressable
-        style={[styles.swipeDelete, { backgroundColor: theme.error }]}
-        onPress={() => {
-          swipeableRefs.current.get(item.id)?.close();
-          deleteConversation(item.id);
-        }}
-      >
-        <Ionicons name="trash-outline" size={22} color="#fff" />
-      </Pressable>
-    ),
-    [theme.error, deleteConversation],
-  );
-
-  const renderItem = useCallback(
-    ({ item }: { item: LocalConversation }) => {
-      const isFork = !!item.forkedFrom;
-
-      return (
-        <Swipeable
-          ref={(ref) => {
-            if (ref) swipeableRefs.current.set(item.id, ref);
-            else swipeableRefs.current.delete(item.id);
-          }}
-          renderRightActions={(progress, dragX) =>
-            renderRightActions(progress, dragX, item)
-          }
-          rightThreshold={80}
-          overshootRight={false}
-        >
-          <Pressable
-            style={[
-              styles.historyItem,
-              {
-                backgroundColor: theme.backgroundDefault,
-                borderColor: theme.border,
-              },
-            ]}
-            onPress={() => handleItemPress(item)}
-          >
-            <View style={styles.itemIcon}>
-              <Ionicons
-                name={
-                  isFork ? "git-branch-outline" : "chatbubble-ellipses-outline"
-                }
-                size={22}
-                color={isFork ? theme.warning : theme.primary}
-              />
-            </View>
-            <View style={styles.itemContent}>
-              <View style={styles.titleRow}>
-                <ThemedText
-                  style={[styles.itemTitle, { color: theme.text }]}
-                  numberOfLines={1}
-                >
-                  {item.title}
-                </ThemedText>
-                {isFork && (
-                  <View
-                    style={[
-                      styles.forkBadge,
-                      { backgroundColor: theme.warning + "20" },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[styles.forkBadgeText, { color: theme.warning }]}
-                    >
-                      Fork
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-              <ThemedText
-                style={[styles.itemTimestamp, { color: theme.textTertiary }]}
-              >
-                {formatDate(item.createdAt)}
-              </ThemedText>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.textTertiary}
-            />
-          </Pressable>
-        </Swipeable>
-      );
-    },
-    [theme, handleItemPress, formatDate, renderRightActions],
-  );
-
   const renderSectionHeader = useCallback(
     ({ section }: { section: Section }) => (
       <View style={styles.sectionHeader}>
@@ -287,67 +354,15 @@ export default function HistoryScreen() {
     [theme.textSecondary],
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons
-        name="time-outline"
-        size={120}
-        color={theme.textTertiary}
-        style={{ marginBottom: Spacing.lg, opacity: 0.5 }}
-      />
-      <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
-        {t("noActivityYet") || "No activity yet"}
-      </ThemedText>
-      <ThemedText style={{ color: theme.textSecondary }}>
-        {t("historyAppearHere") || "Your conversations will appear here"}
-      </ThemedText>
-    </View>
-  );
-
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
-      {/* Search bar */}
-      <View
-        style={[
-          styles.searchContainer,
-          { marginTop: headerHeight + Spacing.sm },
-        ]}
-      >
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={18}
-            color={theme.textTertiary}
-            style={{ marginRight: Spacing.sm }}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: theme.text }]}
-            placeholder={t("searchConversations") || "Search conversations..."}
-            placeholderTextColor={theme.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery("")}>
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={theme.textTertiary}
-              />
-            </Pressable>
-          )}
-        </View>
-      </View>
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        theme={theme}
+        t={t}
+        style={{ marginTop: headerHeight + Spacing.sm }}
+      />
 
       <SectionList
         style={styles.list}
@@ -357,10 +372,18 @@ export default function HistoryScreen() {
           sections.length === 0 && styles.emptyListContent,
         ]}
         sections={sections}
-        renderItem={renderItem}
+        renderItem={({ item }) => (
+          <HistoryItem
+            item={item}
+            theme={theme}
+            onPress={handleItemPress}
+            onDelete={deleteConversation}
+            formatDate={formatDate}
+          />
+        )}
         renderSectionHeader={renderSectionHeader}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={<EmptyHistoryState theme={theme} t={t} />}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         stickySectionHeadersEnabled={false}
@@ -368,7 +391,6 @@ export default function HistoryScreen() {
         onRefresh={loadConversations}
       />
 
-      {/* New Chat FAB */}
       <Pressable
         style={[
           styles.fab,

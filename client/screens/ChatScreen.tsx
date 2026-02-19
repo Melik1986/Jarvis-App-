@@ -46,7 +46,71 @@ import { localStore } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
 import { CHAT_CONFIG } from "@/config/chat.config";
 
+async function performSummaryGeneration(
+  convId: string,
+  llmSettings: {
+    provider: string;
+    baseUrl: string;
+    modelName: string;
+    apiKey: string;
+  },
+) {
+  const allMsgs = await localStore.getMessages(convId);
+  if (allMsgs.length <= CHAT_CONFIG.RECENT_KEEP) return;
+
+  const olderMsgs = allMsgs.slice(0, -CHAT_CONFIG.RECENT_KEEP);
+  const existingSummary = await localStore.getConversationSummary(convId);
+
+  const textToSummarize = olderMsgs
+    .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
+    .join("\n");
+
+  let prompt: string;
+  if (existingSummary) {
+    prompt = `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`;
+  } else {
+    prompt = `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
+  }
+
+  const resp = await secureApiRequest(
+    "POST",
+    "chat",
+    {
+      content: prompt,
+      history: [],
+      llmSettings: {
+        provider: llmSettings.provider,
+        baseUrl: llmSettings.baseUrl,
+        modelName: llmSettings.modelName,
+      },
+    },
+    {
+      llmKey: llmSettings.apiKey,
+      llmProvider: llmSettings.provider,
+      llmBaseUrl: llmSettings.baseUrl,
+    } as EphemeralCredentials,
+  );
+
+  if (!resp.ok) return;
+  const respText = await resp.text();
+  let summaryText = "";
+  for (const line of respText.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    try {
+      const d = JSON.parse(line.slice(6));
+      if (d.content) summaryText += d.content;
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (summaryText.trim()) {
+    await localStore.updateConversationSummary(convId, summaryText.trim());
+  }
+}
+
 export default function ChatScreen() {
+  "use no memo";
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
@@ -69,14 +133,7 @@ export default function ChatScreen() {
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(false);
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
-  const { isRecording, startRecording, stopRecording, transcription } =
-    useVoice();
-
-  useEffect(() => {
-    if (transcription) {
-      setInputText(transcription);
-    }
-  }, [transcription]);
+  const { isRecording, startRecording, stopRecording } = useVoice();
 
   const {
     messages,
@@ -95,36 +152,31 @@ export default function ChatScreen() {
   const route = useRoute<RouteProp<ChatStackParamList, "Chat">>();
   const incomingConvId = route.params?.conversationId;
 
-  // Load existing conversation without auto-creating empty chats.
-  useEffect(() => {
-    const init = async () => {
-      try {
-        if (incomingConvId) {
-          setCurrentConversation(incomingConvId);
-          await loadMessages(incomingConvId);
-          return;
-        }
-
-        if (currentConversationId) {
-          await loadMessages(currentConversationId);
-          return;
-        }
-
-        const existing = await localStore.listConversations();
-        const latestConversationId = existing[0]?.id;
-
-        if (latestConversationId) {
-          setCurrentConversation(latestConversationId);
-          await loadMessages(latestConversationId);
-          return;
-        }
-
-        setMessages([]);
-      } catch (error) {
-        AppLogger.error("Failed to init conversation:", error);
+  const initConversation = useCallback(async () => {
+    try {
+      if (incomingConvId) {
+        setCurrentConversation(incomingConvId);
+        await loadMessages(incomingConvId);
+        return;
       }
-    };
-    void init();
+
+      if (currentConversationId) {
+        await loadMessages(currentConversationId);
+        return;
+      }
+
+      const existing = await localStore.listConversations();
+      const firstConv = existing[0];
+      if (firstConv) {
+        setCurrentConversation(firstConv.id);
+        await loadMessages(firstConv.id);
+        return;
+      }
+
+      setMessages([]);
+    } catch (error) {
+      AppLogger.error("Failed to init conversation:", error);
+    }
   }, [
     incomingConvId,
     currentConversationId,
@@ -133,62 +185,14 @@ export default function ChatScreen() {
     setMessages,
   ]);
 
-  /** Generate a compressed summary of older messages via LLM */
+  useEffect(() => {
+    void initConversation();
+  }, [initConversation]);
+
   const generateSummary = useCallback(
     async (convId: string) => {
       try {
-        const allMsgs = await localStore.getMessages(convId);
-        if (allMsgs.length <= CHAT_CONFIG.RECENT_KEEP) return;
-
-        const olderMsgs = allMsgs.slice(0, -CHAT_CONFIG.RECENT_KEEP);
-        const existingSummary = await localStore.getConversationSummary(convId);
-
-        const textToSummarize = olderMsgs
-          .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
-          .join("\n");
-
-        const prompt = existingSummary
-          ? `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`
-          : `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
-
-        const resp = await secureApiRequest(
-          "POST",
-          "chat",
-          {
-            content: prompt,
-            history: [],
-            llmSettings: {
-              provider: llmSettings.provider,
-              baseUrl: llmSettings.baseUrl,
-              modelName: llmSettings.modelName,
-            },
-          },
-          {
-            llmKey: llmSettings.apiKey,
-            llmProvider: llmSettings.provider,
-            llmBaseUrl: llmSettings.baseUrl,
-          } as EphemeralCredentials,
-        );
-
-        if (!resp.ok) return;
-        const respText = await resp.text();
-        let summaryText = "";
-        for (const line of respText.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const d = JSON.parse(line.slice(6));
-            if (d.content) summaryText += d.content;
-          } catch {
-            /* skip */
-          }
-        }
-
-        if (summaryText.trim()) {
-          await localStore.updateConversationSummary(
-            convId,
-            summaryText.trim(),
-          );
-        }
+        await performSummaryGeneration(convId, llmSettings);
       } catch (e) {
         AppLogger.error("Summary generation failed", e);
       }
@@ -231,6 +235,10 @@ export default function ChatScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
+      const userInstructions = llmSettings.userInstructions || undefined;
+      const erpPassword = erpSettings.password || undefined;
+      const erpApiKey = erpSettings.apiKey || undefined;
+
       try {
         // Read context from local SQLite for zero-storage payload
         const convId = conversationId;
@@ -250,7 +258,7 @@ export default function ChatScreen() {
             content: userMessage.content,
             attachments: userMessage.attachments,
             history,
-            userInstructions: llmSettings.userInstructions || undefined,
+            userInstructions,
             rules: activeRules.map((r) => ({
               id: r.id,
               name: r.name,
@@ -292,7 +300,7 @@ export default function ChatScreen() {
               args: server.args,
               env: server.env,
             })),
-            conversationSummary: convSummary ?? undefined,
+            conversationSummary: convSummary,
             memoryFacts: memoryFacts.map((f) => ({
               key: f.key,
               value: f.value,
@@ -307,8 +315,8 @@ export default function ChatScreen() {
             erpApiType: erpSettings.apiType,
             erpDb: erpSettings.db,
             erpUsername: erpSettings.username,
-            erpPassword: erpSettings.password || undefined,
-            erpApiKey: erpSettings.apiKey || undefined,
+            erpPassword: erpPassword,
+            erpApiKey: erpApiKey,
           } as EphemeralCredentials,
         );
 
@@ -317,9 +325,11 @@ export default function ChatScreen() {
           let errorMsg = t("sendFailed");
           try {
             const parsed = JSON.parse(errorBody);
-            errorMsg = parsed.details
-              ? `${parsed.message}: ${parsed.details}`
-              : parsed.message || errorMsg;
+            if (parsed.details) {
+              errorMsg = `${parsed.message}: ${parsed.details}`;
+            } else if (parsed.message) {
+              errorMsg = parsed.message;
+            }
           } catch {
             /* non-JSON error */
           }
@@ -345,14 +355,19 @@ export default function ChatScreen() {
               break;
             }
 
-            if (data.type === "usage" && data.usage) {
-              const totalTokens = Number(data.usage.totalTokens ?? 0);
-              if (totalTokens > 0) {
-                incrementUsage(totalTokens);
+            if (data.type === "usage") {
+              if (data.usage) {
+                let totalTokens = 0;
+                if (data.usage.totalTokens != null) {
+                  totalTokens = Number(data.usage.totalTokens);
+                }
+                if (totalTokens > 0) {
+                  incrementUsage(totalTokens);
+                }
+                incrementRequests();
+                usageCounted = true;
+                continue;
               }
-              incrementRequests();
-              usageCounted = true;
-              continue;
             }
 
             if (data.content) {
@@ -363,11 +378,10 @@ export default function ChatScreen() {
               toolCalls.push({ ...data.toolCall, status: "calling" });
             }
             if (data.toolResult) {
-              const idx = toolCalls.findIndex(
-                (t) =>
-                  t.toolName === data.toolResult.toolName &&
-                  t.status === "calling",
-              );
+              const idx = toolCalls.findIndex((t) => {
+                if (t.toolName !== data.toolResult.toolName) return false;
+                return t.status === "calling";
+              });
               if (idx !== -1) {
                 toolCalls[idx] = {
                   ...toolCalls[idx],
@@ -381,16 +395,18 @@ export default function ChatScreen() {
               // Handle save_memory tool: persist fact to local SQLite
               if (data.toolResult.toolName === "save_memory") {
                 try {
-                  const result =
-                    typeof data.toolResult.result === "string"
-                      ? JSON.parse(data.toolResult.result)
-                      : data.toolResult.result;
-                  if (result?._action === "save_memory") {
-                    localStore
-                      .saveMemoryFact(result.key, result.value, convId)
-                      .catch((e) =>
-                        AppLogger.error("Failed to save memory fact", e),
-                      );
+                  let result = data.toolResult.result;
+                  if (typeof data.toolResult.result === "string") {
+                    result = JSON.parse(data.toolResult.result);
+                  }
+                  if (result) {
+                    if (result._action === "save_memory") {
+                      localStore
+                        .saveMemoryFact(result.key, result.value, convId)
+                        .catch((e) =>
+                          AppLogger.error("Failed to save memory fact", e),
+                        );
+                    }
                   }
                 } catch {
                   /* non-JSON result, skip */
@@ -415,24 +431,38 @@ export default function ChatScreen() {
                   continue;
                 }
 
-                const existingDone =
-                  existing.status === "done" || !!existing.resultSummary;
-                const currentDone =
-                  toolCall.status === "done" || !!toolCall.resultSummary;
+                let existingDone = existing.status === "done";
+                if (!existingDone) {
+                  if (existing.resultSummary) {
+                    existingDone = true;
+                  }
+                }
+                let currentDone = toolCall.status === "done";
+                if (!currentDone) {
+                  if (toolCall.resultSummary) {
+                    currentDone = true;
+                  }
+                }
 
-                if (!existingDone && currentDone) {
-                  toolCallsByName.set(normalizedToolName, {
-                    ...existing,
-                    ...toolCall,
-                  });
+                if (!existingDone) {
+                  if (currentDone) {
+                    toolCallsByName.set(normalizedToolName, {
+                      ...existing,
+                      ...toolCall,
+                    });
+                  }
                 }
               }
               const uniqueToolCalls = Array.from(toolCallsByName.values());
 
+              let messageContent = textContent;
+              if (!messageContent) {
+                messageContent = t("completed");
+              }
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
-                content: textContent || t("completed"),
+                content: messageContent,
                 createdAt: new Date().toISOString(),
                 toolCalls: uniqueToolCalls,
               };
@@ -441,9 +471,11 @@ export default function ChatScreen() {
 
               // Auto-title: update from "New Chat" after first exchange
               if (messages.length <= 1) {
-                const title =
-                  userMessage.content.slice(0, 40) +
-                  (userMessage.content.length > 40 ? "..." : "");
+                let titleSuffix = "";
+                if (userMessage.content.length > 40) {
+                  titleSuffix = "...";
+                }
+                const title = userMessage.content.slice(0, 40) + titleSuffix;
                 localStore
                   .updateConversationTitle(convId, title)
                   .catch(() => {});
@@ -451,11 +483,10 @@ export default function ChatScreen() {
 
               // Auto-summarize: update summary every N new messages after threshold
               const totalMsgs = messages.length + 2; // +user +assistant just added
-              if (
-                totalMsgs >= CHAT_CONFIG.SUMMARY_MIN_MESSAGES &&
-                totalMsgs % CHAT_CONFIG.SUMMARY_FREQUENCY < 2 // trigger roughly every N messages
-              ) {
-                generateSummary(convId).catch(() => {});
+              if (totalMsgs >= CHAT_CONFIG.SUMMARY_MIN_MESSAGES) {
+                if (totalMsgs % CHAT_CONFIG.SUMMARY_FREQUENCY < 2) {
+                  generateSummary(convId).catch(() => {});
+                }
               }
 
               if (Platform.OS !== "web") {
@@ -472,9 +503,8 @@ export default function ChatScreen() {
       } catch (error) {
         AppLogger.error("Failed to send message:", error);
         Alert.alert(t("error"), t("sendFailed"));
-      } finally {
-        setStreaming(false);
       }
+      setStreaming(false);
     },
     [
       inputText,
@@ -513,7 +543,10 @@ export default function ChatScreen() {
 
   const handleVoicePress = async () => {
     if (isRecording) {
-      await stopRecording();
+      const result = await stopRecording();
+      if (result?.userTranscript) {
+        setInputText(result.userTranscript);
+      }
     } else {
       await startRecording();
     }
@@ -789,8 +822,15 @@ export default function ChatScreen() {
         </Pressable>
       );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allMessages.length, isStreaming, theme, t],
+    [
+      allMessages.length,
+      isStreaming,
+      theme,
+      t,
+      handleMessageLongPress,
+      handleRegenerate,
+      handleCopyMessage,
+    ],
   );
 
   const handleSuggestionPress = (suggestion: string) => {
@@ -947,7 +987,7 @@ export default function ChatScreen() {
             contentContainerStyle={styles.attachmentsContent}
           >
             {attachments.map((att, index) => (
-              <View key={index} style={styles.attachmentPreview}>
+              <View key={att.uri} style={styles.attachmentPreview}>
                 {att.type === "image" ? (
                   <Pressable
                     style={styles.attachmentImageContainer}

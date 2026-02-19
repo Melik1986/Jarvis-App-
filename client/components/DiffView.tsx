@@ -6,14 +6,14 @@ interface DiffViewProps {
   after: Record<string, unknown>;
 }
 
-export function DiffView({ before, after }: DiffViewProps) {
-  const renderValue = (value: unknown): string => {
-    if (typeof value === "object" && value !== null) {
-      return JSON.stringify(value, null, 2);
-    }
-    return String(value);
-  };
+const formatValue = (value: unknown): string => {
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+};
 
+export function DiffView({ before, after }: DiffViewProps) {
   const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
 
   return (
@@ -34,16 +34,16 @@ export function DiffView({ before, after }: DiffViewProps) {
               <View style={styles.changed}>
                 <Text style={styles.before}>
                   <Text style={styles.label}>Before: </Text>
-                  {renderValue(beforeValue)}
+                  {formatValue(beforeValue)}
                 </Text>
                 <Text style={styles.arrow}>→</Text>
                 <Text style={styles.after}>
                   <Text style={styles.label}>After: </Text>
-                  {renderValue(afterValue)}
+                  {formatValue(afterValue)}
                 </Text>
               </View>
             ) : (
-              <Text style={styles.unchanged}>{renderValue(afterValue)}</Text>
+              <Text style={styles.unchanged}>{formatValue(afterValue)}</Text>
             )}
           </View>
         );
