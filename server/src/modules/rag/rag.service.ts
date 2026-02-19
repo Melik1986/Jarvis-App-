@@ -129,7 +129,9 @@ export class RagService {
     } else if (mimeType === "application/pdf") {
       try {
         const mod = await import("pdf-parse");
-        const pdfParseFn = (mod.default ?? mod) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+        const pdfParseFn = (mod.default ?? mod) as unknown as (
+          buf: Buffer,
+        ) => Promise<{ text: string }>;
         const pdfData = await pdfParseFn(buffer);
         content = pdfData.text || "";
         if (!content.trim()) {
@@ -258,7 +260,9 @@ export class RagService {
       } else if (mimeType === "application/pdf") {
         try {
           const mod = await import("pdf-parse");
-          const pdfParseFn = (mod.default ?? mod) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+          const pdfParseFn = (mod.default ?? mod) as unknown as (
+            buf: Buffer,
+          ) => Promise<{ text: string }>;
           const pdfData = await pdfParseFn(buffer);
           content = pdfData.text || "";
           if (!content.trim()) {

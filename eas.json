@@ -1,0 +1,45 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_NO_DOCTOR": "1",
+        "EXPO_PUBLIC_DOMAIN": "https://axon-ai.replit.app"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
+    },
+    "preview": {
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1",
+        "EXPO_PUBLIC_DOMAIN": "https://axon-ai.replit.app"
+      },
+      "android": {
+        "buildType": "apk",
+        "distribution": "internal",
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "production": {
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1",
+        "EXPO_PUBLIC_DOMAIN": "https://axon-ai.replit.app"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
+    }
+  },
+  "cli": {
+    "requireCommit": false,
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  }
+}

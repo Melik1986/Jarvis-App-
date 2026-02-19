@@ -1,8 +1,8 @@
 <div align="center">
 
-![AXON Banner](assets/images/baner-axon.dark.png)
+![Axon Flow AI Banner](assets/images/baner-axon.dark.png)
 
-# AXON
+# Axon Flow AI
 
 ### Voice-to-ERP AI Orchestrator
 
@@ -21,9 +21,9 @@ Bridges unstructured voice commands and structured ERP systems (1C:Enterprise, S
 
 ---
 
-## 🎯 What is AXON?
+## 🎯 What is Axon Flow AI?
 
-AXON transforms how businesses interact with ERP systems. Instead of navigating complex menus, users simply **speak** or **show** what they need. The AI agent translates natural language into structured API calls, making enterprise software accessible to everyone—from warehouse workers to CEOs.
+Axon Flow AI transforms how businesses interact with ERP systems. Instead of navigating complex menus, users simply **speak** or **show** what they need. The AI agent translates natural language into structured API calls, making enterprise software accessible to everyone—from warehouse workers to CEOs.
 
 ### Supported LLM Providers
 
@@ -124,7 +124,7 @@ Record audio via `expo-av`, transcribe with **Whisper**, execute commands via fu
 
 ```
 User: "Покажи остатки молока на складе Центральный"
-Axon: Найдено 3 позиции: Молоко 2.5% — 120 шт, Молоко 3.2% — 85 шт...
+Axon Flow AI: Найдено 3 позиции: Молоко 2.5% — 120 шт, Молоко 3.2% — 85 шт...
 ```
 
 ### 📷 Jarvis Vision
@@ -133,7 +133,7 @@ Analyze photos of invoices and price tags with **GPT-4o Vision** → auto-create
 
 ```
 User: *uploads photo of invoice*
-Axon: Распознана накладная №1234 от 15.01.2025. Создать приходный документ?
+Axon Flow AI: Распознана накладная №1234 от 15.01.2025. Создать приходный документ?
 ```
 
 ### 📚 RAG Knowledge Base
@@ -142,7 +142,7 @@ Search internal instructions and company regulations stored in **Qdrant** vector
 
 ```
 User: "Как оформить возврат товара?"
-Axon: Согласно регламенту §3.2: Возврат оформляется через документ...
+Axon Flow AI: Согласно регламенту §3.2: Возврат оформляется через документ...
 ```
 
 ---
@@ -191,7 +191,7 @@ All secrets (LLM keys, ERP credentials, Supabase, Qdrant) are configured via:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        AXON Mobile App                          │
+│                     Axon Flow AI Mobile App                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
 │  │  Voice UI   │  │  Vision UI  │  │   Chat UI   │             │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             │

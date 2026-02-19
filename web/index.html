@@ -2,337 +2,128 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="AXON - Voice-to-ERP AI Orchestrator. Learn how to connect providers and use AXON mobile."
-    />
-    <title>AXON - Voice-to-ERP AI Orchestrator</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>JSRVIS</title>
+    <style id="expo-reset">
+      html, body { height: 100%; }
+      body { overflow: hidden; margin: 0; }
+      #root { display: flex; height: 100%; flex: 1; }
+    </style>
     <style>
-      :root {
-        --bg-root: #080d1a;
-        --bg-surface: #131a2d;
-        --bg-surface-soft: #1a233c;
-        --primary: #08d7ff;
-        --primary-strong: #04a9cc;
-        --text: #f2f6ff;
-        --text-secondary: #c5d0e6;
-        --text-muted: #8d99b2;
-        --border: rgba(8, 215, 255, 0.24);
-        --warning: #ffb74d;
-        --radius: 14px;
-        --radius-lg: 22px;
-        --glow: rgba(8, 215, 255, 0.3);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        margin: 0;
-        min-height: 100%;
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: var(--text);
-        background: radial-gradient(circle at 20% 10%, #15264f 0%, transparent 32%),
-          radial-gradient(circle at 90% 0%, #0f2741 0%, transparent 26%), var(--bg-root);
-      }
-
-      .page {
-        width: min(1100px, calc(100% - 32px));
-        margin: 32px auto 44px;
-        display: grid;
-        gap: 18px;
-      }
-
-      .card {
+      .rating-section {
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
         background: linear-gradient(180deg, rgba(19, 26, 45, 0.94), rgba(11, 17, 30, 0.95));
         padding: 26px;
         box-shadow: 0 10px 36px rgba(0, 0, 0, 0.24);
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: 1.1fr 1fr;
-        gap: 22px;
-        align-items: center;
-      }
-
-      .logo {
-        margin: 0;
-        font-size: clamp(30px, 4vw, 42px);
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        background: linear-gradient(160deg, #7cecff, var(--primary-strong));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-
-      .tagline {
-        margin: 8px 0 14px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      .description {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 18px;
-        line-height: 1.46;
-      }
-
-      .notice {
-        margin-top: 18px;
-        border: 1px solid var(--border);
-        background: var(--bg-surface-soft);
-        border-radius: var(--radius);
-        padding: 12px 14px;
-        color: var(--text-secondary);
-        font-size: 14px;
-      }
-
-      .notice strong {
-        color: var(--warning);
-      }
-
-      .buttons {
-        margin-top: 16px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        border-radius: var(--radius);
-        text-decoration: none;
-        border: none;
-        font-size: 15px;
-        font-weight: 700;
-        padding: 12px 18px;
-        transition: transform 0.15s ease;
-      }
-
-      .btn:active {
-        transform: scale(0.98);
-      }
-
-      .btn-primary {
-        color: #04101c;
-        background: linear-gradient(180deg, var(--primary), var(--primary-strong));
-        box-shadow: 0 6px 20px var(--glow);
-      }
-
-      .btn svg {
-        width: 18px;
-        height: 18px;
-      }
-
-      .hero-media {
-        margin: 0;
-      }
-
-      .hero-media img {
-        display: block;
-        width: 100%;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
-      }
-
-      .hero-media figcaption {
-        margin-top: 8px;
-        color: var(--text-muted);
-        font-size: 12px;
-      }
-
-      .section-title {
-        margin: 0 0 14px;
-        font-size: 22px;
-        letter-spacing: -0.01em;
-      }
-
-      .steps {
-        margin: 0;
-        padding-left: 18px;
-        color: var(--text-secondary);
-        line-height: 1.5;
-        display: grid;
-        gap: 8px;
-      }
-
-      .grid-two {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-      }
-
-      .provider-card {
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 14px;
-        background: rgba(26, 35, 60, 0.52);
-      }
-
-      .provider-card h3 {
-        margin: 0 0 10px;
-        font-size: 15px;
-      }
-
-      .provider-card p {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 14px;
-        line-height: 1.45;
-      }
-
-      .examples {
-        margin: 0;
-        padding-left: 18px;
-        color: var(--text-secondary);
-        display: grid;
-        gap: 10px;
-      }
-
-      code {
-        display: inline-block;
-        background: rgba(8, 215, 255, 0.08);
-        border: 1px solid rgba(8, 215, 255, 0.24);
-        border-radius: 8px;
-        padding: 4px 8px;
-        color: #b9f4ff;
-        font-size: 13px;
-        line-height: 1.4;
-      }
-
-      .footer {
-        color: var(--text-muted);
-        font-size: 12px;
         text-align: center;
-        margin-top: 2px;
       }
-
-      @media (max-width: 920px) {
-        .hero {
-          grid-template-columns: 1fr;
-        }
-
-        .grid-two {
-          grid-template-columns: 1fr;
-        }
+      .rating-stars {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+      .rating-stars input { display: none; }
+      .rating-stars label {
+        font-size: 32px;
+        color: #444;
+        cursor: pointer;
+        transition: color 0.2s;
+        padding: 0 5px;
+      }
+      .rating-stars input:checked ~ label,
+      .rating-stars:not(:checked) > label:hover,
+      .rating-stars:not(:checked) > label:hover ~ label { color: var(--primary); }
+      .rating-stars input:checked + label:hover,
+      .rating-stars input:checked ~ label:hover,
+      .rating-stars label:hover ~ input:checked ~ label,
+      .rating-stars input:checked ~ label:hover ~ label { color: var(--primary-strong); }
+      .rating-feedback {
+        font-size: 14px;
+        color: var(--text-muted);
+        min-height: 20px;
+      }
+      .rating-summary {
+        font-size: 14px;
+        color: var(--text-secondary);
       }
     </style>
   </head>
   <body>
-    <main class="page">
-      <section class="card hero">
-        <div>
-          <h1 class="logo">AXON</h1>
-          <p class="tagline">Voice-to-ERP AI Orchestrator</p>
-          <p class="description">
-            Manage inventory, invoices, and operations with voice or text. AXON connects LLM providers and ERP services in one secure mobile workflow.
-          </p>
-          <div class="notice">
-            <strong>Web client is informational only.</strong> Use AXON on mobile to run real ERP and AI actions.
-          </div>
-          <div class="buttons">
-            <a
-              href="https://apps.apple.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn-primary"
-              aria-label="Download AXON on the App Store"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-              </svg>
-              Download for iOS
-            </a>
-          </div>
-        </div>
-        <figure class="hero-media">
-          <img
-            src="/axon-banner.png"
-            alt="AXON mobile interface preview with AI and ERP provider integrations"
-            loading="eager"
-          />
-          <figcaption>
-            AXON mobile app preview with integrated ERP and AI provider workflow.
-          </figcaption>
-        </figure>
-      </section>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <p class="footer">
+      Built on <a href="https://replit.com" target="_blank">Replit</a> |
+      Powered by
+      <a href="https://expo.dev" target="_blank">Expo</a>
+    </p>
+    <section class="card rating-section">
+      <h2>Rate Our App</h2>
+      <div class="rating-stars">
+        <input type="radio" id="star5" name="rating" value="5" /><label for="star5" title="5 stars">★</label>
+        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+        <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+      </div>
+      <p class="rating-feedback">Select a rating</p>
+      <p class="rating-summary"><span class="rating-avg">0.0</span> • <span class="rating-count">0</span></p>
+    </section>
+    <script type="module" src="/client/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&transform.reactCompiler=true&unstable_transformProfile=hermes-stable"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const APP_ID = 'axon-flow-ai';
+        const ratings = JSON.parse(localStorage.getItem(`${APP_ID}-ratings`)) || [];
+        const hasVoted = localStorage.getItem(`${APP_ID}-hasVoted`);
 
-      <section class="card">
-        <h2 class="section-title">How to Start Using AXON</h2>
-        <ol class="steps">
-          <li>Install the app from the App Store and sign in.</li>
-          <li>Open <strong>Profile - Providers</strong> and connect your LLM provider.</li>
-          <li>Add LLM credentials: provider, base URL, model, and API key (OpenAI/Anthropic/Gemini or custom endpoint).</li>
-          <li>Open <strong>ERP Settings</strong> and add your ERP connection: provider, URL, database, login, and API key/password.</li>
-          <li>Run <strong>Test Connection</strong> for both LLM and ERP, then start a chat.</li>
-        </ol>
-      </section>
+        const ratingStars = [...document.querySelectorAll('.rating-stars input')];
+        const ratingFeedback = document.querySelector('.rating-feedback');
+        const ratingSummary = document.querySelector('.rating-summary');
+        const feedbackMessages = [
+          'Terrible', 'Bad', 'Average', 'Good', 'Excellent!'
+        ];
 
-      <section class="card">
-        <h2 class="section-title">Provider Setup Reference</h2>
-        <div class="grid-two">
-          <article class="provider-card">
-            <h3>LLM Provider Example</h3>
-            <p>
-              Provider: OpenAI<br />
-              Base URL: https://api.openai.com<br />
-              Model: gpt-4o<br />
-              API Key: sk-...<br />
-              Save, then run test in app settings.
-            </p>
-          </article>
-          <article class="provider-card">
-            <h3>ERP Provider Example (Odoo)</h3>
-            <p>
-              Provider: Odoo<br />
-              URL: https://company.odoo.com/odoo<br />
-              Database: company-prod<br />
-              Login: ops@company.com<br />
-              API Key: ********
-            </p>
-          </article>
-        </div>
-      </section>
+        function updateRatingSummary() {
+          const avgEl = document.querySelector('.rating-summary .rating-avg');
+          const countEl = document.querySelector('.rating-summary .rating-count');
+          const count = ratings.length;
+          const average = count ? (ratings.reduce((acc, rating) => acc + rating, 0) / count).toFixed(1) : '0.0';
+          if (avgEl) avgEl.textContent = average;
+          if (countEl) countEl.textContent = String(count);
+        }
 
-      <section class="card">
-        <h2 class="section-title">Example Prompts You Can Use</h2>
-        <ul class="examples">
-          <li><code>Check stock for "beer" and "wine" with quantities by warehouse.</code></li>
-          <li><code>Create a sales invoice for ACME: 10 x Product A, due in 14 days.</code></li>
-          <li><code>Show all low-stock items (less than 20 units) and suggest reorder amounts.</code></li>
-          <li><code>Summarize today's ERP updates and pending tasks.</code></li>
-        </ul>
-      </section>
+        function handleRating(e) {
+          const rating = parseInt(e.target.value);
+          if (hasVoted) {
+            ratingFeedback.textContent = 'You have already voted.';
+            return;
+          }
+          ratings.push(rating);
+          localStorage.setItem(`${APP_ID}-ratings`, JSON.stringify(ratings));
+          localStorage.setItem(`${APP_ID}-hasVoted`, 'true');
+          updateRatingSummary();
+          ratingFeedback.textContent = `Thanks for your ${feedbackMessages[rating - 1]} rating!`;
+        }
 
-      <p class="footer">
-        AXON uses secure transport for provider credentials and keeps web as an informational entry point.
-      </p>
-    </main>
+        ratingStars.forEach(star => {
+          star.addEventListener('change', handleRating);
+        });
+
+        updateRatingSummary();
+       });
+     </script>
+     <script>
+       function downloadAPK() {
+         const apkUrl = '/axon-app.apk';
+         const link = document.createElement('a');
+         link.href = apkUrl;
+         link.download = 'axon-app.apk';
+         document.body.appendChild(link);
+         link.click();
+         document.body.removeChild(link);
+       }
+     </script>
   </body>
 </html>

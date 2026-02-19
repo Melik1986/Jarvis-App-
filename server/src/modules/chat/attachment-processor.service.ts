@@ -4,7 +4,9 @@ import type { Attachment, UserContentPart } from "./chat.types";
 
 async function parsePdf(data: Buffer): Promise<{ text: string }> {
   const mod = await import("pdf-parse");
-  const fn = (mod.default ?? mod) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+  const fn = (mod.default ?? mod) as unknown as (
+    buf: Buffer,
+  ) => Promise<{ text: string }>;
   return fn(data);
 }
 

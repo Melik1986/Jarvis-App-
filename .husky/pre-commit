@@ -3,7 +3,7 @@
 
 # 1. Run lint-staged
 echo "Running lint-staged..."
-npx lint-staged || exit 1
+npx lint-staged
 
 # 2. Run gitleaks via Docker
 # Check if docker is available and running

@@ -1,10 +1,11 @@
-# AXON - Voice-to-ERP AI Orchestrator
+# Axon Flow AI - Voice-to-ERP AI Orchestrator
 
 ## Overview
 
-AXON is an AI-powered mobile application that bridges unstructured input (voice commands, photos, chat) with structured ERP systems (1C:Enterprise, SAP, Odoo, MoySklad). Users speak naturally or scan documents instead of navigating complex ERP menus. The system uses LLM-powered AI agents to translate natural language into ERP API calls, with support for multiple LLM providers (OpenAI, Groq, Ollama, OpenRouter, Together AI).
+Axon Flow AI is an AI-powered mobile application that bridges unstructured input (voice commands, photos, chat) with structured ERP systems (1C:Enterprise, SAP, Odoo, MoySklad). Users speak naturally or scan documents instead of navigating complex ERP menus. The system uses LLM-powered AI agents to translate natural language into ERP API calls, with support for multiple LLM providers (OpenAI, Groq, Ollama, OpenRouter, Together AI).
 
 The project is a monorepo with three main parts:
+
 - **`client/`** — React Native (Expo) mobile app
 - **`server/`** — NestJS backend API
 - **`shared/`** — Shared types and database schema
@@ -96,14 +97,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `npm run expo:dev` | Start Expo dev server (Replit) |
-| `npm run server:dev` | Start NestJS server in dev mode |
-| `npm run db:push` | Push Drizzle schema to database |
-| `npm run lint` | Run ESLint |
-| `npm run test` | Run Jest tests |
-| `npm run check:types` | TypeScript type checking |
+| Script                | Purpose                         |
+| --------------------- | ------------------------------- |
+| `npm run expo:dev`    | Start Expo dev server (Replit)  |
+| `npm run server:dev`  | Start NestJS server in dev mode |
+| `npm run db:push`     | Push Drizzle schema to database |
+| `npm run lint`        | Run ESLint                      |
+| `npm run test`        | Run Jest tests                  |
+| `npm run check:types` | TypeScript type checking        |
 
 ### Testing
 
@@ -120,11 +121,13 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### Cloud Services
+
 - **Supabase**: Authentication (Phone OTP), user management, JWT tokens
 - **Qdrant**: Vector database for RAG (document embeddings and semantic search)
 - **PostgreSQL**: Primary relational database (via DATABASE_URL env var, used with Drizzle ORM)
 
 ### AI/LLM Providers (BYO-LLM — user-configurable)
+
 - **OpenAI**: GPT-4o, Whisper (speech-to-text), embeddings
 - **Groq**: LPU inference (OpenAI-compatible)
 - **Ollama**: Local/self-hosted models
@@ -132,12 +135,14 @@ Preferred communication style: Simple, everyday language.
 - **Together AI**: Open-source model hosting
 
 ### ERP Integrations (via Universal Adapter)
+
 - **1C:Enterprise**: OData/HTTP API
 - **SAP**: REST API
 - **Odoo**: REST/JSON-RPC API
 - **MoySklad**: REST API
 
 ### Key NPM Packages
+
 - `expo` (SDK 55) — Mobile app framework
 - `@nestjs/*` — Backend framework
 - `drizzle-orm` + `drizzle-zod` — Database ORM with validation
@@ -153,6 +158,7 @@ Preferred communication style: Simple, everyday language.
 - `zod` — Schema validation
 
 ### Environment Variables Required
+
 - `DATABASE_URL` — PostgreSQL connection string
 - OpenAI/LLM API keys (user-configurable)
 - Supabase URL and keys

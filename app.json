@@ -1,13 +1,12 @@
 {
   "expo": {
     "name": "AXON",
-    "slug": "axon-1c-mobile",
+    "slug": "axon-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "axon",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.axon.mobile"
@@ -17,10 +16,8 @@
         "backgroundColor": "#0A0E1A",
         "foregroundImage": "./assets/images/icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.axon.mobile",
-      "usesCleartextTraffic": false
+      "package": "com.axon.app"
     },
     "web": {
       "output": "single",
@@ -64,6 +61,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b68fefe8-dcf2-41d8-92e8-68193900064a"
+      }
     }
   }
 }

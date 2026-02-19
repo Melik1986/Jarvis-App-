@@ -23,7 +23,7 @@ import {
   SERVER_PUBLIC_KEY,
   SERVER_PUBLIC_JWK,
 } from "../../config/jwk.config";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { AppLogger } from "../../utils/logger";
 import {
@@ -126,11 +126,16 @@ export class AuthController {
           `${clientRedirectFromState}${sep}error=auth_denied`,
         );
       }
-      return res.status(401).json({ error: "auth_denied", message: "Authentication was denied by provider" });
+      return res.status(401).json({
+        error: "auth_denied",
+        message: "Authentication was denied by provider",
+      });
     }
 
     if (!code) {
-      return res.status(400).json({ error: "no_code", message: "No authorization code received" });
+      return res
+        .status(400)
+        .json({ error: "no_code", message: "No authorization code received" });
     }
 
     const callbackUrl = this.authService.getCallbackUrl();
@@ -156,7 +161,10 @@ export class AuthController {
           `${clientRedirectFromState}${sep}error=auth_failed`,
         );
       }
-      return res.status(401).json({ error: "auth_failed", message: result.error || "Authentication failed" });
+      return res.status(401).json({
+        error: "auth_failed",
+        message: result.error || "Authentication failed",
+      });
     }
 
     const clientRedirect = clientRedirectFromState;
@@ -182,9 +190,10 @@ export class AuthController {
     }
 
     // Web redirect — only relative paths allowed
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "";
+    const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const devDomain = process.env.REPLIT_DEV_DOMAIN;
+    const host = deployedDomain || devDomain;
+    const baseUrl = host ? `https://${host}` : "";
 
     const webPath = safeRedirect || "/auth/success";
     const appRedirectUrl = new URL(webPath, baseUrl || "http://localhost");

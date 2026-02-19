@@ -1,8 +1,8 @@
 import { Injectable, Inject, OnModuleInit, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import * as crypto from "crypto";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { eq } from "drizzle-orm";
 import { AuthUser, AuthSession } from "./auth.types";
@@ -97,13 +97,16 @@ export class AuthService implements OnModuleInit {
   }
 
   getCallbackUrl(): string {
-    const devDomain = process.env.REPLIT_DEV_DOMAIN;
     const deployedDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const host = deployedDomain || devDomain;
-    if (!host) {
-      return "/api/auth/callback";
+    const devDomain = process.env.REPLIT_DEV_DOMAIN;
+
+    if (deployedDomain) {
+      return `https://${deployedDomain}/api/auth/callback`;
     }
-    return `https://${host}:5000/api/auth/callback`;
+    if (devDomain) {
+      return `https://${devDomain}/api/auth/callback`;
+    }
+    return "/api/auth/callback";
   }
 
   private generatePKCE(): { verifier: string; challenge: string } {
