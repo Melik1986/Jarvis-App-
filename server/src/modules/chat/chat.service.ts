@@ -48,7 +48,7 @@ export class ChatService {
   // Server only processes chat requests.
 
   private getTranscriptionModel(model?: string): string {
-    return model || "gpt-4o-mini-transcribe";
+    return model || "whisper-1";
   }
 
   private async transcribeAudio(

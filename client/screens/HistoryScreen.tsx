@@ -257,18 +257,25 @@ export default function HistoryScreen() {
 
   const [conversations, setConversations] = useState<LocalConversation[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadConversations = useCallback(async () => {
     try {
-      setIsLoading(true);
       const data = await localStore.listConversations();
       setConversations(data);
     } catch (error) {
       AppLogger.error("Failed to load conversations:", error);
     }
-    setIsLoading(false);
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadConversations();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadConversations]);
 
   useFocusEffect(
     useCallback(() => {
@@ -387,8 +394,8 @@ export default function HistoryScreen() {
         scrollIndicatorInsets={{ bottom: insets.bottom }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         stickySectionHeadersEnabled={false}
-        refreshing={isLoading}
-        onRefresh={loadConversations}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
       />
 
       <Pressable

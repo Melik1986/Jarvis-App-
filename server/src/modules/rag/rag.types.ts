@@ -28,7 +28,12 @@ export interface QdrantSearchResult {
   };
 }
 
-export type RagProviderType = "qdrant" | "supabase" | "replit" | "none";
+export type RagProviderType =
+  | "qdrant"
+  | "supabase"
+  | "replit"
+  | "local"
+  | "none";
 
 export interface RagSettingsRequest {
   provider: RagProviderType;

@@ -7,7 +7,6 @@ import {
   Pressable,
   Platform,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -338,16 +337,7 @@ export default function LibraryScreen() {
         </View>
       </View>
 
-      {isUploading ? (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <ThemedText
-            style={{ color: theme.textSecondary, marginTop: Spacing.md }}
-          >
-            {t("processing")}...
-          </ThemedText>
-        </View>
-      ) : null}
+      {isUploading ? <View style={styles.loadingOverlay} /> : null}
 
       <FlatList
         data={filteredDocuments}

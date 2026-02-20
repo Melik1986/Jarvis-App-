@@ -6,7 +6,6 @@ import {
   TextInput,
   Pressable,
   Alert,
-  ActivityIndicator,
   Switch,
   KeyboardAvoidingView,
   Platform,
@@ -434,13 +433,7 @@ export default function RulebookScreen() {
           />
         )}
 
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={theme.primary}
-            style={{ marginTop: 20 }}
-          />
-        ) : (
+        {loading ? null : (
           <View style={styles.ruleList}>
             {rules.map((rule) => (
               <RuleCard

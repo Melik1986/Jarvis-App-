@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  StyleSheet,
-  View,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-  FlatList,
-} from "react-native";
+import { StyleSheet, View, Pressable, Alert, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -97,13 +90,7 @@ export default function LocalRAGScreen() {
         {indexing ? "Indexing..." : "Add Document (PDF/Text)"}
       </Button>
 
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.primary}
-          style={{ marginTop: 40 }}
-        />
-      ) : (
+      {loading ? null : (
         <FlatList
           data={documents}
           keyExtractor={(item) => item.id}

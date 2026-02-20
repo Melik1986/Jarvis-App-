@@ -56,6 +56,7 @@ export class ConductorController {
       ...(credentials?.llmProvider && {
         provider: credentials.llmProvider as
           | "openai"
+          | "google"
           | "groq"
           | "ollama"
           | "replit"

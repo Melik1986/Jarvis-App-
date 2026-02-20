@@ -24,6 +24,7 @@ interface BiometricAuthResult {
 export function useBiometricAuth(promptMessage?: string): BiometricAuthResult {
   const { t } = useTranslation();
   const effectivePrompt = promptMessage || t("confirmIdentity");
+  const MIN_AUTH_LOADING_MS = 500;
 
   const [isUnlocked, setIsUnlocked] = useState(Platform.OS === "web");
   const [isAuthenticating, setIsAuthenticating] = useState(
@@ -35,6 +36,8 @@ export function useBiometricAuth(promptMessage?: string): BiometricAuthResult {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const authenticate = useCallback(async () => {
+    const authStartMs = Date.now();
+
     if (Platform.OS === "web") {
       setIsUnlocked(true);
       setIsAuthenticating(false);
@@ -103,6 +106,13 @@ export function useBiometricAuth(promptMessage?: string): BiometricAuthResult {
       setIsUnlocked(true); // Fail open on system error to prevent lockout
       AuditService.logEvent("AUTH_FAILURE", "System error");
     } finally {
+      const elapsedMs = Date.now() - authStartMs;
+      const remainingMs = Math.max(0, MIN_AUTH_LOADING_MS - elapsedMs);
+      if (remainingMs > 0) {
+        await new Promise<void>((resolve) => {
+          setTimeout(() => resolve(), remainingMs);
+        });
+      }
       setIsAuthenticating(false);
     }
   }, [navigation, effectivePrompt, t]);

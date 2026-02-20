@@ -12,7 +12,7 @@ interface LLMSettings {
   apiKey: string;
   modelName: string;
   transcriptionModel: string;
-  provider: "replit" | "openai" | "ollama" | "groq" | "custom";
+  provider: "replit" | "openai" | "google" | "ollama" | "groq" | "custom";
   userInstructions: string;
 }
 
@@ -29,7 +29,7 @@ interface ERPSettings {
   specUrl: string;
 }
 
-export type RagProvider = "qdrant" | "supabase" | "replit" | "none";
+export type RagProvider = "qdrant" | "supabase" | "replit" | "local" | "none";
 
 export interface RagSettings {
   provider: RagProvider;
@@ -76,7 +76,7 @@ interface SettingsState {
 const defaultLLM: LLMSettings = {
   baseUrl: "",
   apiKey: "",
-  modelName: "gpt-4o",
+  modelName: "gpt-5.2",
   transcriptionModel: "",
   provider: "replit",
   userInstructions: "",

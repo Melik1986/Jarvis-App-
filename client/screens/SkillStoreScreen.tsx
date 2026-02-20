@@ -6,7 +6,6 @@ import {
   TextInput,
   Pressable,
   Alert,
-  ActivityIndicator,
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -373,13 +372,7 @@ export default function SkillStoreScreen() {
           />
         )}
 
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color={theme.primary}
-            style={{ marginTop: 20 }}
-          />
-        ) : (
+        {loading ? null : (
           <View style={styles.list}>
             {skills.map((skill) => (
               <SkillCard

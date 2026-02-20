@@ -6,7 +6,6 @@ import {
   Pressable,
   Modal,
   FlatList,
-  ActivityIndicator,
 } from "react-native";
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,8 +27,20 @@ import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
-type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
-type ProviderIconName = "flash" | "chip" | "server" | "speedometer" | "code";
+type LLMProvider =
+  | "replit"
+  | "openai"
+  | "google"
+  | "ollama"
+  | "groq"
+  | "custom";
+type ProviderIconName =
+  | "flash"
+  | "chip"
+  | "sparkles"
+  | "server"
+  | "speedometer"
+  | "code";
 
 type FormState = {
   selectedProvider: LLMProvider;
@@ -47,28 +58,42 @@ const formReducer = (prev: FormState, next: Partial<FormState>): FormState => ({
 });
 
 const modelsByProvider: Record<LLMProvider, string[]> = {
-  replit: ["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "claude-3-haiku"],
-  openai: [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-3.5-turbo",
-    "o1-preview",
-    "o1-mini",
+  replit: [
+    "gpt-5.2",
+    "gpt-5.1",
+    "claude-sonnet-4",
+    "claude-opus-4.1",
+    "gemini-3.1-pro-preview",
   ],
-  ollama: ["llama3.2", "llama3.1", "mistral", "codellama", "phi3", "gemma2"],
+  openai: ["gpt-5.2", "gpt-5.1", "gpt-5-mini", "gpt-5-nano", "o3"],
+  google: [
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3-pro-preview",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+  ],
+  ollama: ["qwen3", "qwen3-coder", "deepseek-r1", "gemma3", "llama3.3"],
   groq: [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "moonshotai/kimi-k2-instruct-0905",
+    "qwen/qwen3-32b",
+    "openai/gpt-oss-120b",
   ],
-  custom: ["gpt-4o", "claude-3.5-sonnet", "llama3.1-70b"],
+  custom: [
+    "gpt-5.2",
+    "gemini-3.1-pro-preview",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+    "qwen3",
+    "claude-sonnet-4",
+  ],
 };
 
 const transcriptionModelsByProvider: Record<LLMProvider, string> = {
-  replit: "gpt-4o-mini-transcribe",
-  openai: "gpt-4o-mini-transcribe",
+  replit: "whisper-1",
+  openai: "whisper-1",
+  google: "",
   groq: "whisper-large-v3",
   ollama: "",
   custom: "",
@@ -77,6 +102,7 @@ const transcriptionModelsByProvider: Record<LLMProvider, string> = {
 const providerDocsUrlByProvider: Partial<Record<LLMProvider, string>> = {
   replit: "https://docs.replit.com/replitai/replit-ai-integrations",
   openai: "https://platform.openai.com/api-keys",
+  google: "https://ai.google.dev/gemini-api/docs/openai",
   groq: "https://console.groq.com/keys",
   ollama: "https://docs.ollama.com/api/openai-compatibility",
   custom: "https://platform.openai.com/api-keys",
@@ -132,6 +158,25 @@ function ProviderIcon({
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
+          />
+        </Svg>
+      );
+    case "sparkles":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M19 14l.8 1.9L22 16.7l-2.2.9L19 19.5l-.8-1.9-2.2-.9 2.2-.8.8-1.9zM5 13l.8 1.7L7.5 15l-1.7.7L5 17.5l-.8-1.8L2.5 15l1.7-.3L5 13z"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </Svg>
       );
@@ -228,6 +273,12 @@ function LLMProviderList({
     },
     { id: "openai", name: "OpenAI", description: t("gptModels"), icon: "chip" },
     {
+      id: "google",
+      name: "Google Gemini",
+      description: "Gemini API models",
+      icon: "sparkles",
+    },
+    {
       id: "ollama",
       name: "Ollama",
       description: t("localModels"),
@@ -274,7 +325,7 @@ function LLMProviderList({
         ]}
       >
         <ThemedText style={[styles.hintText, { color: theme.warning }]}>
-          ⚠️ {t("secretsWarningTitle")}
+          Warning: {t("secretsWarningTitle")}
         </ThemedText>
         <ThemedText
           style={[
@@ -296,7 +347,7 @@ function LLMProviderList({
         ]}
       >
         <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
-          💡 {t("llmHint")}
+          Hint: {t("llmHint")}
         </ThemedText>
       </View>
 
@@ -491,7 +542,9 @@ function LLMSettingsForm({
               placeholder={
                 form.selectedProvider === "ollama"
                   ? "http://localhost:11434/v1"
-                  : "https://api.openai.com/v1"
+                  : form.selectedProvider === "google"
+                    ? "https://generativelanguage.googleapis.com/v1beta/openai"
+                    : "https://api.openai.com/v1"
               }
               placeholderTextColor={theme.textTertiary}
               value={form.baseUrl}
@@ -649,9 +702,7 @@ export default function LLMProviderScreen() {
           { backgroundColor: theme.backgroundRoot },
         ]}
       >
-        {isAuthenticating ? (
-          <ActivityIndicator size="large" color={theme.primary} />
-        ) : (
+        {isAuthenticating ? null : (
           <View style={{ alignItems: "center", padding: Spacing.xl }}>
             <ThemedText
               style={{ marginBottom: Spacing.lg, textAlign: "center" }}

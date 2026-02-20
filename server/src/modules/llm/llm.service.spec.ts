@@ -28,7 +28,7 @@ describe("LlmService (Orchestrator)", () => {
   describe("getProviderConfig / getModel", () => {
     it("returns correct model for openai provider", () => {
       const model = service.getModel({ provider: "openai" });
-      expect(model).toBe("gpt-4o");
+      expect(model).toBe("gpt-5.2");
     });
 
     it("returns correct model for groq provider", () => {
@@ -39,9 +39,9 @@ describe("LlmService (Orchestrator)", () => {
     it("uses custom modelName when provided", () => {
       const model = service.getModel({
         provider: "openai",
-        modelName: "gpt-4o-mini",
+        modelName: "gpt-5.1",
       });
-      expect(model).toBe("gpt-4o-mini");
+      expect(model).toBe("gpt-5.1");
     });
   });
 
@@ -79,7 +79,7 @@ describe("LlmService (Orchestrator)", () => {
           provider: "custom",
           baseUrl: "https://any.example.com/v1",
         }),
-      ).toBe("gpt-4o");
+      ).toBe("gpt-5.2");
     });
 
     it("does not throw when baseUrl is omitted (uses default)", () => {

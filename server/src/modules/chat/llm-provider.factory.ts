@@ -29,6 +29,12 @@ export class LlmProviderFactory {
         baseURL = settings.baseUrl || "https://api.openai.com/v1";
         apiKey = settings.apiKey;
         break;
+      case "google":
+        baseURL =
+          settings.baseUrl ||
+          "https://generativelanguage.googleapis.com/v1beta/openai";
+        apiKey = settings.apiKey;
+        break;
       case "groq":
         baseURL = settings.baseUrl || "https://api.groq.com/openai/v1";
         apiKey = settings.apiKey;
@@ -59,6 +65,11 @@ export class LlmProviderFactory {
         return process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
       case "openai":
         return settings.baseUrl || "https://api.openai.com/v1";
+      case "google":
+        return (
+          settings.baseUrl ||
+          "https://generativelanguage.googleapis.com/v1beta/openai"
+        );
       case "groq":
         return settings.baseUrl || "https://api.groq.com/openai/v1";
       case "ollama":

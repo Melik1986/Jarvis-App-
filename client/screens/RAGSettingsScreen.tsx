@@ -1,11 +1,5 @@
 import React, { useReducer } from "react";
-import {
-  StyleSheet,
-  View,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, TextInput, Pressable } from "react-native";
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -242,6 +236,23 @@ function ReplitSettingsSection({ form, updateForm, theme }: SectionProps) {
   );
 }
 
+function LocalSettingsSection({ theme }: SectionProps) {
+  return (
+    <View style={styles.section}>
+      <ThemedText style={[styles.sectionTitle, { color: theme.textTertiary }]}>
+        LOCAL DEVICE STORAGE
+      </ThemedText>
+      <ThemedText
+        style={[styles.sectionDescription, { color: theme.textSecondary }]}
+      >
+        Documents are stored in on-device SQLite and stay on your smartphone.
+        The model will read them only when you explicitly request a document in
+        chat.
+      </ThemedText>
+    </View>
+  );
+}
+
 export default function RAGSettingsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -282,6 +293,11 @@ export default function RAGSettingsScreen() {
       id: "supabase",
       name: "Supabase",
       description: "PostgreSQL with vector extensions",
+    },
+    {
+      id: "local",
+      name: "Local Device Storage",
+      description: "On-device SQLite, offline knowledge base",
     },
     {
       id: "none",
@@ -357,9 +373,7 @@ export default function RAGSettingsScreen() {
             </ThemedText>
             <Button onPress={authenticate}>{t("tryAgain")}</Button>
           </View>
-        ) : (
-          <ActivityIndicator size="large" color={theme.primary} />
-        )}
+        ) : null}
       </View>
     );
   }
@@ -498,6 +512,15 @@ export default function RAGSettingsScreen() {
 
       {form.provider === "replit" && (
         <ReplitSettingsSection
+          form={form}
+          updateForm={updateForm}
+          theme={theme}
+          t={t}
+        />
+      )}
+
+      {form.provider === "local" && (
+        <LocalSettingsSection
           form={form}
           updateForm={updateForm}
           theme={theme}

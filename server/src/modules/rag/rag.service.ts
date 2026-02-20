@@ -47,6 +47,11 @@ export class RagService {
         configured: false, // Disabled in stateless mode
       },
       {
+        id: "local",
+        name: "Local Device Storage",
+        configured: true, // Local mode is handled on client
+      },
+      {
         id: "none",
         name: "Disabled",
         configured: true,
@@ -67,6 +72,7 @@ export class RagService {
   isAvailable(ragSettings?: RagSettingsRequest): boolean {
     if (!ragSettings || ragSettings.provider === "none") return false;
     if (ragSettings.provider === "replit") return false; // Disabled
+    if (ragSettings.provider === "local") return false; // Client-only mode
     if (ragSettings.provider === "qdrant")
       return Boolean(ragSettings.qdrant?.url);
     if (ragSettings.provider === "supabase")
@@ -639,6 +645,9 @@ export class RagService {
           );
         case "replit":
           // Disabled in stateless mode
+          return [];
+        case "local":
+          // Local storage mode is handled on device only
           return [];
         default:
           return [];

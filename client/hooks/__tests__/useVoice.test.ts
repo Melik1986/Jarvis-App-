@@ -41,7 +41,12 @@ jest.mock("expo-file-system/legacy", () => ({
 }));
 
 describe("useVoice", () => {
+  const createConversationMock = jest
+    .fn<Promise<number>, [string]>()
+    .mockResolvedValue(42);
+
   beforeEach(() => {
+    createConversationMock.mockClear();
     useChatStore.setState({
       conversations: [],
       currentConversationId: null,
@@ -49,6 +54,7 @@ describe("useVoice", () => {
       isLoading: false,
       isStreaming: false,
       streamingContent: "",
+      createConversation: createConversationMock,
     });
     useAuthStore.setState({
       user: null,
@@ -56,6 +62,7 @@ describe("useVoice", () => {
       isLoading: false,
       isAuthenticated: false,
     });
+    mockSecureApiRequest.mockReset();
     global.fetch = jest.fn();
     (FileSystem.readAsStringAsync as jest.Mock).mockReset();
   });
@@ -80,19 +87,16 @@ describe("useVoice", () => {
       await result.current.stopRecording();
     });
 
-    expect(result.current.error).toBe("Failed to process voice message");
+    expect(result.current.error).toBe("Network request failed");
   });
 
-  it("sets error when conversation is missing", async () => {
+  it("creates conversation when missing and sends voice request", async () => {
     // No conversation set (currentConversationId: null from beforeEach)
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValueOnce("MOCK");
-    (global.fetch as jest.Mock).mockImplementation(async () => ({
-      body: {
-        getReader: () => ({
-          read: async () => ({ done: true, value: undefined }),
-        }),
-      },
-    }));
+    mockSecureApiRequest.mockResolvedValueOnce({
+      ok: true,
+      text: async () => "",
+    });
 
     const { result } = renderHook(() => useVoice());
 
@@ -100,9 +104,8 @@ describe("useVoice", () => {
       await result.current.stopRecording();
     });
 
-    // Hook should detect no conversation and set error without calling API
-    expect(result.current.error).toBe("Failed to process voice message");
-    // fetch should NOT be called because conversation check fails first
-    expect((global.fetch as jest.Mock).mock.calls.length).toBe(0);
+    expect(result.current.error).toBeNull();
+    expect(createConversationMock).toHaveBeenCalledTimes(1);
+    expect(mockSecureApiRequest).toHaveBeenCalledTimes(1);
   });
 });

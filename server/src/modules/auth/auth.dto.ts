@@ -9,8 +9,8 @@ import {
 
 export class BootstrapLlmSettingsDto {
   @IsOptional()
-  @IsIn(["replit", "openai", "groq", "ollama", "custom"])
-  provider?: "replit" | "openai" | "groq" | "ollama" | "custom";
+  @IsIn(["replit", "openai", "google", "groq", "ollama", "custom"])
+  provider?: "replit" | "openai" | "google" | "groq" | "ollama" | "custom";
 
   @IsOptional()
   @IsString()

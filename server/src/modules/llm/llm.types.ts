@@ -1,4 +1,10 @@
-export type LlmProvider = "replit" | "openai" | "groq" | "ollama" | "custom";
+export type LlmProvider =
+  | "replit"
+  | "openai"
+  | "google"
+  | "groq"
+  | "ollama"
+  | "custom";
 
 export interface LlmSettings {
   provider: LlmProvider;

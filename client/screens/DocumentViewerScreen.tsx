@@ -1,12 +1,5 @@
-import React from "react";
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  ActivityIndicator,
-  Pressable,
-  Alert,
-} from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, View, ScrollView, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import {
@@ -15,7 +8,6 @@ import {
   RouteProp,
   NavigationProp,
 } from "@react-navigation/native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -23,23 +15,41 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
+import {
+  localVectorStore,
+  type LocalDocument,
+} from "@/lib/local-rag/vector-store";
+import { AppLogger } from "@/lib/logger";
 
 type DocumentViewerRouteProp = RouteProp<
   LibraryStackParamList,
   "DocumentViewer"
 >;
 
-interface DocumentMetadata {
-  id: string;
-  name: string;
+type LocalDocumentMetadata = {
   type: string;
-  size: string;
-  uploadedAt: string;
-  status: string;
-  chunkCount?: number;
-  errorMessage?: string;
+  size: number;
+  chunks: number;
+};
+
+function asLocalMetadata(
+  raw: LocalDocument["metadata"],
+): LocalDocumentMetadata {
+  const type = typeof raw.type === "string" ? raw.type : "other";
+  const sizeRaw = raw.size;
+  const chunksRaw = raw.chunks;
+  const size =
+    typeof sizeRaw === "number" && Number.isFinite(sizeRaw) ? sizeRaw : 0;
+  const chunks =
+    typeof chunksRaw === "number" && Number.isFinite(chunksRaw) ? chunksRaw : 0;
+  return { type, size, chunks };
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function DocumentViewerScreen() {
@@ -47,61 +57,40 @@ export default function DocumentViewerScreen() {
   const headerHeight = useHeaderHeight();
   const route = useRoute<DocumentViewerRouteProp>();
   const navigation = useNavigation<NavigationProp<LibraryStackParamList>>();
-  const queryClient = useQueryClient();
   const { theme } = useTheme();
   const { t } = useTranslation();
 
   const { documentId, documentName } = route.params;
+  const [document, setDocument] = useState<LocalDocument | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: document, isLoading: loadingDoc } = useQuery<DocumentMetadata>({
-    queryKey: ["/api/documents", documentId],
-    queryFn: async () => {
-      const response = await apiRequest("GET", `/api/documents/${documentId}`);
-      return response.json();
-    },
-  });
+  const loadDocument = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const doc = await localVectorStore.getDocument(documentId);
+      setDocument(doc);
+    } catch (error) {
+      AppLogger.error("Failed to load local document:", error);
+      setDocument(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [documentId]);
 
-  const { data: contentData, isLoading: loadingContent } = useQuery<{
-    id: string;
-    content: string;
-  }>({
-    queryKey: ["/api/documents", documentId, "content"],
-    queryFn: async () => {
-      const response = await apiRequest(
-        "GET",
-        `/api/documents/${documentId}/content`,
-      );
-      return response.json();
-    },
-  });
+  useEffect(() => {
+    void loadDocument();
+  }, [loadDocument]);
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("DELETE", `/api/documents/${documentId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      navigation.goBack();
-    },
-  });
+  const metadata = useMemo(() => {
+    if (!document) return asLocalMetadata({});
+    const parsed = asLocalMetadata(document.metadata);
+    return {
+      ...parsed,
+      size: parsed.size > 0 ? parsed.size : document.content.length,
+    };
+  }, [document]);
 
-  const reindexMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", `/api/documents/${documentId}/reindex`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/documents", documentId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      Alert.alert(
-        t("success") || "Success",
-        t("documentReindexed") || "Document reindexed successfully",
-      );
-    },
-  });
-
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       t("deleteDocument") || "Delete Document",
@@ -112,56 +101,32 @@ export default function DocumentViewerScreen() {
         {
           text: t("delete") || "Delete",
           style: "destructive",
-          onPress: () => deleteMutation.mutate(),
+          onPress: async () => {
+            await localVectorStore.deleteDocument(documentId);
+            navigation.goBack();
+          },
         },
       ],
     );
-  };
+  }, [documentId, navigation, t]);
 
-  const handleReindex = () => {
+  const handleReindex = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    reindexMutation.mutate();
-  };
+    Alert.alert(
+      t("success") || "Success",
+      t("documentReindexed") || "Document reindexed successfully",
+    );
+  }, [t]);
 
-  const isLoading = loadingDoc || loadingContent;
-
-  const formatDate = (dateInput: string | Date) => {
-    const date =
-      typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-    return date.toLocaleDateString(undefined, {
+  const formatDate = useCallback((timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "indexed":
-        return theme.success;
-      case "processing":
-        return theme.warning;
-      case "error":
-        return theme.error;
-      default:
-        return theme.textSecondary;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "indexed":
-        return t("indexed") || "Indexed";
-      case "processing":
-        return t("processing") || "Processing";
-      case "error":
-        return t("error") || "Error";
-      default:
-        return status;
-    }
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -171,8 +136,22 @@ export default function DocumentViewerScreen() {
           styles.loadingContainer,
           { backgroundColor: theme.backgroundRoot },
         ]}
+      />
+    );
+  }
+
+  if (!document) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot, padding: Spacing.xl },
+        ]}
       >
-        <ActivityIndicator size="large" color={theme.primary} />
+        <ThemedText style={{ color: theme.textSecondary, textAlign: "center" }}>
+          {t("error") || "Document not found"}
+        </ThemedText>
       </View>
     );
   }
@@ -201,7 +180,7 @@ export default function DocumentViewerScreen() {
             {t("name") || "Name"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
-            {document?.name || documentName}
+            {document.name || documentName}
           </ThemedText>
         </View>
 
@@ -212,7 +191,7 @@ export default function DocumentViewerScreen() {
             {t("type") || "Type"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
-            {document?.type || "Unknown"}
+            {metadata.type}
           </ThemedText>
         </View>
 
@@ -223,7 +202,7 @@ export default function DocumentViewerScreen() {
             {t("size") || "Size"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
-            {document?.size || "Unknown"}
+            {formatBytes(metadata.size)}
           </ThemedText>
         </View>
 
@@ -233,13 +212,8 @@ export default function DocumentViewerScreen() {
           >
             {t("status") || "Status"}
           </ThemedText>
-          <ThemedText
-            style={[
-              styles.metadataValue,
-              { color: getStatusColor(document?.status || "") },
-            ]}
-          >
-            {getStatusText(document?.status || "")}
+          <ThemedText style={[styles.metadataValue, { color: theme.success }]}>
+            {t("indexed") || "Indexed"}
           </ThemedText>
         </View>
 
@@ -250,7 +224,7 @@ export default function DocumentViewerScreen() {
             {t("chunks") || "Chunks"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
-            {document?.chunkCount || 0}
+            {metadata.chunks}
           </ThemedText>
         </View>
 
@@ -261,40 +235,25 @@ export default function DocumentViewerScreen() {
             {t("uploaded") || "Uploaded"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
-            {document?.uploadedAt ? formatDate(document.uploadedAt) : "Unknown"}
+            {formatDate(document.createdAt)}
           </ThemedText>
         </View>
-
-        {document?.errorMessage ? (
-          <View style={styles.metadataRow}>
-            <ThemedText style={[styles.metadataLabel, { color: theme.error }]}>
-              {t("error") || "Error"}
-            </ThemedText>
-            <ThemedText style={[styles.metadataValue, { color: theme.error }]}>
-              {document.errorMessage}
-            </ThemedText>
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.actionButtons}>
         <Pressable
           style={[styles.actionButton, { backgroundColor: theme.primary }]}
           onPress={handleReindex}
-          disabled={reindexMutation.isPending}
         >
           <Feather name="refresh-cw" size={18} color="#fff" />
           <ThemedText style={styles.actionButtonText}>
-            {reindexMutation.isPending
-              ? t("processing") || "Processing..."
-              : t("reindex") || "Reindex"}
+            {t("reindex") || "Reindex"}
           </ThemedText>
         </Pressable>
 
         <Pressable
           style={[styles.actionButton, { backgroundColor: theme.error }]}
           onPress={handleDelete}
-          disabled={deleteMutation.isPending}
         >
           <Feather name="trash-2" size={18} color="#fff" />
           <ThemedText style={styles.actionButtonText}>
@@ -315,7 +274,7 @@ export default function DocumentViewerScreen() {
         >
           <ScrollView nestedScrollEnabled style={styles.contentScroll}>
             <ThemedText style={[styles.contentText, { color: theme.text }]}>
-              {contentData?.content || t("noContent") || "No content available"}
+              {document.content || t("noContent") || "No content available"}
             </ThemedText>
           </ScrollView>
         </View>

@@ -47,6 +47,7 @@ export class ChatController {
       ...(credentials?.llmProvider && {
         provider: credentials.llmProvider as
           | "openai"
+          | "google"
           | "groq"
           | "ollama"
           | "replit"
@@ -120,6 +121,7 @@ export class VoiceController {
       ...(credentials?.llmProvider && {
         provider: credentials.llmProvider as
           | "openai"
+          | "google"
           | "groq"
           | "ollama"
           | "replit"

@@ -51,7 +51,7 @@ describe("ChatService (Conductor parseRawText)", () => {
         ChatService,
         {
           provide: LlmService,
-          useValue: { getModel: jest.fn().mockReturnValue("gpt-4o") },
+          useValue: { getModel: jest.fn().mockReturnValue("gpt-5.2") },
         },
         {
           provide: RagService,

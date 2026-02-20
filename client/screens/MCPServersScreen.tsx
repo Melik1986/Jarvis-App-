@@ -1,11 +1,5 @@
 import React, { useEffect, useReducer } from "react";
-import {
-  StyleSheet,
-  View,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, ScrollView, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
@@ -311,9 +305,7 @@ export default function MCPServersScreen() {
         )}
 
         <View style={styles.list}>
-          {state.isLoading ? (
-            <ActivityIndicator size="large" color={theme.primary} />
-          ) : state.servers.length === 0 ? (
+          {state.isLoading ? null : state.servers.length === 0 ? (
             <ThemedText
               style={[styles.emptyText, { color: theme.textSecondary }]}
             >

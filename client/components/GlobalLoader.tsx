@@ -1,55 +1,138 @@
-import React from "react";
-import { StyleSheet, View, ActivityIndicator, Modal } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, Modal, StyleSheet, View } from "react-native";
+import LottieView, { type AnimationObject } from "lottie-react-native";
+
 import { useLoadingStore } from "@/store/loadingStore";
-import { useTheme } from "@/hooks/useTheme";
-import { ThemedText } from "@/components/ThemedText";
-import { Spacing, BorderRadius } from "@/constants/theme";
 
-export function GlobalLoader() {
-  const { isLoading, message } = useLoadingStore();
-  const { theme } = useTheme();
+interface GlobalLoaderProps {
+  forceVisible?: boolean;
+  forceMessage?: string;
+  minVisibleMs?: number;
+}
 
-  if (!isLoading) return null;
+const DEFAULT_MIN_VISIBLE_MS = 650;
+const FADE_IN_DURATION_MS = 220;
+const FADE_OUT_DURATION_MS = 180;
+
+const loaderAnimation =
+  require("@/assets/lottie/agent-ring.json") as AnimationObject;
+
+export function GlobalLoader({
+  forceVisible = false,
+  minVisibleMs = DEFAULT_MIN_VISIBLE_MS,
+}: GlobalLoaderProps) {
+  const { isLoading } = useLoadingStore();
+
+  const shouldBeVisible = forceVisible || isLoading;
+  const initialVisible = shouldBeVisible;
+
+  const [isRendered, setIsRendered] = useState(initialVisible);
+  const fadeAnim = useRef(new Animated.Value(initialVisible ? 1 : 0)).current;
+  const shownAtRef = useRef<number | null>(initialVisible ? Date.now() : null);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHideTimeout = useCallback(() => {
+    if (hideTimeoutRef.current !== null) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (shouldBeVisible) {
+      clearHideTimeout();
+
+      if (!isRendered) {
+        shownAtRef.current = Date.now();
+        setIsRendered(true);
+      } else if (shownAtRef.current === null) {
+        shownAtRef.current = Date.now();
+      }
+
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: FADE_IN_DURATION_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+
+    if (!isRendered) return;
+
+    const shownAt = shownAtRef.current ?? Date.now();
+    const elapsedMs = Date.now() - shownAt;
+    const remainingMs = Math.max(0, minVisibleMs - elapsedMs);
+
+    hideTimeoutRef.current = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: FADE_OUT_DURATION_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        shownAtRef.current = null;
+        setIsRendered(false);
+      });
+    }, remainingMs);
+
+    return clearHideTimeout;
+  }, [clearHideTimeout, fadeAnim, isRendered, minVisibleMs, shouldBeVisible]);
+
+  useEffect(() => {
+    return clearHideTimeout;
+  }, [clearHideTimeout]);
+
+  if (!isRendered) {
+    return null;
+  }
 
   return (
-    <Modal transparent visible={isLoading} animationType="fade">
-      <View style={styles.overlay}>
-        <View
-          style={[
-            styles.container,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <ActivityIndicator size="large" color={theme.primary} />
-          {message ? (
-            <ThemedText style={styles.message}>{message}</ThemedText>
-          ) : null}
+    <Modal
+      transparent
+      visible={isRendered}
+      animationType="none"
+      statusBarTranslucent
+    >
+      <Animated.View
+        pointerEvents="auto"
+        style={[
+          styles.overlay,
+          {
+            opacity: fadeAnim,
+            backgroundColor: "transparent",
+          },
+        ]}
+      >
+        <View style={styles.animationWrap}>
+          <LottieView
+            source={loaderAnimation}
+            autoPlay
+            loop
+            style={styles.animation}
+          />
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 40,
     justifyContent: "center",
     alignItems: "center",
   },
-  container: {
-    padding: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+  animationWrap: {
     alignItems: "center",
-    minWidth: 120,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    justifyContent: "center",
   },
-  message: {
-    marginTop: Spacing.md,
-    textAlign: "center",
+  animation: {
+    width: 86,
+    height: 86,
+    backgroundColor: "transparent",
   },
 });

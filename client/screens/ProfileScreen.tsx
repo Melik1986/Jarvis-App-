@@ -306,6 +306,8 @@ export default function ProfileScreen() {
     switch (rag.provider) {
       case "replit":
         return "Replit PostgreSQL";
+      case "local":
+        return "Local Device Storage";
       case "qdrant":
         return "Qdrant";
       case "supabase":
@@ -323,6 +325,8 @@ export default function ProfileScreen() {
         return t("replitAI");
       case "openai":
         return "OpenAI";
+      case "google":
+        return "Google Gemini";
       case "ollama":
         return "Ollama";
       case "groq":
@@ -489,7 +493,7 @@ export default function ProfileScreen() {
         theme={theme}
         t={t}
         llmProviderLabel={getLLMProviderLabel()}
-        modelName={llm.modelName || "gpt-4o"}
+        modelName={llm.modelName || "gpt-5.2"}
         voice={voice}
         onNavigate={handleNavigate}
       />

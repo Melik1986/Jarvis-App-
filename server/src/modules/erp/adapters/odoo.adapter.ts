@@ -80,6 +80,40 @@ export class OdooAdapter implements ErpAdapter {
     return noTrailingPunctuation || undefined;
   }
 
+  private tokenizeSearchTerms(value?: string): string[] {
+    const normalized = this.normalizeSearchTerm(value);
+    if (!normalized) return [];
+    return normalized
+      .toLowerCase()
+      .split(/\s+/)
+      .map((term) => term.trim())
+      .filter((term) => term.length >= 2);
+  }
+
+  private matchesSearchTokens(
+    record: Record<string, unknown>,
+    tokens: string[],
+  ): boolean {
+    if (tokens.length === 0) return true;
+    const fields = [
+      this.getString(record.name),
+      this.getString(record.display_name),
+      this.getString(record.default_code),
+      this.getString(record.barcode),
+    ].filter((value): value is string => Boolean(value));
+    if (fields.length === 0) return false;
+    const haystack = fields.join(" ").toLowerCase();
+    return tokens.every((token) => haystack.includes(token));
+  }
+
+  private filterRecordsByTokens(
+    records: Record<string, unknown>[],
+    tokens: string[],
+  ): Record<string, unknown>[] {
+    if (tokens.length === 0) return records;
+    return records.filter((record) => this.matchesSearchTokens(record, tokens));
+  }
+
   /**
    * Build args for Odoo search/search_read methods.
    * The first positional arg is a domain.
@@ -255,8 +289,15 @@ export class OdooAdapter implements ErpAdapter {
   }
 
   async getStock(productName?: string): Promise<StockItem[]> {
+    const searchTokens = this.tokenizeSearchTerms(productName);
     const searchArgs = this.buildProductSearchArgs(productName);
-    const fields = ["name", "default_code", "qty_available", "uom_id"];
+    const fields = [
+      "name",
+      "default_code",
+      "barcode",
+      "qty_available",
+      "uom_id",
+    ];
 
     const productsUnknown = await this.executeKw(
       "product.product",
@@ -272,6 +313,25 @@ export class OdooAdapter implements ErpAdapter {
       );
     }
 
+    if (searchTokens.length > 1) {
+      const broadProductsUnknown = await this.executeKw(
+        "product.product",
+        "search_read",
+        [[]],
+        { fields, limit: 200 } as Record<string, unknown>,
+      );
+      const broadProducts = this.asArray(broadProductsUnknown).map((pUnknown) =>
+        this.asRecord(pUnknown),
+      );
+      const matchedProducts = this.filterRecordsByTokens(
+        broadProducts,
+        searchTokens,
+      );
+      if (matchedProducts.length > 0) {
+        return matchedProducts.map((record) => this.mapStockItem(record));
+      }
+    }
+
     const templatesUnknown = await this.executeKw(
       "product.template",
       "search_read",
@@ -279,12 +339,34 @@ export class OdooAdapter implements ErpAdapter {
       { fields, limit: 50 } as Record<string, unknown>,
     );
     const templates = this.asArray(templatesUnknown);
-    return templates.map((tUnknown) =>
-      this.mapStockItem(this.asRecord(tUnknown)),
-    );
+    if (templates.length > 0) {
+      return templates.map((tUnknown) =>
+        this.mapStockItem(this.asRecord(tUnknown)),
+      );
+    }
+
+    if (searchTokens.length > 1) {
+      const broadTemplatesUnknown = await this.executeKw(
+        "product.template",
+        "search_read",
+        [[]],
+        { fields, limit: 200 } as Record<string, unknown>,
+      );
+      const broadTemplates = this.asArray(broadTemplatesUnknown).map(
+        (tUnknown) => this.asRecord(tUnknown),
+      );
+      const matchedTemplates = this.filterRecordsByTokens(
+        broadTemplates,
+        searchTokens,
+      );
+      return matchedTemplates.map((record) => this.mapStockItem(record));
+    }
+
+    return [];
   }
 
   async getProducts(filter?: string): Promise<Product[]> {
+    const searchTokens = this.tokenizeSearchTerms(filter);
     const searchArgs = this.buildProductSearchArgs(filter);
     const fields = [
       "name",
@@ -311,6 +393,25 @@ export class OdooAdapter implements ErpAdapter {
       );
     }
 
+    if (searchTokens.length > 1) {
+      const broadProductsUnknown = await this.executeKw(
+        "product.product",
+        "search_read",
+        [[]],
+        { fields, limit: 200 } as Record<string, unknown>,
+      );
+      const broadProducts = this.asArray(broadProductsUnknown).map((pUnknown) =>
+        this.asRecord(pUnknown),
+      );
+      const matchedProducts = this.filterRecordsByTokens(
+        broadProducts,
+        searchTokens,
+      );
+      if (matchedProducts.length > 0) {
+        return matchedProducts.map((record) => this.mapProduct(record));
+      }
+    }
+
     const templatesUnknown = await this.executeKw(
       "product.template",
       "search_read",
@@ -318,9 +419,30 @@ export class OdooAdapter implements ErpAdapter {
       { fields, limit: 50 } as Record<string, unknown>,
     );
     const templates = this.asArray(templatesUnknown);
-    return templates.map((tUnknown) =>
-      this.mapProduct(this.asRecord(tUnknown)),
-    );
+    if (templates.length > 0) {
+      return templates.map((tUnknown) =>
+        this.mapProduct(this.asRecord(tUnknown)),
+      );
+    }
+
+    if (searchTokens.length > 1) {
+      const broadTemplatesUnknown = await this.executeKw(
+        "product.template",
+        "search_read",
+        [[]],
+        { fields, limit: 200 } as Record<string, unknown>,
+      );
+      const broadTemplates = this.asArray(broadTemplatesUnknown).map(
+        (tUnknown) => this.asRecord(tUnknown),
+      );
+      const matchedTemplates = this.filterRecordsByTokens(
+        broadTemplates,
+        searchTokens,
+      );
+      return matchedTemplates.map((record) => this.mapProduct(record));
+    }
+
+    return [];
   }
 
   async createInvoice(request: CreateInvoiceRequest): Promise<Invoice> {
@@ -384,7 +506,22 @@ export class OdooAdapter implements ErpAdapter {
             price_unit: item.price,
           },
         ]);
+      } else {
+        // Fallback: create manual line item so invoice flow does not fail on strict catalog matching.
+        orderLines.push([
+          0,
+          0,
+          {
+            name: item.productName,
+            product_uom_qty: item.quantity,
+            price_unit: item.price,
+          },
+        ]);
       }
+    }
+
+    if (orderLines.length === 0) {
+      throw new Error("Cannot create invoice without line items");
     }
 
     const orderId = await this.executeKw("sale.order", "create", [

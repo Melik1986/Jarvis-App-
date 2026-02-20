@@ -110,9 +110,11 @@ export class EphemeralClientPoolService {
       credentials.llmBaseUrl ||
       (credentials.llmProvider === "openai"
         ? "https://api.openai.com/v1"
-        : credentials.llmProvider === "groq"
-          ? "https://api.groq.com/openai/v1"
-          : undefined);
+        : credentials.llmProvider === "google"
+          ? "https://generativelanguage.googleapis.com/v1beta/openai"
+          : credentials.llmProvider === "groq"
+            ? "https://api.groq.com/openai/v1"
+            : undefined);
 
     return new OpenAI({
       apiKey: credentials.llmKey,

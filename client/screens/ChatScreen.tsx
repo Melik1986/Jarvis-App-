@@ -10,7 +10,6 @@ import {
   Alert,
   ActionSheetIOS,
   ScrollView,
-  Clipboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -20,7 +19,10 @@ import type { ChatStackParamList } from "@/navigation/ChatStackNavigator";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
+import {
+  ImageManipulator as ExpoImageManipulator,
+  SaveFormat,
+} from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
@@ -43,6 +45,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { secureApiRequest } from "@/lib/query-client";
 import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import { localStore } from "@/lib/local-store";
+import { localVectorStore } from "@/lib/local-rag/vector-store";
 import { AppLogger } from "@/lib/logger";
 import { CHAT_CONFIG } from "@/config/chat.config";
 
@@ -107,6 +110,136 @@ async function performSummaryGeneration(
   if (summaryText.trim()) {
     await localStore.updateConversationSummary(convId, summaryText.trim());
   }
+}
+
+type LocalDocContextResolution = {
+  userVisibleText: string;
+  modelInputText: string;
+};
+
+type DocDirectiveMatch = {
+  query: string;
+  cleanedText: string;
+};
+
+type ClipboardCompatModule = {
+  setString?: (content: string) => void;
+  default?: {
+    setString: (content: string) => void;
+  };
+};
+
+function extractDocDirective(rawText: string): DocDirectiveMatch | null {
+  const bracketPattern = /\[\[(?:doc|kb|док|файл)\s*:\s*([^[\]]+)\]\]/iu;
+  const inlinePattern = /@(?:doc|kb|док|файл)\s*[:\-]?\s*(.+)$/iu;
+
+  const bracketMatch = rawText.match(bracketPattern);
+  if (bracketMatch && bracketMatch[1]) {
+    const query = bracketMatch[1].trim();
+    const cleanedText = rawText.replace(bracketPattern, "").trim();
+    if (query) return { query, cleanedText };
+  }
+
+  const inlineMatch = rawText.match(inlinePattern);
+  if (inlineMatch && inlineMatch[1]) {
+    const query = inlineMatch[1].trim();
+    const cleanedText = rawText.replace(inlinePattern, "").trim();
+    if (query) return { query, cleanedText };
+  }
+
+  return null;
+}
+
+async function resolveLocalDocContext(
+  rawText: string,
+): Promise<LocalDocContextResolution> {
+  const directive = extractDocDirective(rawText);
+  const fallbackText = rawText.trim();
+
+  if (!directive) {
+    return { userVisibleText: fallbackText, modelInputText: fallbackText };
+  }
+
+  const allDocs = await localVectorStore.listAll();
+  const queryLc = directive.query.toLowerCase();
+  const byName = allDocs.find((doc) => {
+    const nameLc = doc.name.toLowerCase();
+    return nameLc === queryLc || nameLc.includes(queryLc);
+  });
+
+  const byText =
+    byName ?? (await localVectorStore.textSearch(directive.query, 1))[0];
+  if (!byText) {
+    const cleanText = directive.cleanedText || fallbackText;
+    return { userVisibleText: cleanText, modelInputText: cleanText };
+  }
+
+  const cleanText = directive.cleanedText || fallbackText;
+  const excerpt = byText.content.slice(0, 8000);
+  const contextBlock =
+    `Local Knowledge Base document explicitly requested by user.\n` +
+    `Document: ${byText.name}\n\n` +
+    `${excerpt}`;
+
+  const modelInputText = cleanText
+    ? `${cleanText}\n\n${contextBlock}`
+    : contextBlock;
+
+  return { userVisibleText: cleanText || fallbackText, modelInputText };
+}
+
+async function setClipboardString(content: string): Promise<void> {
+  const maybeNavigator = globalThis.navigator as
+    | (Navigator & {
+        clipboard?: { writeText: (text: string) => Promise<void> };
+      })
+    | undefined;
+
+  try {
+    const communityModuleName = "@react-native-clipboard/clipboard";
+    const communityClipboard = (await import(
+      communityModuleName
+    )) as ClipboardCompatModule;
+    const setString =
+      communityClipboard.setString ?? communityClipboard.default?.setString;
+    if (setString) {
+      setString(content);
+      return;
+    }
+  } catch {
+    // Fallback to legacy module below.
+  }
+
+  try {
+    const legacyModuleName =
+      "react-native/Libraries/Components/Clipboard/Clipboard";
+    const legacyClipboard = (await import(
+      legacyModuleName
+    )) as ClipboardCompatModule;
+    const setString =
+      legacyClipboard.setString ?? legacyClipboard.default?.setString;
+    if (setString) {
+      setString(content);
+      return;
+    }
+  } catch {
+    // Final fallback: web Clipboard API.
+  }
+
+  if (maybeNavigator?.clipboard?.writeText) {
+    void maybeNavigator.clipboard.writeText(content);
+  }
+}
+
+async function compressImageForAttachment(uri: string) {
+  const context = ExpoImageManipulator.manipulate(uri);
+  context.resize({ width: 512 });
+  const rendered = await context.renderAsync();
+  return rendered.saveAsync({
+    compress: 0.6,
+    format: SaveFormat.JPEG,
+    base64: true,
+  });
 }
 
 export default function ChatScreen() {
@@ -205,6 +338,19 @@ export default function ChatScreen() {
       const text = overrideText ?? inputText;
       if ((!text.trim() && attachments.length === 0) || isStreaming) return;
 
+      let userVisibleText = text.trim();
+      let modelInputText = text.trim();
+      try {
+        const resolved = await resolveLocalDocContext(text);
+        userVisibleText = resolved.userVisibleText;
+        modelInputText = resolved.modelInputText;
+      } catch (resolveError) {
+        AppLogger.warn(
+          "Failed to resolve local KB context directive",
+          resolveError,
+        );
+      }
+
       let conversationId = currentConversationId;
       if (!conversationId) {
         try {
@@ -220,7 +366,7 @@ export default function ChatScreen() {
       const userMessage: ChatMessage = {
         id: Date.now(),
         role: "user",
-        content: text.trim(),
+        content: userVisibleText,
         createdAt: new Date().toISOString(),
         attachments: attachments,
       };
@@ -255,7 +401,7 @@ export default function ChatScreen() {
           "POST",
           "chat",
           {
-            content: userMessage.content,
+            content: modelInputText,
             attachments: userMessage.attachments,
             history,
             userInstructions,
@@ -293,6 +439,8 @@ export default function ChatScreen() {
             ragSettings: {
               provider: ragSettings.provider,
               qdrant: ragSettings.qdrant,
+              supabase: ragSettings.supabase,
+              replit: ragSettings.replit,
             },
             mcpServers: mcpServers.map((server) => ({
               name: server.name,
@@ -534,6 +682,8 @@ export default function ChatScreen() {
       erpSettings.specUrl,
       ragSettings.provider,
       ragSettings.qdrant,
+      ragSettings.supabase,
+      ragSettings.replit,
       generateSummary,
       incrementUsage,
       incrementRequests,
@@ -566,15 +716,7 @@ export default function ChatScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         if (!asset) return;
-        const compressed = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [{ resize: { width: 512 } }],
-          {
-            compress: 0.6,
-            format: ImageManipulator.SaveFormat.JPEG,
-            base64: true,
-          },
-        );
+        const compressed = await compressImageForAttachment(asset.uri);
         const attachment: Attachment = {
           name: `Photo ${new Date().toLocaleTimeString()}`,
           type: "image",
@@ -600,15 +742,7 @@ export default function ChatScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         if (!asset) return;
-        const compressed = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [{ resize: { width: 512 } }],
-          {
-            compress: 0.6,
-            format: ImageManipulator.SaveFormat.JPEG,
-            base64: true,
-          },
-        );
+        const compressed = await compressImageForAttachment(asset.uri);
         const attachment: Attachment = {
           name: asset.fileName || "Image",
           type: "image",
@@ -782,7 +916,7 @@ export default function ChatScreen() {
   const handleCopyMessage = useCallback((content: string) => {
     const text = content.trim();
     if (!text) return;
-    Clipboard.setString(text);
+    void setClipboardString(text);
     if (Platform.OS !== "web") {
       Haptics.selectionAsync().catch(() => {});
     }

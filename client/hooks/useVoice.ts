@@ -206,6 +206,8 @@ export function useVoice() {
           ragSettings: {
             provider: rag.provider,
             qdrant: rag.qdrant,
+            supabase: rag.supabase,
+            replit: rag.replit,
           },
         },
         {

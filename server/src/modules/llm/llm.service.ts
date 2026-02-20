@@ -21,13 +21,19 @@ export class LlmService implements OnModuleInit {
           this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL") ||
           "https://api.openai.com/v1",
         apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") || "",
-        defaultModel: "gpt-4o",
+        defaultModel: "gpt-5.2",
         available: true,
       },
       openai: {
         baseUrl: "https://api.openai.com/v1",
         apiKey: "",
-        defaultModel: "gpt-4o",
+        defaultModel: "gpt-5.2",
+        available: true,
+      },
+      google: {
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+        apiKey: "",
+        defaultModel: "gemini-2.5-flash",
         available: true,
       },
       groq: {
@@ -45,7 +51,7 @@ export class LlmService implements OnModuleInit {
       custom: {
         baseUrl: "",
         apiKey: "",
-        defaultModel: "gpt-4o",
+        defaultModel: "gpt-5.2",
         available: true,
       },
     };
@@ -57,6 +63,7 @@ export class LlmService implements OnModuleInit {
     string[]
   > = {
     openai: ["api.openai.com"],
+    google: ["generativelanguage.googleapis.com"],
     groq: ["api.groq.com"],
     ollama: ["localhost", "127.0.0.1"],
   };
@@ -137,7 +144,7 @@ export class LlmService implements OnModuleInit {
 
   getModel(settings?: LlmSettings): string {
     if (!settings) {
-      return "gpt-4o";
+      return "gpt-5.2";
     }
     const config = this.getProviderConfig(settings);
     return settings.modelName || config.defaultModel;
@@ -150,17 +157,33 @@ export class LlmService implements OnModuleInit {
   getAvailableModels(provider: LlmProvider): string[] {
     switch (provider) {
       case "replit":
+        return [
+          "gpt-5.2",
+          "gpt-5.1",
+          "claude-sonnet-4",
+          "claude-opus-4.1",
+          "gemini-3.1-pro-preview",
+        ];
       case "openai":
-        return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"];
+        return ["gpt-5.2", "gpt-5.1", "gpt-5-mini", "gpt-5-nano", "o3"];
+      case "google":
+        return [
+          "gemini-3.1-pro-preview",
+          "gemini-3-flash-preview",
+          "gemini-3-pro-preview",
+          "gemini-2.5-pro",
+          "gemini-2.5-flash",
+        ];
       case "groq":
         return [
-          "llama-3.3-70b-versatile",
-          "llama-3.1-8b-instant",
-          "mixtral-8x7b-32768",
-          "gemma2-9b-it",
+          "meta-llama/llama-4-maverick-17b-128e-instruct",
+          "meta-llama/llama-4-scout-17b-16e-instruct",
+          "moonshotai/kimi-k2-instruct-0905",
+          "qwen/qwen3-32b",
+          "openai/gpt-oss-120b",
         ];
       case "ollama":
-        return ["llama3", "mistral", "codellama", "phi3"];
+        return ["qwen3", "qwen3-coder", "deepseek-r1", "gemma3", "llama3.3"];
       case "custom":
         return [];
       default:

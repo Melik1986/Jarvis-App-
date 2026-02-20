@@ -5,7 +5,6 @@ import {
   ScrollView,
   TextInput,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,14 +14,12 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
 import type { ERPProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
-import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { secureApiRequest } from "@/lib/query-client";
 import type { EphemeralCredentials } from "@/lib/jwe-encryption";
@@ -344,16 +341,6 @@ export default function ERPSettingsScreen() {
     testResult: null,
   });
 
-  const apiTypes: {
-    id: APIType;
-    name: string;
-    descriptionKey: TranslationKey;
-  }[] = [
-    { id: "odata", name: t("odata"), descriptionKey: "odataDesc" },
-    { id: "rest", name: t("rest"), descriptionKey: "restDesc" },
-    { id: "graphql", name: t("graphql"), descriptionKey: "graphqlDesc" },
-  ];
-
   const handleSave = () => {
     setERPSettings({
       provider: form.provider,
@@ -423,8 +410,6 @@ export default function ERPSettingsScreen() {
     await Linking.openURL(selectedProviderDocsUrl);
   };
 
-  const isCustom = form.provider === "custom";
-  const isSap = form.provider === "sap";
   const showDemo = __DEV__;
 
   const providers: { id: ERPProvider; label: string }[] = [
@@ -444,9 +429,7 @@ export default function ERPSettingsScreen() {
           { backgroundColor: theme.backgroundRoot },
         ]}
       >
-        {isAuthenticating ? (
-          <ActivityIndicator size="large" color={theme.primary} />
-        ) : (
+        {isAuthenticating ? null : (
           <View style={{ alignItems: "center", padding: Spacing.xl }}>
             <ThemedText
               style={{ marginBottom: Spacing.lg, textAlign: "center" }}
@@ -535,67 +518,6 @@ export default function ERPSettingsScreen() {
           t={t}
         />
       </View>
-
-      {(isCustom || isSap) && (
-        <View style={styles.section}>
-          <ThemedText
-            style={[styles.sectionTitle, { color: theme.textTertiary }]}
-          >
-            {t("apiType")}
-          </ThemedText>
-
-          <View style={styles.typeList}>
-            {apiTypes.map((type) => (
-              <Pressable
-                key={type.id}
-                style={[
-                  styles.typeItem,
-                  {
-                    backgroundColor: theme.backgroundDefault,
-                    borderColor: theme.border,
-                  },
-                  form.apiType === type.id && {
-                    borderColor: theme.primary,
-                    backgroundColor: theme.primary + "10",
-                  },
-                ]}
-                onPress={() => updateForm({ apiType: type.id })}
-              >
-                <View style={styles.typeContent}>
-                  <ThemedText style={[styles.typeName, { color: theme.text }]}>
-                    {type.name}
-                  </ThemedText>
-                  <ThemedText
-                    style={[
-                      styles.typeDescription,
-                      { color: theme.textSecondary },
-                    ]}
-                  >
-                    {t(type.descriptionKey)}
-                  </ThemedText>
-                </View>
-                {form.apiType === type.id ? (
-                  <View
-                    style={[
-                      styles.checkCircle,
-                      { backgroundColor: theme.primary },
-                    ]}
-                  >
-                    <AnimatedCheckIcon size={16} color={theme.buttonText} />
-                  </View>
-                ) : (
-                  <View
-                    style={[
-                      styles.emptyCircle,
-                      { borderColor: theme.textTertiary },
-                    ]}
-                  />
-                )}
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
 
       <View style={styles.buttonContainer}>
         <TestConnectionResult
@@ -707,40 +629,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     fontSize: 16,
-  },
-  typeList: {
-    gap: Spacing.sm,
-  },
-  typeItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: BorderRadius.md,
-    padding: Spacing.lg,
-    borderWidth: 1,
-  },
-  typeContent: {
-    flex: 1,
-  },
-  typeName: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  typeDescription: {
-    fontSize: 14,
-  },
-  checkCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
   },
   buttonContainer: {
     marginTop: Spacing.lg,

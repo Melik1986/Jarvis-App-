@@ -15,8 +15,8 @@ import { RagSettingsRequest } from "../rag/rag.types";
 export { ErpSettingsDto };
 
 export class LlmSettingsDto implements LlmSettings {
-  @IsIn(["replit", "openai", "groq", "ollama", "custom"])
-  provider!: "replit" | "openai" | "groq" | "ollama" | "custom";
+  @IsIn(["replit", "openai", "google", "groq", "ollama", "custom"])
+  provider!: "replit" | "openai" | "google" | "groq" | "ollama" | "custom";
 
   @IsOptional()
   @IsString()
@@ -44,14 +44,49 @@ export class QdrantSettingsDto {
   collectionName!: string;
 }
 
+export class SupabaseSettingsDto {
+  @IsString()
+  url!: string;
+
+  @IsOptional()
+  @IsString()
+  apiKey?: string;
+
+  @IsString()
+  tableName!: string;
+}
+
+export class ReplitRagSettingsDto {
+  @IsString()
+  tableName!: string;
+}
+
 export class RagSettingsDto implements RagSettingsRequest {
-  @IsIn(["qdrant", "none"])
-  provider!: "qdrant" | "none";
+  @IsIn(["qdrant", "supabase", "replit", "local", "none"])
+  provider!: "qdrant" | "supabase" | "replit" | "local" | "none";
 
   @IsOptional()
   @ValidateNested()
   @Type(() => QdrantSettingsDto)
   qdrant?: QdrantSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SupabaseSettingsDto)
+  supabase?: SupabaseSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ReplitRagSettingsDto)
+  replit?: ReplitRagSettingsDto;
+
+  @IsOptional()
+  @IsString()
+  openaiApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  openaiBaseUrl?: string;
 }
 
 export class McpServerDto {
