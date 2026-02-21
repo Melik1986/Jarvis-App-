@@ -27,6 +27,19 @@
         "gradleCommand": ":app:assembleRelease"
       }
     },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1",
+        "EXPO_PUBLIC_DOMAIN": "https://axon-ai.replit.app"
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
     "production": {
       "distribution": "store",
       "channel": "production",
@@ -55,7 +68,10 @@
   },
   "update": {
     "development": {
-      "channel": "development"
+      "channel": "dev"
+    },
+    "staging": {
+      "channel": "staging"
     },
     "production": {
       "channel": "production"

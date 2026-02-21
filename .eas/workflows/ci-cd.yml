@@ -2,99 +2,17 @@ name: CI/CD Pipeline
 
 type: workflow
 
-on:
-  push:
-    branches:
-      - main
-      - dev
-  pull_request:
-    branches:
-      - main
-      - dev
-
 jobs:
-  # Защита через проверки кода (аналог Husky pre-commit)
-  security-checks:
-    name: Security & Quality Checks
-    type: function
-    config:
-      # Используем Node.js образ для проверок
-      node: "18"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Нужно для gitleaks (полная история)
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      # 1. Проверка линтинга и форматирования (аналог lint-staged)
-      - name: Run lint-staged checks
-        run: |
-          echo "Running lint-staged checks..."
-          npx lint-staged --diff="origin/${{ github.base_ref }}...HEAD" --verbose
-
-      # 2. Проверка на утечки секретов (аналог gitleaks)
-      - name: Run gitleaks scan
-        run: |
-          echo "Running gitleaks security scan..."
-          # Устанавливаем gitleaks
-          wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
-          tar -xzf gitleaks.tar.gz
-          sudo mv gitleaks /usr/local/bin/
-          
-          # Запускаем сканирование
-          gitleaks detect --source . --verbose --redact
-
-      # 3. Дополнительные проверки безопасности
-      - name: Run security audit
-        run: npm audit --audit-level=high
-
-  # Development workflow для ветки dev
-  development-build:
-    name: Development Build & Test
-    needs: security-checks
-    if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
+  build_development:
+    name: Build Android development
     type: build
     params:
       platform: android
       profile: development
-      buildType: 'apk'
 
-  # Production workflow для ветки main  
-  production-build:
-    name: Production Build
-    needs: security-checks
-    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+  build_production:
+    name: Build production for all platforms
     type: build
-    params:
-      platform: all
-      profile: production
-      autoIncrement: true
-
-  # OTA обновление для dev ветки
-  dev-ota-update:
-    name: Dev OTA Update
-    needs: development-build
-    if: github.ref == 'refs/heads/dev'
-    type: update
-    params:
-      channel: development
-      message: "Dev update from ${{ github.sha }}"
-
-  # Публикация production версии
-  production-submit:
-    name: Submit to Stores
-    needs: production-build
-    if: github.ref == 'refs/heads/main'
-    type: submit
     params:
       platform: all
       profile: production

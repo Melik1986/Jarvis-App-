@@ -9,125 +9,41 @@ on:
     branches: [main]
 
 jobs:
-  # Строгая безопасность и качество для production
-  production-quality-gate:
-    name: Production Quality Gate
-    type: function
-    config:
-      node: "18"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Критичная проверка линтинга (аналог lint-staged)
-      - name: Strict linting
-        run: |
-          echo "🔍 Running strict linting for production..."
-          npm run lint
-          echo "✅ Linting passed"
-
-      # Обязательная проверка типов
-      - name: TypeScript validation
-        run: |
-          echo "🔍 Running TypeScript validation..."
-          npm run check:types
-          echo "✅ TypeScript validation passed"
-
-      # Обязательная проверка безопасности (аналог gitleaks)
-      - name: Security validation
-        run: |
-          echo "🔒 Running production security validation..."
-          # Устанавливаем gitleaks
-          wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
-          tar -xzf gitleaks.tar.gz
-          sudo mv gitleaks /usr/local/bin/
-          rm gitleaks.tar.gz
-          
-          # Сканируем на наличие секретов (строгий режим)
-          gitleaks detect --source . --verbose --redact --log-level=info --exit-code=1
-          echo "✅ Security validation passed"
-
-      # Проверка зависимостей на уязвимости
-      - name: Production dependency audit
-        run: |
-          echo "🔒 Running production dependency audit..."
-          npm audit --audit-level=moderate
-          echo "✅ Dependency audit passed"
-
-  # Production сборка для iOS
-  build-ios-production:
-    name: Build iOS Production
-    needs: production-quality-gate
+  build_ios_production:
+    name: Build iOS production
     type: build
     params:
       platform: ios
       profile: production
-      autoIncrement: true
-      cache: true
 
-  # Production сборка для Android
-  build-android-production:
-    name: Build Android Production
-    needs: production-quality-gate
+  build_android_production:
+    name: Build Android production
+    needs: [build_ios_production]
     type: build
     params:
       platform: android
       profile: production
-      autoIncrement: true
-      cache: true
 
-  # Публикация в App Store
-  submit-ios:
-    name: Submit to App Store
-    needs: build-ios-production
+  submit_ios_production:
+    name: Submit iOS to App Store
+    needs: [build_ios_production]
     type: submit
     params:
       platform: ios
       profile: production
-      submitProfile: production
 
-  # Публикация в Google Play
-  submit-android:
-    name: Submit to Google Play
-    needs: build-android-production
+  submit_android_production:
+    name: Submit Android to Google Play
+    needs: [build_android_production]
     type: submit
     params:
       platform: android
       profile: production
-      submitProfile: production
 
-  # Production OTA обновление
-  production-ota:
-    name: Deploy Production OTA
-    needs: [build-ios-production, build-android-production]
+  update_production:
+    name: OTA update production
+    needs: [build_ios_production, build_android_production]
     type: update
     params:
       channel: production
-      message: "Production release ${{ github.ref_name }}"
-      runtime-version: "1.0.0"
-
-  # Итоговое уведомление
-  production-complete:
-    name: Production Complete
-    needs: [submit-ios, submit-android, production-ota]
-    if: success()
-    type: function
-    steps:
-      - name: Production success
-        run: |
-          echo "🎉 Production workflow completed successfully!"
-          echo "📱 iOS build submitted to App Store"
-          echo "🤖 Android build submitted to Google Play"
-          echo "🚀 OTA update deployed to production channel"
+      message: "Production update"

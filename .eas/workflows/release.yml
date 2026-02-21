@@ -1,0 +1,35 @@
+name: Release Workflow
+
+type: workflow
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  pull_request:
+    branches:
+      - 'release/**'
+
+jobs:
+  build_ios_staging:
+    name: Build iOS staging
+    type: build
+    params:
+      platform: ios
+      profile: staging
+
+  build_android_staging:
+    name: Build Android staging
+    needs: [build_ios_staging]
+    type: build
+    params:
+      platform: android
+      profile: staging
+
+  update_staging:
+    name: OTA update staging
+    needs: [build_ios_staging, build_android_staging]
+    type: update
+    params:
+      channel: staging
+      message: "Staging update"

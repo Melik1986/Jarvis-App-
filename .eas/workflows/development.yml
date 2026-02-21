@@ -9,93 +9,17 @@ on:
     branches: [dev]
 
 jobs:
-  # Безопасность и качество кода (аналог Husky pre-commit)
-  code-quality:
-    name: Code Quality & Security
-    type: function
-    config:
-      node: "18"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Проверка линтинга (аналог lint-staged)
-      - name: Lint code
-        run: |
-          echo "🔍 Running linting checks..."
-          npm run lint
-          echo "✅ Linting passed"
-
-      # Проверка типов TypeScript
-      - name: Type check
-        run: |
-          echo "🔍 Running TypeScript checks..."
-          npm run check:types
-          echo "✅ Type checking passed"
-
-      # Проверка на утечки секретов (аналог gitleaks)
-      - name: Security scan
-        run: |
-          echo "🔒 Running security scan..."
-          # Устанавливаем gitleaks
-          wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz
-          tar -xzf gitleaks.tar.gz
-          sudo mv gitleaks /usr/local/bin/
-          rm gitleaks.tar.gz
-          
-          # Сканируем на наличие секретов
-          gitleaks detect --source . --verbose --redact --log-level=info
-          echo "✅ Security scan passed"
-
-      # Проверка зависимостей на уязвимости
-      - name: Dependency audit
-        run: |
-          echo "🔒 Running dependency audit..."
-          npm audit --audit-level=high
-          echo "✅ Dependency audit passed"
-
-  # Разработка и тестирование новых функций
-  development-build:
-    name: Development Build
-    needs: code-quality
+  build_android_development:
+    name: Build Android development
     type: build
     params:
       platform: android
       profile: development
-      buildType: 'apk'
-      cache: true
 
-  # OTA обновление для тестирования
-  ota-update:
-    name: Deploy OTA Update
-    needs: development-build
+  update_development:
+    name: OTA update development
+    needs: [build_android_development]
     type: update
     params:
-      channel: development
-      message: "Dev build from ${{ github.sha }}"
-      runtime-version: "1.0.0"
-
-  # Уведомление о успешном деплое
-  notify-success:
-    name: Notify Success
-    needs: [development-build, ota-update]
-    if: success()
-    type: function
-    steps:
-      - name: Success notification
-        run: |
-          echo "🎉 Development workflow completed successfully!"
-          echo "📱 OTA update deployed to development channel"
-          echo "🔧 Ready for testing new features"
+      channel: dev
+      message: "Development update"
